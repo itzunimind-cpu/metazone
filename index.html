@@ -471,6 +471,11 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text-body);he
   background-size:1600px 100%;
   animation:shimmer 1.6s infinite linear;
 }
+.skel-green{
+  background:linear-gradient(90deg,rgba(44,74,46,.35) 25%,rgba(44,74,46,.2) 50%,rgba(44,74,46,.35) 75%);
+  background-size:1600px 100%;
+  animation:shimmer 1.6s infinite linear;
+}
 .skel-card{background:var(--bg-card);border:1px solid var(--border);border-radius:3px;overflow:hidden;pointer-events:none;}
 .skel-img{height:188px;}
 .skel-foot{display:flex;border-top:1px solid var(--border);}
@@ -1051,7 +1056,7 @@ function skeletonCard(){
   return`<div class="skel-card">
     <div class="skel-img skel"></div>
     <div class="skel-foot">
-      <div class="skel-btn skel"></div>
+      <div class="skel-btn skel-green"></div>
       <div class="skel-btn skel"></div>
     </div>
   </div>`;
@@ -1074,7 +1079,7 @@ function renderGrid(){
     return;
   }
   if(_matchesLoading&&_loadingCardCount>0){
-    el.innerHTML=`<div class="match-grid">${Array.from({length:_loadingCardCount},()=>skeletonCard()).join('')}</div>`;
+    el.innerHTML=`<div class="match-grid">${Array.from({length:_loadingCardCount},()=>skeletonCard()).join('')}${addMatchCard()}</div>`;
     return;
   }
   if(!matches.length){
