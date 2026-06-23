@@ -1,5 +1,5 @@
 # METAZONE — Project Handoff & Continuity Document
-**Version:** v25 — Session 25. Match status chips, VOD QoL overhaul, nav standardised across all pages, VOD auto-loads most recent match.
+**Version:** v26 — Session 26. Git connected. index.html sidebar + grid QoL pass. Editor bug audit complete (fixes pending).
 **Purpose:** Single source of truth across all chat sessions. Read this first in every new chat.
 
 ---
@@ -20,7 +20,7 @@
 
 | File | Version | Last changed | Notes |
 |------|---------|--------------|-------|
-| index.html | v9.1 | Session 25 | MAP_IMGS fix pending (not uploaded this session — see Section 9) |
+| index.html | v9.5 | Session 26 | All sidebar + grid bugs fixed. Skeleton loader added. Card reveal animation. |
 | editor.html | v5.7 | Session 25 | Match status chip, status icons in dropdown, updateMatchStatusChip() |
 | tournament-create.html | v4.1 | Session 25 | VOD REVIEW nav link added |
 | tournament-editor.html | v1.4 | Session 25 | VOD REVIEW nav link added |
@@ -282,7 +282,7 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 
 | Page | Status | Notes |
 |------|--------|-------|
-| index.html | ✅ Complete | MAP_IMGS bug identified — needs `_lo.jpg` fix (see Section 9) |
+| index.html | ✅ Complete | v9.5 — all sidebar/grid bugs fixed, skeleton loader, card reveal animation |
 | editor.html | ✅ Complete | v5.7 — status chip added |
 | tournament-create.html | ✅ Complete | Nav updated |
 | tournament-editor.html | ✅ Complete | Nav updated |
@@ -322,15 +322,42 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | 25 | **Nav standardised** — all 8 links on every page. VOD REVIEW added to analytics, player, tournament-create, tournament-editor. analytics.html active link bug fixed. |
 | 25 | **VOD auto-loads most recent match** — applyUrlParams() now async. If no URL params or session context, sorts matches by created_at desc and auto-selects latest. |
 | 25 | **index.html MAP_IMGS bug identified** — cards/preview panel broken because MAP_IMGS points to original `_High_Res.png` files. Fix = change to `_lo.jpg`. Not yet applied (file not uploaded this session). |
+| 26 | **Git connected** — repo at github.com/itzunimind-cpu/metazone. All local files pushed. Image assets restored after accidental force-push wipe. |
+| 26 | **index.html audit** — full review against design handoff + bug handoff. MAP_IMGS confirmed already using `_lo.jpg` (was already fixed). |
+| 26 | **index.html: delete day/tournament fixed** — `_idmConfirm()` was nulling `_idmCb` via `closeDeleteWarning()` before calling it. Fixed by capturing callback before close. Affected all delete operations. |
+| 26 | **index.html: add day shows immediately** — new day was pushed to `t.days` but DOM not rebuilt (selectDay used `patchTreeSelection` path). Fixed by calling `renderTree()` immediately after push in both `addDay()` and `addDayInline()`. |
+| 26 | **index.html: day-switch flicker removed** — shimmer always showed 3 ghost cards regardless of actual count. Replaced with correct-count skeleton using `d.match_count`. Added stale fetch guard (`if(activeDayId!==dayId)return`). |
+| 26 | **index.html: match count subtitle** — `selectDay` was setting `main-sub` to empty string. Now shows `d.match_count` immediately, updates with exact count after fetch. |
+| 26 | **index.html: skeleton loader** — warm parchment shimmer animation. Left button slot is green-tinted (matching EDITOR button). Add Match card always present during loading. |
+| 26 | **index.html: card reveal animation** — staggered `cardReveal` fade+slide-up (0.28s, 60ms stagger) triggered only after load, not on selectMatch re-renders. |
+| 26 | **editor.html bug audit** — all 10 bugs from BUGSTOFIX verified in code. None fixed yet. See Section 9 for fix order. |
 
 ---
 
 ## SECTION 9 — PENDING ITEMS (next session)
 
+### DB
 | Priority | Item |
 |----------|------|
 | 🔴 HIGH | Run Session 21 SQL: `ALTER TABLE matches ADD COLUMN IF NOT EXISTS vod_url text; ALTER TABLE matches ADD COLUMN IF NOT EXISTS vod_start_offset int;` |
-| 🔴 HIGH | Fix index.html MAP_IMGS: change all 4 values from `_High_Res.png` to `_lo.jpg`. One-line fix in script block. |
+
+### editor.html — Bug Fixes (in order)
+| Priority | Bug ID | Item |
+|----------|--------|------|
+| 🔴 HIGH | V1+E5 | `confirmWipe` Scenarios A+B set `winner.time_of_wipe` — remove those lines |
+| 🔴 HIGH | E1 | `manualSave` only saves active team's shapes — iterate all `shapesCache` keys |
+| 🔴 HIGH | E9 | `deleteSelected` (match/day/tournament) never deletes `match_players` rows before deleting teams/matches. Also affects index.html delete functions. |
+| 🟡 MED | E4 | `confirmWipe` Scenario A assigns `selfTeam.confirmed_position=2` with no collision check |
+| 🔴 HIGH | E2 | `confirmWipe` all 3 scenarios fire `setTimeout(markMatchEnd,600)` while pin prompt is still active |
+| 🟡 MED | E8 | `confirmSelfLoss` fires `setTimeout(markSelfWipe,300)` while death pin prompt is active |
+| 🟡 MED | E6 | `startRename` — Escape calls `input.blur()` → `finish()` → saves. Should restore original name |
+| 🟢 LOW | E7 | `markSelfLoss` killed-by dropdown uses `!t.time_of_wipe` (static) — needs `t.time_of_wipe > state.time` |
+| 🔴 HIGH | X1 | `mzCtxWrite()` defined but never called — add one call at end of `_activateMatch()` |
+| 🟡 MED | X3 | Auto-load sorts by `created_at` not `updated_at` — blocked on DB migration (add `updated_at` column + trigger to `matches`) |
+
+### Other
+| Priority | Item |
+|----------|------|
 | 🟡 MED | Test calibration tool in real use — verify alignment accuracy per map |
 | 🟡 MED | editor.html drawPath upgrade: animate path point-by-point using `t` values when scrubber moves |
 | 🟡 MED | Welcome modal on all pages (sessionStorage `mz_welcomed` flag) — agreed in Session 20, not yet built |
@@ -377,7 +404,7 @@ VOD ✓ badge = match.vod_start_offset != null
 
 | Issue | Status |
 |-------|--------|
-| index.html map images broken (uses High_Res.png, should use _lo.jpg) | 🔴 Identified, fix is one line in MAP_IMGS const, not yet applied |
+| index.html map images — was listed as broken, confirmed already using `_lo.jpg` | ✅ Not an issue |
 | vod_url + vod_start_offset SQL not confirmed run | 🔴 Must be run before VOD save/restore works |
 | history.html not built | 🟡 Deferred |
 | applyUrlParams on VOD: fast-boot path only runs applyUrlParams in the `if (session)` branch of getSession, not in onAuthStateChange. If magic link auth fires onAuthStateChange, applyUrlParams is also called there (both branches covered). | ✅ Handled |
