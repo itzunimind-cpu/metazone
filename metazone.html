@@ -1,0 +1,2081 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Metazone · Match intelligence for BGMI</title>
+<meta name="description" content="The operating system for BGMI coaches and analysts. Annotate VODs, log every rotation, score every match. One tool, instead of seven.">
+
+<!-- Fonts: Fraunces (display, characterful serif) + Inter Tight (body) + JetBrains Mono (mono) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,800;1,9..144,400;1,9..144,800&family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  /* Our colour scheme — cyan/navy */
+  --bg:        #020617;
+  --bg-2:      #0b1221;
+  --bg-3:      #0f172a;
+  --rule:      #1e293b;
+  --rule-2:    #334155;
+  --ink:       #f1f5f9;
+  --ink-2:     #cbd5e1;
+  --ink-3:     #94a3b8;
+  --ink-4:     #64748b;
+  --accent:    #22d3ee;
+  --accent-2:  #67e8f9;
+  --good:      #4ade80;
+  --bad:       #f87171;
+
+  --f-display: 'Fraunces', 'Georgia', serif;
+  --f-serif:   'Playfair Display', 'Georgia', serif;
+  --f-body:    'Inter Tight', system-ui, sans-serif;
+  --f-mono:    'JetBrains Mono', ui-monospace, monospace;
+
+  --maxw: 1180px;
+  --gutter: 32px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+a { color: inherit; text-decoration: none; }
+button { font: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+
+/* Grid dot texture */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: radial-gradient(rgba(34,211,238,0.04) 1px, transparent 1px);
+  background-size: 32px 32px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* =================== TYPOGRAPHY HELPERS =================== */
+.eyebrow {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.eyebrow .num { color: var(--accent); }
+
+.h-display {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-optical-sizing: auto;
+  letter-spacing: -0.025em;
+  line-height: 1.02;
+}
+
+.italic { font-style: italic; }
+
+/* =================== NAV =================== */
+.nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 50;
+  padding: 18px 0;
+  transition: background .25s ease, border-color .25s ease, padding .25s ease;
+  border-bottom: 1px solid transparent;
+}
+.nav.scrolled {
+  background: rgba(14,13,11,0.85);
+  backdrop-filter: blur(14px) saturate(140%);
+  border-bottom-color: var(--rule);
+  padding: 12px 0;
+}
+.nav-inner {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.brand {
+  display: flex; align-items: baseline; gap: 10px;
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+}
+.brand .dot {
+  display: inline-block; width: 7px; height: 7px;
+  background: var(--accent); border-radius: 50%;
+  transform: translateY(-2px);
+}
+.brand small {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  margin-left: 4px;
+}
+.nav-links { display: flex; gap: 28px; }
+.nav-links a {
+  font-size: 13px; color: var(--ink-2);
+  transition: color .15s;
+}
+.nav-links a:hover { color: var(--ink); }
+.nav-cta {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--f-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  background: var(--ink);
+  color: var(--bg);
+  padding: 9px 16px;
+  border-radius: 2px;
+  font-weight: 600;
+  transition: background .15s, color .15s;
+}
+.nav-cta:hover { background: var(--accent); color: var(--bg); }
+
+/* =================== HERO =================== */
+.hero {
+  position: relative;
+  z-index: 2;
+  padding: 160px 0 100px;
+  border-bottom: 1px solid var(--rule);
+}
+.hero-inner {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 72px;
+  align-items: center;
+}
+.hero-eyebrow { margin-bottom: 28px; }
+.hero h1 {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: clamp(48px, 6vw, 76px);
+  line-height: 1.0;
+  letter-spacing: -0.03em;
+  margin-bottom: 28px;
+}
+.hero h1 em {
+  font-style: italic;
+  font-weight: 400;
+  color: var(--accent);
+}
+.hero-sub {
+  font-size: 18px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  margin-bottom: 36px;
+  max-width: 520px;
+}
+.hero-actions { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 13px 22px;
+  font-family: var(--f-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  border-radius: 2px;
+  transition: all .18s ease;
+}
+.btn-primary {
+  background: var(--accent);
+  color: var(--bg);
+}
+.btn-primary:hover { background: var(--accent-2); transform: translateY(-1px); }
+.btn-ghost {
+  border: 1px solid var(--rule-2);
+  color: var(--ink-2);
+}
+.btn-ghost:hover { color: var(--ink); border-color: var(--ink-3); }
+.btn .arr {
+  width: 14px; height: 14px;
+  transition: transform .18s;
+}
+.btn:hover .arr { transform: translateX(3px); }
+
+.hero-meta {
+  margin-top: 28px;
+  display: flex;
+  gap: 24px;
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--ink-4);
+  text-transform: uppercase;
+}
+.hero-meta span { display: flex; align-items: center; gap: 8px; }
+.hero-meta .live {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--good);
+  box-shadow: 0 0 0 4px rgba(123,163,104,0.15);
+}
+
+/* HERO VISUAL — annotated map fragment */
+.hero-visual {
+  position: relative;
+  aspect-ratio: 5 / 4.5;
+  background: linear-gradient(160deg, #1a1816 0%, #100f0d 100%);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 30px 60px -30px rgba(0,0,0,0.7), 0 0 0 1px rgba(232,168,56,0.04);
+}
+.hv-corner {
+  position: absolute;
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  z-index: 3;
+}
+.hv-tl { top: 14px; left: 16px; }
+.hv-tr { top: 14px; right: 16px; color: var(--accent); }
+.hv-bl { bottom: 14px; left: 16px; color: var(--ink-4); font-size: 9px; }
+.hv-br { bottom: 14px; right: 16px; }
+
+.hv-svg {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+}
+
+/* =================== SECTION SCAFFOLD =================== */
+section { position: relative; z-index: 2; }
+.section-inner {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 110px var(--gutter);
+}
+.section-head {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 60px;
+  margin-bottom: 64px;
+  align-items: end;
+}
+.section-head .left .eyebrow { margin-bottom: 18px; }
+.section-head h2 {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: clamp(36px, 4.4vw, 56px);
+  line-height: 1.04;
+  letter-spacing: -0.025em;
+}
+.section-head h2 em { font-style: italic; color: var(--accent); font-weight: 400; }
+.section-head .right p {
+  font-size: 17px;
+  color: var(--ink-2);
+  line-height: 1.65;
+  max-width: 540px;
+}
+
+/* =================== WHAT IT DOES (snapshot row) =================== */
+.snap {
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  background: linear-gradient(180deg, rgba(255,255,255,0.01), transparent);
+}
+.snap-grid {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+.snap-cell {
+  padding: 48px 28px;
+  border-right: 1px solid var(--rule);
+  position: relative;
+}
+.snap-cell:last-child { border-right: none; }
+.snap-num {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: var(--accent);
+  margin-bottom: 24px;
+}
+.snap-title {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: 22px;
+  line-height: 1.15;
+  margin-bottom: 12px;
+  letter-spacing: -0.015em;
+}
+.snap-desc {
+  font-size: 14px;
+  color: var(--ink-3);
+  line-height: 1.55;
+}
+
+/* =================== WIDGET SHOWCASE =================== */
+.widget-showcase { padding-top: 0; }
+.widget-block {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 64px;
+  padding: 100px 0;
+  border-bottom: 1px solid var(--rule);
+  align-items: start;
+}
+.widget-block:last-child { border-bottom: none; }
+.widget-side { position: sticky; top: 100px; }
+.widget-side .eyebrow { margin-bottom: 16px; }
+.widget-side h3 {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: 32px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin-bottom: 18px;
+}
+.widget-side p {
+  font-size: 15px;
+  color: var(--ink-2);
+  line-height: 1.65;
+  margin-bottom: 24px;
+}
+.widget-feats { list-style: none; padding: 0; }
+.widget-feats li {
+  font-size: 14px;
+  color: var(--ink-2);
+  padding: 10px 0;
+  border-top: 1px solid var(--rule);
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.widget-feats li:first-child { border-top: none; }
+.widget-feats li::before {
+  content: '+';
+  font-family: var(--f-mono);
+  color: var(--accent);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* The widget canvas itself */
+.mock {
+  background: var(--bg-2);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 30px 60px -30px rgba(0,0,0,0.6);
+}
+.mock-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--bg-3);
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--f-mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  letter-spacing: 0.06em;
+}
+.mock-bar-left { display: flex; align-items: center; gap: 10px; }
+.mock-dots { display: flex; gap: 5px; }
+.mock-dots span {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--rule-2);
+}
+.mock-tabs { display: flex; gap: 18px; }
+.mock-tabs span { color: var(--ink-4); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; }
+.mock-tabs .on { color: var(--accent); }
+
+/* ----- Editor mockup ----- */
+.editor-body {
+  display: grid;
+  grid-template-columns: 220px 1fr 200px;
+  min-height: 460px;
+}
+.ed-col { padding: 14px; border-right: 1px solid var(--rule); }
+.ed-col:last-child { border-right: none; }
+.ed-h {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--ink-4);
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--rule);
+}
+.ed-team {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 10px;
+  border-radius: 3px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: var(--ink-2);
+  cursor: default;
+}
+.ed-team:hover { background: var(--bg-3); }
+.ed-team.on { background: rgba(232,168,56,0.08); color: var(--accent); }
+.ed-team .tdot {
+  width: 8px; height: 8px; border-radius: 50%;
+  flex-shrink: 0;
+}
+.ed-team .tname { flex: 1; font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.04em; }
+.ed-team .tk { font-family: var(--f-mono); font-size: 11px; color: var(--ink-3); }
+
+.ed-map {
+  position: relative;
+  background:
+    radial-gradient(ellipse at 30% 40%, rgba(123,163,104,0.06), transparent 60%),
+    linear-gradient(135deg, #14130f, #0d0c0a);
+  min-height: 100%;
+  overflow: hidden;
+}
+.ed-map-grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(232,168,56,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232,168,56,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+.ed-map-corner {
+  position: absolute;
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--ink-4);
+  text-transform: uppercase;
+}
+.ed-tools {
+  position: absolute;
+  top: 12px; left: 12px;
+  display: flex; flex-direction: column; gap: 4px;
+  z-index: 3;
+}
+.ed-tool {
+  width: 30px; height: 30px;
+  background: rgba(28,26,22,0.7);
+  border: 1px solid var(--rule);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--ink-3);
+  font-size: 13px;
+  border-radius: 3px;
+  backdrop-filter: blur(6px);
+}
+.ed-tool.on { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+.ed-events { padding-bottom: 10px; }
+.ed-evt {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  padding: 8px 10px;
+  border-left: 2px solid var(--rule-2);
+  margin-bottom: 6px;
+  display: flex; justify-content: space-between; align-items: center;
+  color: var(--ink-2);
+}
+.ed-evt.kill { border-color: var(--bad); }
+.ed-evt.zone { border-color: var(--accent); }
+.ed-evt.rot  { border-color: var(--ink-3); }
+.ed-evt .ts { color: var(--ink-4); font-size: 10px; }
+
+/* ----- VOD mockup ----- */
+.vod-body { display: grid; grid-template-columns: 1fr 220px; min-height: 380px; }
+.vod-screen {
+  position: relative;
+  background: #050505;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.vod-frame { position: absolute; inset: 0; }
+.vod-overlay-tag {
+  position: absolute;
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  padding: 4px 8px;
+  text-transform: uppercase;
+  border: 1px solid;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(4px);
+}
+.vod-side {
+  background: var(--bg-3);
+  border-left: 1px solid var(--rule);
+  padding: 14px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.vod-roster {
+  display: flex; flex-direction: column; gap: 4px;
+}
+.vod-player {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--f-mono);
+  font-size: 11px;
+}
+.vod-player .vp-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--good); }
+.vod-player.kia .vp-dot { background: var(--bad); }
+.vod-player.kia .vp-name { color: var(--ink-4); text-decoration: line-through; }
+.vod-evgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.vod-evbtn {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  padding: 6px;
+  text-align: center;
+  border: 1px solid var(--rule-2);
+  color: var(--ink-3);
+  text-transform: uppercase;
+  border-radius: 2px;
+}
+.vod-evbtn.elim  { color: var(--bad); border-color: rgba(194,91,74,0.4); }
+.vod-evbtn.wipe  { color: var(--accent); border-color: rgba(232,168,56,0.4); }
+.vod-timeline {
+  height: 32px;
+  background: var(--bg-2);
+  border-top: 1px solid var(--rule);
+  position: relative;
+  display: flex; align-items: center;
+  padding: 0 14px;
+  font-family: var(--f-mono);
+  font-size: 10px;
+  color: var(--ink-4);
+  letter-spacing: 0.1em;
+}
+.vod-tl-track { position: absolute; left: 14px; right: 70px; height: 4px; background: var(--rule); border-radius: 2px; top: 50%; transform: translateY(-50%); }
+.vod-tl-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ink-3); border-radius: 2px 0 0 2px; width: 38%; }
+.vod-tl-mark { position: absolute; top: -4px; width: 2px; height: 12px; }
+.vod-tl-time { position: absolute; right: 14px; }
+
+/* ----- Analytics mockup ----- */
+.an-body { padding: 22px; min-height: 420px; }
+.an-row { display: flex; gap: 14px; margin-bottom: 22px; }
+.an-stat {
+  flex: 1;
+  padding: 16px;
+  background: var(--bg-3);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+}
+.an-stat .lbl {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--ink-4);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.an-stat .val {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: 36px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.an-stat .delta {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  margin-top: 6px;
+  color: var(--good);
+}
+.an-stat .delta.bad { color: var(--bad); }
+.an-chart-h {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--ink-4);
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  display: flex; justify-content: space-between;
+}
+.an-chart-h .scope { color: var(--accent); }
+.an-bars { display: flex; flex-direction: column; gap: 8px; }
+.an-bar { display: flex; align-items: center; gap: 12px; }
+.an-bar .name {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  width: 80px;
+  text-align: right;
+  color: var(--ink-3);
+  letter-spacing: 0.04em;
+}
+.an-bar .track { flex: 1; height: 10px; background: var(--bg-3); border-radius: 1px; overflow: hidden; }
+.an-bar .fill {
+  height: 100%;
+  background: var(--accent);
+  width: 0;
+  transition: width 1.4s cubic-bezier(0.16,1,0.3,1);
+}
+.an-bar.dim .fill { background: var(--ink-4); }
+.an-bar .v {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  width: 32px;
+}
+.an-callout {
+  margin-top: 22px;
+  padding: 14px 16px;
+  border-left: 2px solid var(--accent);
+  background: rgba(232,168,56,0.05);
+  font-size: 13px;
+  color: var(--ink-2);
+  line-height: 1.6;
+  font-style: italic;
+  font-family: var(--f-display);
+}
+
+/* =================== THESIS / MANIFESTO =================== */
+.thesis {
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  background:
+    radial-gradient(circle at 80% 20%, rgba(232,168,56,0.04), transparent 50%),
+    var(--bg);
+  padding: 140px 0;
+  position: relative;
+  overflow: hidden;
+}
+.thesis-inner {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 80px;
+}
+.thesis-hd {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: clamp(40px, 5.4vw, 72px);
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+  max-width: 18ch;
+}
+.thesis-hd em { font-style: italic; color: var(--accent); font-weight: 400; }
+.thesis-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 40px;
+  align-items: start;
+  max-width: 720px;
+}
+.thesis-prose p {
+  font-size: 17px;
+  color: var(--ink-2);
+  line-height: 1.75;
+  margin-bottom: 22px;
+}
+.thesis-prose p strong { color: var(--ink); font-weight: 600; }
+.thesis-prose p:last-child { margin-bottom: 0; }
+.thesis-side {
+  padding: 32px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: rgba(255,255,255,0.015);
+}
+.thesis-side .label {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 18px;
+}
+.thesis-side .quote {
+  font-family: var(--f-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 22px;
+  line-height: 1.4;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+  margin-bottom: 24px;
+}
+.thesis-side .attr {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  border-top: 1px solid var(--rule);
+  padding-top: 16px;
+}
+
+/* Decorative big serif quote mark */
+.thesis-mark {
+  position: absolute;
+  top: 60px;
+  right: 60px;
+  font-family: var(--f-display);
+  font-style: italic;
+  font-weight: 800;
+  font-size: 320px;
+  line-height: 1;
+  color: rgba(232,168,56,0.04);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* =================== PROOF STRIP =================== */
+.proof {
+  border-bottom: 1px solid var(--rule);
+  padding: 60px 0;
+  background: var(--bg-2);
+}
+.proof-inner {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 40px;
+  flex-wrap: wrap;
+}
+.proof-label {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--ink-4);
+  text-transform: uppercase;
+}
+.proof-orgs {
+  display: flex;
+  gap: 44px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.proof-org {
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: 19px;
+  letter-spacing: -0.015em;
+  color: var(--ink-3);
+  font-style: italic;
+  opacity: 0.75;
+}
+
+/* =================== ACCESS / PRICING =================== */
+.access {
+  padding: 0;
+}
+.access-inner {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 110px var(--gutter);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+}
+.access-card {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 36px;
+  background: var(--bg-2);
+  position: relative;
+}
+.access-card.featured {
+  border-color: var(--accent);
+  background: linear-gradient(160deg, rgba(232,168,56,0.06), rgba(232,168,56,0.01));
+}
+.access-card .tier {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 16px;
+}
+.access-card.featured .tier { color: var(--accent); }
+.access-card h4 {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: 30px;
+  letter-spacing: -0.02em;
+  margin-bottom: 12px;
+}
+.access-card .who {
+  font-size: 14px;
+  color: var(--ink-3);
+  margin-bottom: 24px;
+}
+.access-card ul {
+  list-style: none;
+  padding: 0;
+  margin-bottom: 28px;
+}
+.access-card ul li {
+  font-size: 14px;
+  color: var(--ink-2);
+  padding: 10px 0;
+  border-top: 1px solid var(--rule);
+  display: flex;
+  gap: 10px;
+}
+.access-card ul li::before {
+  content: '·';
+  color: var(--accent);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.access-card .meta {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  color: var(--ink-4);
+  letter-spacing: 0.08em;
+  margin-top: 16px;
+  text-transform: uppercase;
+}
+
+/* =================== ROADMAP =================== */
+.roadmap {
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  background: var(--bg-2);
+}
+.roadmap-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  border-top: 1px solid var(--rule);
+}
+.rm-card {
+  padding: 36px 28px;
+  border-right: 1px solid var(--rule);
+  position: relative;
+}
+.rm-card:last-child { border-right: none; }
+.rm-status {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  margin-bottom: 28px;
+  text-transform: uppercase;
+}
+.rm-status.now    { color: var(--accent); }
+.rm-status.next   { color: var(--ink-2); }
+.rm-status.later  { color: var(--ink-4); }
+.rm-name {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: 22px;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  margin-bottom: 10px;
+}
+.rm-desc {
+  font-size: 13px;
+  color: var(--ink-3);
+  line-height: 1.55;
+}
+
+/* =================== CTA =================== */
+.cta {
+  padding: 160px 0;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.cta-inner {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+  position: relative;
+  z-index: 2;
+}
+.cta h2 {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: clamp(44px, 6vw, 76px);
+  line-height: 1.0;
+  letter-spacing: -0.03em;
+  margin-bottom: 28px;
+}
+.cta h2 em { font-style: italic; color: var(--accent); font-weight: 400; }
+.cta p {
+  font-size: 17px;
+  color: var(--ink-2);
+  line-height: 1.65;
+  margin-bottom: 36px;
+  max-width: 560px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.cta .meta {
+  margin-top: 28px;
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--ink-4);
+  text-transform: uppercase;
+}
+
+/* =================== FOOTER =================== */
+footer {
+  border-top: 1px solid var(--rule);
+  background: var(--bg);
+  padding: 40px 0 32px;
+  position: relative;
+  z-index: 2;
+}
+.footer-inner {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.footer-brand {
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: 16px;
+}
+.footer-meta {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--ink-4);
+}
+
+/* =================== SCANLINE =================== */
+.scanline {
+  position: fixed; top: -100px; left: 0; width: 100%; height: 80px;
+  background: linear-gradient(0deg, transparent, rgba(34,211,238,0.03), transparent);
+  animation: scanMove 14s linear infinite;
+  pointer-events: none; z-index: 1;
+}
+@keyframes scanMove { 0%{top:-100px} 100%{top:100vh} }
+
+/* =================== MANIFESTO SECTION =================== */
+.manifesto-wrap { position: relative; z-index: 2; overflow: hidden; }
+
+.mf-moment {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  border-top: 1px solid var(--rule);
+}
+.mf-inner {
+  width: 100%;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+  position: relative;
+  z-index: 2;
+}
+.mf-ghost {
+  position: absolute;
+  font-family: var(--f-serif);
+  font-weight: 900;
+  font-style: italic;
+  font-size: clamp(180px, 22vw, 320px);
+  line-height: 1;
+  color: rgba(34,211,238,0.03);
+  pointer-events: none;
+  user-select: none;
+  letter-spacing: -0.04em;
+  white-space: nowrap;
+  bottom: -60px;
+  left: -20px;
+}
+.mf-eyebrow {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.35em;
+  color: var(--ink-4);
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 32px;
+  opacity: 0;
+  transition: opacity 0.8s ease;
+}
+.mf-eyebrow.on { opacity: 1; }
+.mf-giant {
+  font-family: var(--f-serif);
+  font-weight: 900;
+  font-size: clamp(64px, 11vw, 160px);
+  line-height: 0.92;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  opacity: 0;
+  transform: translateY(40px);
+  transition: opacity 1.1s cubic-bezier(0.16,1,0.3,1), transform 1.1s cubic-bezier(0.16,1,0.3,1);
+}
+.mf-giant.on { opacity: 1; transform: translateY(0); }
+.mf-giant .cy { color: var(--accent); font-style: italic; }
+
+.mf-large {
+  font-family: var(--f-serif);
+  font-weight: 900;
+  font-size: clamp(44px, 6vw, 88px);
+  line-height: 0.95;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+  opacity: 0;
+  transform: translateY(32px);
+  transition: opacity 1s cubic-bezier(0.16,1,0.3,1), transform 1s cubic-bezier(0.16,1,0.3,1);
+}
+.mf-large.on { opacity: 1; transform: translateY(0); }
+.mf-large .cy { color: var(--accent); font-style: italic; }
+
+.mf-underline { position: relative; display: inline; }
+.mf-underline::after {
+  content: '';
+  position: absolute;
+  bottom: 2px; left: 0;
+  height: 3px;
+  background: var(--accent);
+  width: 0;
+  transition: width 1.4s cubic-bezier(0.16,1,0.3,1) 0.5s;
+}
+.mf-large.on .mf-underline::after,
+.mf-giant.on .mf-underline::after { width: 100%; }
+
+/* Split moment */
+.mf-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: center;
+}
+.mf-quiet {
+  font-family: var(--f-body);
+  font-size: 18px;
+  color: var(--ink-3);
+  line-height: 1.85;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.9s ease 0.35s, transform 0.9s cubic-bezier(0.16,1,0.3,1) 0.35s;
+}
+.mf-quiet.on { opacity: 1; transform: translateY(0); }
+.mf-quiet p { margin-bottom: 24px; }
+.mf-quiet p:last-child { margin-bottom: 0; }
+.mf-quiet strong { color: var(--ink); font-weight: 600; }
+
+/* Kicker moment — full-width centered */
+.mf-moment-kicker { background: var(--bg-2); text-align: center; }
+.mf-moment-kicker .mf-inner { display: flex; flex-direction: column; align-items: center; }
+
+/* Numbers canvas */
+#mf-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
+/* Note moment — split, same as v3 */
+.mf-note-moment { min-height: 80vh; border-top: 1px solid var(--rule); }
+.mf-note-left {
+  opacity: 0; transform: translateY(32px);
+  transition: opacity 1s ease, transform 1s cubic-bezier(0.16,1,0.3,1);
+}
+.mf-note-left.on { opacity: 1; transform: translateY(0); }
+.mf-note-right {
+  opacity: 0; transform: translateY(24px);
+  transition: opacity 1s ease 0.35s, transform 1s cubic-bezier(0.16,1,0.3,1) 0.35s;
+}
+.mf-note-right.on { opacity: 1; transform: translateY(0); }
+.note-rule { width: 32px; height: 1px; background: var(--rule); margin-bottom: 40px; }
+.note-prose {
+  font-family: var(--f-body);
+  font-size: 18px;
+  color: var(--ink-3);
+  line-height: 1.9;
+  font-style: italic;
+  margin-bottom: 28px;
+}
+.note-prose strong { color: var(--ink); font-style: normal; font-weight: 600; }
+.note-bold {
+  font-family: var(--f-body);
+  font-size: 18px;
+  color: var(--ink);
+  line-height: 1.9;
+  font-weight: 600;
+  margin-bottom: 40px;
+}
+.note-mono {
+  font-family: var(--f-mono);
+  font-size: 12px;
+  color: var(--ink-4);
+  letter-spacing: 0.2em;
+}
+
+/* =================== ACCESS CARDS (rewritten) =================== */
+.access-card .tag {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 2px;
+  display: inline-block;
+  margin-bottom: 20px;
+}
+.tag-beta { background: rgba(34,211,238,0.1); color: var(--accent); border: 1px solid rgba(34,211,238,0.25); }
+.tag-investor { background: rgba(167,139,250,0.1); color: #a78bfa; border: 1px solid rgba(167,139,250,0.25); }
+
+/* =================== NAV DEMO BUTTON =================== */
+.nav-demo {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  border: 1px solid var(--rule-2);
+  color: var(--ink-3);
+  padding: 9px 18px;
+  transition: all 0.2s;
+}
+.nav-demo:hover { border-color: var(--accent); color: var(--accent); }
+
+/* =================== REVEAL =================== */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity .9s cubic-bezier(0.16,1,0.3,1), transform .9s cubic-bezier(0.16,1,0.3,1);
+}
+.reveal.on { opacity: 1; transform: translateY(0); }
+
+/* =================== RESPONSIVE =================== */
+@media (max-width: 960px) {
+  .hero { padding: 120px 0 60px; }
+  .hero-inner { grid-template-columns: 1fr; gap: 48px; }
+  .section-head { grid-template-columns: 1fr; gap: 24px; }
+  .snap-grid { grid-template-columns: repeat(2, 1fr); }
+  .snap-cell:nth-child(2) { border-right: none; }
+  .snap-cell:nth-child(1), .snap-cell:nth-child(2) { border-bottom: 1px solid var(--rule); }
+  .widget-block { grid-template-columns: 1fr; gap: 32px; padding: 60px 0; }
+  .widget-side { position: static; }
+  .editor-body { grid-template-columns: 1fr; }
+  .ed-col { border-right: none; border-bottom: 1px solid var(--rule); }
+  .vod-body { grid-template-columns: 1fr; }
+  .vod-side { border-left: none; border-top: 1px solid var(--rule); }
+  .thesis-grid { grid-template-columns: 1fr; gap: 40px; }
+  .mf-split { grid-template-columns: 1fr; gap: 40px; }
+  .access-inner { grid-template-columns: 1fr; padding: 60px var(--gutter); }
+  .roadmap-grid { grid-template-columns: repeat(2, 1fr); }
+  .rm-card:nth-child(2) { border-right: none; }
+  .rm-card:nth-child(1), .rm-card:nth-child(2) { border-bottom: 1px solid var(--rule); }
+  .nav-links { display: none; }
+  .thesis-mark { display: none; }
+  .section-inner { padding: 70px var(--gutter); }
+}
+@media (max-width: 600px) {
+  .snap-grid { grid-template-columns: 1fr; }
+  .snap-cell { border-right: none; border-bottom: 1px solid var(--rule); }
+  .roadmap-grid { grid-template-columns: 1fr; }
+  .rm-card { border-right: none; border-bottom: 1px solid var(--rule); }
+  .footer-inner { flex-direction: column; align-items: flex-start; gap: 12px; }
+}
+
+/* ══════════════════════════════════════
+   WAITLIST MODAL
+══════════════════════════════════════ */
+#wl-overlay{position:fixed;inset:0;background:rgba(2,6,23,.85);backdrop-filter:blur(6px);z-index:500;display:none;align-items:center;justify-content:center;}
+#wl-overlay.show{display:flex;}
+#wl-modal{background:var(--bg-2);border:1px solid var(--rule);border-radius:14px;width:480px;max-width:95vw;display:flex;flex-direction:column;overflow:hidden;animation:wlIn .4s cubic-bezier(.16,1,.3,1);}
+@keyframes wlIn{from{opacity:0;transform:translateY(20px) scale(.97);}to{opacity:1;transform:translateY(0) scale(1);}}
+.wl-header{background:var(--bg-3);border-bottom:1px solid var(--rule);padding:22px 26px 20px;display:flex;flex-direction:column;gap:8px;}
+.wl-logo-row{display:flex;align-items:center;gap:9px;}
+.wl-logo{font-family:var(--f-display);font-size:20px;font-weight:800;color:var(--accent);}
+.wl-badge{font-family:var(--f-mono);font-size:9px;letter-spacing:.15em;color:var(--bg);background:#a78bfa;padding:3px 7px;border-radius:3px;text-transform:uppercase;}
+.wl-headline{font-family:var(--f-display);font-size:24px;font-weight:800;color:var(--ink);letter-spacing:-.5px;line-height:1.2;}
+.wl-headline em{color:var(--accent);font-style:normal;}
+.wl-sub{font-family:var(--f-body);font-size:14px;color:var(--ink-3);line-height:1.65;}
+.wl-features{display:flex;gap:6px;flex-wrap:wrap;padding:14px 26px;border-bottom:1px solid var(--rule);background:rgba(15,23,42,.5);}
+.wl-feat{font-family:var(--f-mono);font-size:10px;color:var(--ink-3);border:1px solid var(--rule);border-radius:4px;padding:4px 9px;letter-spacing:.06em;text-transform:uppercase;}
+.wl-feat.hi{color:#a78bfa;border-color:rgba(167,139,250,.3);background:rgba(167,139,250,.05);}
+.wl-body{padding:22px 26px;display:flex;flex-direction:column;gap:16px;}
+.wl-field{display:flex;flex-direction:column;gap:6px;}
+.wl-label{font-family:var(--f-mono);font-size:10px;color:var(--ink-3);letter-spacing:.1em;text-transform:uppercase;}
+.wl-input{font-family:var(--f-body);font-size:14px;color:var(--ink);background:var(--bg-3);border:1px solid var(--rule);border-radius:7px;padding:11px 14px;outline:none;transition:border-color .15s;width:100%;}
+.wl-input::placeholder{color:#475569;}
+.wl-input:focus{border-color:var(--accent);}
+.wl-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.wl-submit{font-family:var(--f-display);font-size:15px;font-weight:800;color:var(--bg);background:var(--accent);border:none;border-radius:8px;padding:14px;cursor:pointer;transition:opacity .15s;letter-spacing:.01em;}
+.wl-submit:hover{opacity:.88;}
+.wl-submit:disabled{opacity:.4;cursor:not-allowed;}
+.wl-close{font-family:var(--f-mono);font-size:10px;color:var(--ink-3);background:none;border:none;cursor:pointer;text-align:center;letter-spacing:.08em;text-transform:uppercase;transition:color .15s;padding:4px;}
+.wl-close:hover{color:var(--ink);}
+.wl-err{font-family:var(--f-mono);font-size:10px;color:var(--bad);letter-spacing:.06em;display:none;}
+.wl-err.show{display:block;}
+#wl-success{display:none;flex-direction:column;align-items:center;gap:16px;padding:40px 30px;text-align:center;}
+#wl-success.show{display:flex;}
+.wl-success-icon{font-size:40px;}
+.wl-success-title{font-family:var(--f-display);font-size:22px;font-weight:800;color:var(--ink);}
+.wl-success-title em{color:var(--accent);font-style:normal;}
+.wl-success-msg{font-family:var(--f-body);font-size:14px;color:var(--ink-3);line-height:1.75;max-width:360px;}
+.wl-success-wa{font-family:var(--f-display);font-size:14px;font-weight:700;color:var(--bg);background:var(--good);border:none;border-radius:7px;padding:11px 22px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:7px;transition:opacity .15s;}
+.wl-success-wa:hover{opacity:.85;}
+.wl-success-dismiss{font-family:var(--f-mono);font-size:10px;color:var(--ink-3);background:none;border:none;cursor:pointer;letter-spacing:.08em;text-transform:uppercase;transition:color .15s;}
+.wl-success-dismiss:hover{color:var(--ink);}
+</style>
+</head>
+<body>
+
+<div class="scanline"></div>
+
+<!-- ==================== NAV ==================== -->
+<nav class="nav" id="nav">
+  <div class="nav-inner">
+    <div class="brand" style="display:flex;align-items:center;gap:10px;">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2L21 7V17L12 22L3 17V7L12 2Z" stroke="#22d3ee" stroke-width="1.5" fill="none"/>
+      </svg>
+      <span class="dot"></span>Metazone <small>BGMI</small>
+    </div>
+    <div class="nav-links">
+      <a href="#what">What it does</a>
+      <a href="#editor">Inside the tool</a>
+      <a href="#thesis">Why we built it</a>
+      <a href="#access">Access</a>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <a href="metazonedemo.html" class="nav-demo">Try the Demo</a>
+      <a href="#access" class="nav-cta">Request access →</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ==================== HERO ==================== -->
+<section class="hero">
+  <div class="hero-inner">
+    <div>
+      <div class="eyebrow hero-eyebrow">Match intelligence · <span class="num">v24</span></div>
+      <h1>
+        Stop reconstructing matches from <em>screenshots.</em>
+      </h1>
+      <p class="hero-sub">
+        Metazone is the operating system for BGMI coaches and analysts. Annotate VODs, log every rotation, score every match, and build standings in one tool, instead of seven.
+      </p>
+      <div class="hero-actions">
+        <a href="#access" class="btn btn-primary">
+          Request access
+          <svg class="arr" viewBox="0 0 16 16" fill="none"><path d="M1 8h13M9 3l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="square"/></svg>
+        </a>
+        <a href="#editor" class="btn btn-ghost" id="hero-inside-btn">Inside the tool</a>
+      </div>
+      <div class="hero-meta">
+        <span><span class="live"></span>In active use with select BGMI rosters</span>
+        <span>Built for serious competitive teams</span>
+      </div>
+    </div>
+
+    <!-- HERO VISUAL: annotated map fragment -->
+    <div class="hero-visual">
+      <div class="hv-corner hv-tl">M-03 · Sanhok</div>
+      <div class="hv-corner hv-tr">● live · 22:14</div>
+      <div class="hv-corner hv-bl">SQ ALPHA · 3 alive</div>
+      <div class="hv-corner hv-br" style="font-family:var(--f-mono);font-size:10px;color:var(--ink-3);letter-spacing:0.1em;">ZONE 4</div>
+
+      <svg class="hv-svg" viewBox="0 0 500 460" preserveAspectRatio="xMidYMid slice" fill="none">
+        <!-- Topo grid -->
+        <defs>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M40 0H0V40" stroke="rgba(232,168,56,0.06)" stroke-width="0.5" fill="none"/>
+          </pattern>
+          <radialGradient id="terrain" cx="40%" cy="55%" r="60%">
+            <stop offset="0%" stop-color="rgba(123,163,104,0.10)"/>
+            <stop offset="100%" stop-color="transparent"/>
+          </radialGradient>
+        </defs>
+        <rect width="500" height="460" fill="url(#terrain)"/>
+        <rect width="500" height="460" fill="url(#grid)"/>
+
+        <!-- Topographic contour lines -->
+        <path d="M50 200 Q150 180 250 220 T450 240" stroke="rgba(232,168,56,0.10)" stroke-width="0.7" fill="none"/>
+        <path d="M30 260 Q140 240 240 280 T470 290" stroke="rgba(232,168,56,0.07)" stroke-width="0.7" fill="none"/>
+        <path d="M70 320 Q170 300 270 340 T480 350" stroke="rgba(232,168,56,0.05)" stroke-width="0.7" fill="none"/>
+
+        <!-- Zone circles -->
+        <circle cx="260" cy="240" r="170" stroke="rgba(232,168,56,0.18)" stroke-width="1" stroke-dasharray="4 6" fill="none"/>
+        <circle cx="260" cy="240" r="110" stroke="rgba(232,168,56,0.32)" stroke-width="1.2" stroke-dasharray="6 4" fill="none"/>
+        <circle cx="260" cy="240" r="55" stroke="var(--accent)" stroke-width="1.5" fill="rgba(232,168,56,0.04)"/>
+        <text x="260" y="244" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="var(--accent)" letter-spacing="1">SAFE</text>
+
+        <!-- Squad path -->
+        <path d="M80 400 Q140 350 180 320 Q220 290 240 250" stroke="var(--ink-2)" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-dasharray="4 4" class="anim-path-1"/>
+        <!-- Enemy intercept path -->
+        <path d="M420 80 Q360 130 320 170 Q290 200 270 220" stroke="var(--bad)" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-dasharray="3 5" class="anim-path-2"/>
+
+        <!-- Squad pins -->
+        <circle cx="80" cy="400" r="5" fill="var(--ink)" stroke="var(--bg)" stroke-width="1.5"/>
+        <circle cx="240" cy="250" r="5" fill="var(--ink)" stroke="var(--accent)" stroke-width="1.5"/>
+
+        <!-- Enemy pin / death marker -->
+        <g transform="translate(270 220)">
+          <circle r="7" fill="none" stroke="var(--bad)" stroke-width="1.2"/>
+          <line x1="-4" y1="-4" x2="4" y2="4" stroke="var(--bad)" stroke-width="1.5"/>
+          <line x1="-4" y1="4" x2="4" y2="-4" stroke="var(--bad)" stroke-width="1.5"/>
+        </g>
+        <text x="285" y="218" font-family="JetBrains Mono" font-size="9" fill="var(--bad)" letter-spacing="0.5">ROOK ✕ 22:14</text>
+
+        <!-- Compound annotation -->
+        <rect x="200" y="175" width="34" height="22" stroke="rgba(245,241,232,0.15)" stroke-width="0.8" fill="none"/>
+        <text x="217" y="207" text-anchor="middle" font-family="JetBrains Mono" font-size="8" fill="var(--ink-3)">CMPD</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== WHAT IT DOES (4-up snapshot) ==================== -->
+<section class="snap" id="what">
+  <div class="snap-grid">
+    <div class="snap-cell">
+      <div class="snap-num">01 / Capture</div>
+      <div class="snap-title">VODs in, annotations on top.</div>
+      <div class="snap-desc">Drop a YouTube link. The footage loads inside Metazone with the map calibrated as an overlay. Draw rotations and zone phases while it plays.</div>
+    </div>
+    <div class="snap-cell">
+      <div class="snap-num">02 / Log</div>
+      <div class="snap-title">Every kill, knock, wipe, structured.</div>
+      <div class="snap-desc">One click to log a kill. Two to record a wipe with damage source, zone phase, and timestamp. The schema is consistent across every match, every analyst.</div>
+    </div>
+    <div class="snap-cell">
+      <div class="snap-num">03 / Score</div>
+      <div class="snap-title">Standings without the spreadsheet.</div>
+      <div class="snap-desc">KP, PP, total, calculated live from the match log. Tournament cascades by day and match. Standings that match the broadcast.</div>
+    </div>
+    <div class="snap-cell">
+      <div class="snap-num">04 / Decide</div>
+      <div class="snap-title">Patterns your team can't see live.</div>
+      <div class="snap-desc">Death-timing distributions. Lobby placement curves. Where your squad dies in zone 4 versus where the winners die. The decisions hiding in the data.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== WIDGET SHOWCASE ==================== -->
+<section class="widget-showcase" id="editor">
+  <div class="section-inner" style="padding-bottom:0;">
+    <div class="section-head reveal">
+      <div class="left">
+        <div class="eyebrow">Inside the tool · 03 modules</div>
+      </div>
+      <div class="right">
+        <h2>Built for the way <em>analysts actually work.</em></h2>
+        <p style="margin-top:24px;">These aren't mockups for a pitch deck. This is the working surface. Same buttons, same colors, same logic, recreated faithfully so you can see exactly what your staff will be using.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-inner" style="padding-top:0;">
+
+    <!-- ===== EDITOR ===== -->
+    <div class="widget-block reveal">
+      <div class="widget-side">
+        <div class="eyebrow">Module · 01</div>
+        <h3>The Editor.</h3>
+        <p>The core annotation surface. Pick a team, pick a tool, draw on the map. Every event you log shows up on the right rail, timestamped and editable. The match score updates live in the header.</p>
+        <ul class="widget-feats">
+          <li>16 teams pre-loaded from the tournament roster</li>
+          <li>Brush, path, pin, zone, erase · keyboard shortcuts for everything</li>
+          <li>Event log with filters by team, kind, and zone phase</li>
+          <li>Auto-saves every 4 seconds. No "did I save that" panic.</li>
+        </ul>
+      </div>
+
+      <div class="mock">
+        <div class="mock-bar">
+          <div class="mock-bar-left">
+            <div class="mock-dots"><span></span><span></span><span></span></div>
+            <span style="margin-left:8px;">metazone / editor / m-03</span>
+          </div>
+          <div class="mock-tabs">
+            <span class="on">EDITOR</span>
+            <span>VOD</span>
+            <span>ANALYTICS</span>
+          </div>
+        </div>
+        <div class="editor-body">
+          <!-- Teams col -->
+          <div class="ed-col">
+            <div class="ed-h">Teams · 16</div>
+            <div class="ed-team on">
+              <span class="tdot" style="background:var(--accent);"></span>
+              <span class="tname">SQ ALPHA</span>
+              <span class="tk">17</span>
+            </div>
+            <div class="ed-team">
+              <span class="tdot" style="background:var(--bad);"></span>
+              <span class="tname">PHANTOM</span>
+              <span class="tk">14</span>
+            </div>
+            <div class="ed-team">
+              <span class="tdot" style="background:var(--good);"></span>
+              <span class="tname">NEXUS</span>
+              <span class="tk">12</span>
+            </div>
+            <div class="ed-team">
+              <span class="tdot" style="background:#9b8bd9;"></span>
+              <span class="tname">STORM</span>
+              <span class="tk">11</span>
+            </div>
+            <div class="ed-team">
+              <span class="tdot" style="background:#d97a8f;"></span>
+              <span class="tname">VOID</span>
+              <span class="tk">9</span>
+            </div>
+            <div class="ed-team">
+              <span class="tdot" style="background:#6db4c9;"></span>
+              <span class="tname">ASCEND</span>
+              <span class="tk">8</span>
+            </div>
+            <div class="ed-team">
+              <span class="tdot" style="background:#c79b6b;"></span>
+              <span class="tname">RAVEN</span>
+              <span class="tk">7</span>
+            </div>
+            <div class="ed-team" style="opacity:0.6;">
+              <span class="tdot" style="background:var(--ink-4);"></span>
+              <span class="tname">+ 9 more</span>
+              <span class="tk"></span>
+            </div>
+          </div>
+
+          <!-- Map col -->
+          <div class="ed-col" style="padding:0;">
+            <div class="ed-map">
+              <div class="ed-map-grid"></div>
+              <div class="ed-map-corner" style="top:12px;right:14px;">SANHOK · ZONE 4</div>
+              <div class="ed-map-corner" style="bottom:12px;left:14px;">22:14 · LIVE</div>
+
+              <div class="ed-tools">
+                <div class="ed-tool on" title="Path">→</div>
+                <div class="ed-tool" title="Pin">●</div>
+                <div class="ed-tool" title="Zone">○</div>
+                <div class="ed-tool" title="Erase">✕</div>
+              </div>
+
+              <svg viewBox="0 0 380 360" style="position:absolute;inset:0;width:100%;height:100%;" fill="none">
+                <!-- Zone -->
+                <circle cx="200" cy="180" r="120" stroke="rgba(232,168,56,0.20)" stroke-width="1" stroke-dasharray="5 5" fill="none"/>
+                <circle cx="200" cy="180" r="65" stroke="var(--accent)" stroke-width="1.4" fill="rgba(232,168,56,0.05)"/>
+                <!-- Alpha path -->
+                <path class="ed-path" d="M50 320 Q120 270 160 230 Q190 200 200 175" stroke="var(--accent)" stroke-width="2" fill="none" stroke-linecap="round" stroke-dasharray="4 4"/>
+                <!-- Phantom path -->
+                <path class="ed-path-2" d="M340 60 Q280 110 240 150 Q215 170 205 180" stroke="var(--bad)" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-dasharray="3 5"/>
+                <!-- Pins -->
+                <circle cx="50" cy="320" r="4.5" fill="var(--accent)"/>
+                <circle cx="200" cy="175" r="5" fill="var(--accent)" stroke="var(--bg)" stroke-width="1.5"/>
+                <circle cx="340" cy="60" r="4.5" fill="var(--bad)"/>
+                <!-- Death X -->
+                <g transform="translate(215 178)">
+                  <line x1="-5" y1="-5" x2="5" y2="5" stroke="var(--bad)" stroke-width="1.8"/>
+                  <line x1="-5" y1="5" x2="5" y2="-5" stroke="var(--bad)" stroke-width="1.8"/>
+                </g>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Events col -->
+          <div class="ed-col">
+            <div class="ed-h">Event log · 12</div>
+            <div class="ed-evt zone">
+              <span>ZONE_4 · safe</span><span class="ts">22:00</span>
+            </div>
+            <div class="ed-evt rot">
+              <span>ALPHA → cmpd</span><span class="ts">21:42</span>
+            </div>
+            <div class="ed-evt kill">
+              <span>VIPER ✕ NEXUS</span><span class="ts">21:18</span>
+            </div>
+            <div class="ed-evt kill">
+              <span>BLAZE ✕ PHANTOM</span><span class="ts">20:55</span>
+            </div>
+            <div class="ed-evt rot">
+              <span>STORM → ridge</span><span class="ts">20:30</span>
+            </div>
+            <div class="ed-evt kill">
+              <span>ROOK ✕ STORM</span><span class="ts">20:14</span>
+            </div>
+            <div class="ed-evt zone">
+              <span>ZONE_3 · safe</span><span class="ts">19:45</span>
+            </div>
+            <div class="ed-evt rot">
+              <span>GHOST → south</span><span class="ts">19:20</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== VOD REVIEW ===== -->
+    <div class="widget-block reveal">
+      <div class="widget-side">
+        <div class="eyebrow">Module · 02</div>
+        <h3>VOD Review.</h3>
+        <p>Paste any YouTube match link. The footage loads inside Metazone with your minimap calibrated on top. Annotate while it plays. Every event becomes a marker on the timeline you can jump back to.</p>
+        <ul class="widget-feats">
+          <li>Two-point calibration aligns the map to the broadcast minimap</li>
+          <li>Alpha slider for overlay opacity, 0–100%</li>
+          <li>Squad panel tracks who's alive, who's down, which enemy teams remain</li>
+          <li>0.25× to 2× playback. Color-coded markers on the scrub bar.</li>
+        </ul>
+      </div>
+
+      <div class="mock">
+        <div class="mock-bar">
+          <div class="mock-bar-left">
+            <div class="mock-dots"><span></span><span></span><span></span></div>
+            <span style="margin-left:8px;">metazone / vod / m-03</span>
+          </div>
+          <div class="mock-tabs">
+            <span>EDITOR</span>
+            <span class="on">VOD</span>
+            <span>ANALYTICS</span>
+          </div>
+        </div>
+
+        <div class="vod-body">
+          <div class="vod-screen">
+            <!-- Faux video frame: dark with subtle "footage" gradient -->
+            <div class="vod-frame" style="background: radial-gradient(ellipse at 30% 60%, #1a1814, #050505 70%);">
+              <svg viewBox="0 0 500 380" preserveAspectRatio="xMidYMid slice" style="width:100%;height:100%;" fill="none">
+                <!-- Map overlay (calibrated minimap on the broadcast) -->
+                <g opacity="0.55">
+                  <rect x="20" y="20" width="460" height="340" stroke="rgba(232,168,56,0.18)" stroke-width="0.6" stroke-dasharray="6 4" fill="none"/>
+                  <circle cx="250" cy="190" r="130" stroke="rgba(232,168,56,0.20)" stroke-width="0.8" stroke-dasharray="5 5" fill="none"/>
+                  <circle cx="250" cy="190" r="70" stroke="var(--accent)" stroke-width="1" stroke-dasharray="6 3" fill="none"/>
+                </g>
+                <!-- Drawn rotation -->
+                <path d="M70 320 Q140 270 200 240 Q235 220 250 195" stroke="var(--accent)" stroke-width="1.8" stroke-dasharray="6 4" fill="none" stroke-linecap="round" opacity="0.85"/>
+                <circle cx="260" cy="195" r="5" fill="var(--bad)"/>
+              </svg>
+            </div>
+            <!-- Tags overlay -->
+            <div class="vod-overlay-tag" style="top:14px;left:14px;color:var(--accent);border-color:rgba(232,168,56,0.4);">map overlay · α 62%</div>
+            <div class="vod-overlay-tag" style="top:14px;right:14px;color:var(--bad);border-color:rgba(194,91,74,0.4);">elim · 22:14</div>
+            <div class="vod-overlay-tag" style="bottom:14px;left:14px;color:var(--ink-2);border-color:var(--rule-2);">rotation start · 18:40</div>
+            <!-- Play indicator center -->
+            <div style="position:absolute;color:rgba(245,241,232,0.18);font-size:34px;">▶</div>
+          </div>
+
+          <div class="vod-side">
+            <div>
+              <div class="ed-h" style="margin-bottom:10px;">SQ ALPHA</div>
+              <div class="vod-roster">
+                <div class="vod-player"><span class="vp-dot"></span><span class="vp-name">VIPER</span></div>
+                <div class="vod-player"><span class="vp-dot"></span><span class="vp-name">BLAZE</span></div>
+                <div class="vod-player kia"><span class="vp-dot"></span><span class="vp-name">ROOK</span></div>
+                <div class="vod-player"><span class="vp-dot"></span><span class="vp-name">GHOST</span></div>
+              </div>
+            </div>
+            <div>
+              <div class="ed-h" style="margin-bottom:10px;">Log event</div>
+              <div class="vod-evgrid">
+                <div class="vod-evbtn elim">elim</div>
+                <div class="vod-evbtn">loss</div>
+                <div class="vod-evbtn wipe">wipe</div>
+                <div class="vod-evbtn wipe">e.wipe</div>
+              </div>
+            </div>
+            <div>
+              <div class="ed-h" style="margin-bottom:10px;">Enemies · 2 remain</div>
+              <div class="vod-roster">
+                <div class="vod-player"><span class="vp-dot" style="background:var(--ink-2);"></span><span class="vp-name">PHANTOM · 3</span></div>
+                <div class="vod-player"><span class="vp-dot" style="background:var(--ink-2);"></span><span class="vp-name">NEXUS · 4</span></div>
+                <div class="vod-player kia"><span class="vp-dot"></span><span class="vp-name">STORM · 0</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="vod-timeline">
+          <div class="vod-tl-track">
+            <div class="vod-tl-fill"></div>
+            <div class="vod-tl-mark" style="left:18%;background:var(--bad);"></div>
+            <div class="vod-tl-mark" style="left:31%;background:var(--accent);"></div>
+            <div class="vod-tl-mark" style="left:38%;background:var(--ink);box-shadow:0 0 0 2px rgba(245,241,232,0.2);height:18px;top:-7px;"></div>
+            <div class="vod-tl-mark" style="left:47%;background:var(--bad);"></div>
+            <div class="vod-tl-mark" style="left:62%;background:var(--accent);"></div>
+            <div class="vod-tl-mark" style="left:74%;background:var(--bad);"></div>
+          </div>
+          <span class="vod-tl-time">22:14 / 32:08</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== ANALYTICS ===== -->
+    <div class="widget-block reveal">
+      <div class="widget-side">
+        <div class="eyebrow">Module · 03</div>
+        <h3>Analytics.</h3>
+        <p>The patterns that don't fit on a scoreboard. Where your squad dies in zone 4. Where the lobby's top three die. The placement curve across a 9-match day. Filterable by tournament, day, match, and team.</p>
+        <ul class="widget-feats">
+          <li>Death-timing distributions across zone phases</li>
+          <li>Lobby placement curves vs. your team's curve</li>
+          <li>Compound utilization heat by zone phase</li>
+          <li>Rotation timing delta from optimal path</li>
+        </ul>
+      </div>
+
+      <div class="mock">
+        <div class="mock-bar">
+          <div class="mock-bar-left">
+            <div class="mock-dots"><span></span><span></span><span></span></div>
+            <span style="margin-left:8px;">metazone / analytics / day-3</span>
+          </div>
+          <div class="mock-tabs">
+            <span>EDITOR</span>
+            <span>VOD</span>
+            <span class="on">ANALYTICS</span>
+          </div>
+        </div>
+
+        <div class="an-body">
+          <div class="an-row">
+            <div class="an-stat">
+              <div class="lbl">Avg placement</div>
+              <div class="val">3.1</div>
+              <div class="delta">↑ 1.4 vs. day 1</div>
+            </div>
+            <div class="an-stat">
+              <div class="lbl">KP per match</div>
+              <div class="val">11.4</div>
+              <div class="delta">↑ 2.1 vs. day 1</div>
+            </div>
+            <div class="an-stat">
+              <div class="lbl">Avg survival</div>
+              <div class="val">24:18</div>
+              <div class="delta bad">↓ 0:42 vs. day 1</div>
+            </div>
+            <div class="an-stat">
+              <div class="lbl">Zone-4 entries</div>
+              <div class="val">7 / 9</div>
+              <div class="delta">↑ 2 vs. day 1</div>
+            </div>
+          </div>
+
+          <div>
+            <div class="an-chart-h">
+              <span>Death timing by zone phase</span>
+              <span class="scope">SQ ALPHA · day 3</span>
+            </div>
+            <div class="an-bars">
+              <div class="an-bar"><span class="name">Z1 EARLY</span><div class="track"><div class="fill" data-w="8%"></div></div><span class="v">2</span></div>
+              <div class="an-bar"><span class="name">Z2</span><div class="track"><div class="fill" data-w="16%"></div></div><span class="v">4</span></div>
+              <div class="an-bar"><span class="name">Z3</span><div class="track"><div class="fill" data-w="28%"></div></div><span class="v">7</span></div>
+              <div class="an-bar"><span class="name">Z4</span><div class="track"><div class="fill" data-w="62%"></div></div><span class="v">15</span></div>
+              <div class="an-bar"><span class="name">Z5</span><div class="track"><div class="fill" data-w="44%"></div></div><span class="v">11</span></div>
+              <div class="an-bar dim"><span class="name">Z6 LATE</span><div class="track"><div class="fill" data-w="20%"></div></div><span class="v">5</span></div>
+            </div>
+            <div class="an-callout">
+              Alpha is dying disproportionately in zone 4, twice the lobby average. The compound rotation at 18:40 is consistently late. Try anchoring earlier on day 4.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ==================== THESIS ==================== -->
+<section class="thesis" id="thesis">
+  <div class="thesis-mark">"</div>
+  <div class="thesis-inner">
+    <div class="reveal">
+      <div class="eyebrow" style="margin-bottom:24px;">Why we built it</div>
+      <h2 class="thesis-hd">
+        Indian BGMI is, mechanically, among the best in the world.<br><em style="white-space:nowrap;">Decision-making is not.</em>
+      </h2>
+    </div>
+
+    <div class="thesis-grid">
+      <div class="thesis-prose reveal">
+        <p>Wins are celebrated without understanding why. Losses repeat without a structure to examine them. Coaches track scrims in voice notes. Analysts reconstruct match data from screenshots and Excel sheets that nobody opens twice.</p>
+        <p><strong>This is not a talent problem.</strong> It is an infrastructure problem.</p>
+        <p>Metazone is the infrastructure. A human watches the match, logs the kill, draws the path, marks the zone. Metazone collects that work and structures it clearly, consistently, in one place. So the next decision is informed by the last hundred.</p>
+        <p>It isn't an AI insight tool. No algorithm can read the pressure of a zone or the weight of a rotation call. <strong>A coach can.</strong> Metazone makes sure the coach is looking at the right numbers when they do.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ==================== MANIFESTO ==================== -->
+<div class="manifesto-wrap">
+
+  <!-- Victory kicker -->
+  <div class="mf-moment mf-moment-kicker" id="mfm4" style="background:var(--bg-2);">
+    <canvas id="mf-canvas"></canvas>
+    <div class="mf-ghost">Victory.</div>
+    <div class="mf-inner">
+      <div class="mf-giant" id="mfg4" style="font-size:clamp(40px,6vw,84px);line-height:1.05;">
+        Victory is not found<br>
+        in mechanical skill alone.<br><br>
+        It is <span class="cy" style="font-style:italic;"><span class="mf-underline">designed</span><br>within the numbers.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Note: We don't take the coach's call -->
+  <div class="mf-note-moment" id="mfm5">
+    <div class="mf-ghost" style="color:rgba(255,255,255,0.02);">Honesty.</div>
+    <div class="mf-inner" style="padding-top:100px;padding-bottom:100px;">
+      <div class="mf-split">
+        <div class="mf-note-left" id="mfnl">
+          <span class="mf-eyebrow" style="opacity:1;margin-bottom:36px;">// Our Position</span>
+          <div style="font-family:var(--f-serif);font-weight:900;font-size:clamp(36px,4.5vw,60px);line-height:1.08;letter-spacing:-0.02em;">
+            <div style="color:var(--ink);">We don't take</div>
+            <div style="color:var(--ink);">the coach's call.</div>
+            <div style="color:var(--ink-4);margin-top:16px;">We make sure</div>
+            <div style="color:var(--accent);font-style:italic;">it's the right one.</div>
+          </div>
+        </div>
+        <div class="mf-note-right" id="mfnr">
+          <div class="note-rule"></div>
+          <p class="note-prose">This is not an AI insight tool. No algorithm can gauge the intensity of a match. Not the pressure of the zone, the weight of a rotation decision, the moment a team chose to hold instead of push. <strong>But a human can.</strong> Metazone doesn't pretend otherwise.</p>
+          <p class="note-prose">A human watched the match, logged the kill, drew the path, and marked the zone. Metazone collects what humans do and shows it back. Clearly. Structurally. Honestly.</p>
+          <p class="note-bold">Human effort. Human input. Human results.</p>
+          <span class="note-mono">// we improve, together.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ==================== ACCESS ==================== -->
+<section class="access" id="access">
+  <div class="access-inner">
+
+    <div class="access-card featured">
+      <div class="tag tag-beta">Beta Access</div>
+      <h4>Free access, right now.</h4>
+      <p class="who">We are in active beta. Join as a tester and get full access to the entire platform for free during the beta period: every module, every feature, no limits.</p>
+      <ul>
+        <li>Full access to Editor, VOD Review, and Analytics</li>
+        <li>Unlimited matches and tournaments</li>
+        <li>Direct line to the team · your feedback shapes the product</li>
+        <li>Free for the entire duration of the beta period</li>
+      </ul>
+      <a href="#" class="btn btn-primary" style="width:100%;justify-content:center;">
+        Join the beta
+        <svg class="arr" viewBox="0 0 16 16" fill="none"><path d="M1 8h13M9 3l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="square"/></svg>
+      </a>
+      <div class="meta">No payment required · response within 48 hrs</div>
+    </div>
+
+    <div class="access-card">
+      <div class="tag tag-investor">Early Supporter</div>
+      <h4>Back us early, benefit forever.</h4>
+      <p class="who">For organizations and individuals who want to be part of building this from the ground up. Early supporters get permanent benefits across every future Metazone product.</p>
+      <ul>
+        <li>Free early access to every future Metazone product on launch</li>
+        <li>Priority onboarding and feature requests</li>
+        <li>Recognized as a founding supporter in the platform</li>
+        <li>Locked-in rates before public pricing is announced</li>
+      </ul>
+      <a href="#" class="btn btn-ghost" style="width:100%;justify-content:center;">Talk to us</a>
+      <div class="meta">Limited spots · serious inquiries only</div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ==================== ROADMAP ==================== -->
+<section class="roadmap">
+  <div class="section-inner" style="padding-bottom:0;">
+    <div class="section-head reveal">
+      <div class="left">
+        <div class="eyebrow">Roadmap · Q1–Q3 2026</div>
+      </div>
+      <div class="right">
+        <h2>What we're building <em>next.</em></h2>
+        <p style="margin-top:24px;">We ship things that work, not things that sound good. This is the public roadmap, in order.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="roadmap-grid">
+    <div class="rm-card">
+      <div class="rm-status now">Shipping · Q1</div>
+      <div class="rm-name">Cross-tournament history</div>
+      <div class="rm-desc">A team's performance arc across every event they've played. From group stage to finals, across multiple tournaments.</div>
+    </div>
+    <div class="rm-card">
+      <div class="rm-status now">Shipping · Q1</div>
+      <div class="rm-name">Player ID layer</div>
+      <div class="rm-desc">A persistent identity for every player across every tournament. Track a player from amateur scrim to BGIS final.</div>
+    </div>
+    <div class="rm-card">
+      <div class="rm-status next">Next · Q2</div>
+      <div class="rm-name">Table Forge</div>
+      <div class="rm-desc">Generate publication-ready standings, stat tables, and brackets from live system data. One click, broadcast-ready.</div>
+    </div>
+    <div class="rm-card">
+      <div class="rm-status later">Later · Q3</div>
+      <div class="rm-name">Role-based access tiers</div>
+      <div class="rm-desc">Coach, analyst, and organizer roles on the same platform with the right view of the right data.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== CTA ==================== -->
+<section class="cta">
+  <div class="cta-inner">
+    <h2>Stop reconstructing.<br><em>Start deciding.</em></h2>
+    <p>Metazone is in pilot with select BGMI rosters and tournament organizers. If you're serious about the next season, we'd like to talk.</p>
+    <a href="#access" class="btn btn-primary" style="font-size:13px;padding:16px 28px;">
+      Request access
+      <svg class="arr" viewBox="0 0 16 16" fill="none"><path d="M1 8h13M9 3l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="square"/></svg>
+    </a>
+    <div class="meta">We respond within 48 hours · pilot starts at the team level</div>
+  </div>
+</section>
+
+<!-- ==================== FOOTER ==================== -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-brand" style="display:flex;align-items:center;gap:10px;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2L21 7V17L12 22L3 17V7L12 2Z" stroke="#22d3ee" stroke-width="1.5" fill="none"/>
+      </svg>
+      Metazone <span style="color:var(--ink-4);font-weight:400;font-size:13px;font-family:var(--f-mono);letter-spacing:0.1em;">BGMI INTELLIGENCE</span>
+    </div>
+    <a href="metazonedemo.html" class="nav-demo" style="font-size:10px;padding:8px 16px;">→ Try the Demo</a>
+    <div class="footer-meta">© 2026 · built in india, for indian competitive BGMI</div>
+  </div>
+</footer>
+
+<script>
+// Nav scroll
+const nav = document.getElementById('nav');
+window.addEventListener('scroll', () => {
+  nav.classList.toggle('scrolled', window.scrollY > 30);
+}, { passive: true });
+
+// Generic reveal
+const io = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.add('on');
+      e.target.querySelectorAll('.fill[data-w]').forEach((f, i) => {
+        setTimeout(() => f.style.width = f.getAttribute('data-w'), 200 + i * 90);
+      });
+      io.unobserve(e.target);
+    }
+  });
+}, { threshold: 0.12 });
+document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+// Manifesto moment observers
+const mfItems = [
+  { moment: 'mfm4', elements: ['mfg4'], delays: [120] },
+];
+
+mfItems.forEach(({ moment, elements, delays }) => {
+  const m = document.getElementById(moment);
+  if (!m) return;
+  const mio = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        elements.forEach((id, i) => {
+          const el = document.getElementById(id);
+          if (el) setTimeout(() => el.classList.add('on'), delays[i]);
+        });
+        mio.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.25 });
+  mio.observe(m);
+});
+
+// Note section observer
+const noteIo = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const nl = document.getElementById('mfnl');
+      const nr = document.getElementById('mfnr');
+      if (nl) nl.classList.add('on');
+      if (nr) nr.classList.add('on');
+      noteIo.unobserve(entry.target);
+    }
+  });
+}, { threshold: 0.2 });
+const nm = document.getElementById('mfm5');
+if (nm) noteIo.observe(nm);
+
+// Numbers canvas
+(function() {
+  const canvas = document.getElementById('mf-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const tokens = [
+    'KDA:3.8','AVG_DMG:312','ZONE_TIMER:02:14','KP:17','PP:10','TOT:27',
+    'ROTATION_DELTA:+0.4','ENGAGEMENT_RATE:68%','SURVIVAL_%:74','WWCD:2',
+    'AVG_PLACE:3.1','CONSISTENCY:82%','ZONE_4','14:22:03','22:01:47',
+    'x:1240 y:880','ELIM_LOG','WIPE:22:01','MATCH:03','MAP:SANHOK',
+    'Σkills=89','KP_RATIO:0.63','LOBBY_RANK:2','DAMAGE_DEALT:1840',
+    'SURVIVAL_TIME:28:14','AGGRESSION_IDX:0.71','COMPOUND_SCORE:74.2',
+    'ZONE_PHASE:7','DEATH_TIMING:18:33','PATH:SQ_ALPHA','DAY:3',
+  ];
+  let cols, cells, t = 0;
+
+  function resize() {
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    const cellW = 200, cellH = 22;
+    cols = Math.ceil(canvas.width / cellW) + 1;
+    const rows = Math.ceil(canvas.height / cellH) + 2;
+    cells = [];
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        cells.push({
+          r, c,
+          token: tokens[Math.floor(Math.random() * tokens.length)],
+          speed: 0.18 + Math.random() * 0.35,
+          opacity: 0.025 + Math.random() * 0.07,
+          offset: Math.random() * cellW,
+        });
+      }
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.font = '11px "JetBrains Mono", monospace';
+    ctx.fillStyle = '#22d3ee';
+    const cellH = 22;
+    cells.forEach(cell => {
+      const x = ((cell.c * 200 + cell.offset - t * cell.speed * 40) % (cols * 200 + 400) + cols * 200 + 400) % (cols * 200 + 400) - 200;
+      const y = cell.r * cellH + 16;
+      ctx.globalAlpha = cell.opacity;
+      ctx.fillText(cell.token, x, y);
+    });
+    ctx.globalAlpha = 1;
+    t += 0.016;
+    requestAnimationFrame(draw);
+  }
+
+  resize();
+  window.addEventListener('resize', resize);
+  draw();
+})();
+</script>
+
+<!-- ██ WAITLIST MODAL ██ -->
+<div id="wl-overlay">
+  <div id="wl-modal">
+    <div id="wl-form-state">
+      <div class="wl-header">
+        <div class="wl-logo-row">
+          <div class="wl-logo">METAZONE</div>
+          <div class="wl-badge">Early Access</div>
+        </div>
+        <div class="wl-headline">You've seen <em>10%</em> of what this tool does.</div>
+        <div class="wl-sub">Join the waitlist. When beta profiles drop, you'll be the first to know, straight to your WhatsApp.</div>
+      </div>
+      <div class="wl-features">
+        <div class="wl-feat hi">🎬 VOD Sync</div>
+        <div class="wl-feat hi">⏱ Match Timeline</div>
+        <div class="wl-feat hi">👥 Squad Overlay</div>
+        <div class="wl-feat">Zone History</div>
+        <div class="wl-feat">Cloud Saves</div>
+        <div class="wl-feat">Team Reports</div>
+        <div class="wl-feat">Tournament Boards</div>
+      </div>
+      <div class="wl-body">
+        <div class="wl-row">
+          <div class="wl-field">
+            <label class="wl-label">Your Name</label>
+            <input class="wl-input" id="wl-name" type="text" placeholder="IGN or real name" autocomplete="off">
+          </div>
+          <div class="wl-field">
+            <label class="wl-label">WhatsApp Number</label>
+            <input class="wl-input" id="wl-wa" type="tel" placeholder="+91 98765 43210" autocomplete="off">
+          </div>
+        </div>
+        <div class="wl-field">
+          <label class="wl-label">Email Address</label>
+          <input class="wl-input" id="wl-email" type="email" placeholder="your@email.com" autocomplete="off">
+        </div>
+        <div class="wl-err" id="wl-err">Please fill in your name, WhatsApp number, and email.</div>
+        <button class="wl-submit" id="wl-submit">Join the Waitlist →</button>
+        <button class="wl-close" id="wl-close">maybe later</button>
+      </div>
+    </div>
+    <div id="wl-success">
+      <div class="wl-success-icon">✦</div>
+      <div class="wl-success-title">Welcome to the <em>Metazone</em><br>Intelligence Ecosystem.</div>
+      <div class="wl-success-msg">Our representatives will contact you as soon as new beta profiles drop. Keep your WhatsApp notifications on · we don't spam, we only ping when it matters.</div>
+      <a class="wl-success-wa" id="wl-wa-confirm" href="#" target="_blank" rel="noopener">
+        <span>💬</span> Confirm on WhatsApp
+      </a>
+      <button class="wl-success-dismiss" id="wl-dismiss">close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── WAITLIST MODAL ──
+const WA_NUMBER   = '919999999999';
+const OWNER_EMAIL = 'hello@metazone.app';
+
+function openWaitlist() {
+  document.getElementById('wl-overlay').classList.add('show');
+  document.getElementById('wl-err').classList.remove('show');
+  document.getElementById('wl-form-state').style.cssText = 'display:flex;flex-direction:column;';
+  document.getElementById('wl-success').classList.remove('show');
+}
+function closeWaitlist() {
+  document.getElementById('wl-overlay').classList.remove('show');
+}
+
+document.querySelectorAll('.btn-primary, .btn-ghost, .nav-cta').forEach(btn => {
+  if (btn.id === 'hero-inside-btn') return;
+  btn.addEventListener('click', e => { e.preventDefault(); openWaitlist(); });
+});
+
+document.getElementById('wl-close').addEventListener('click', closeWaitlist);
+document.getElementById('wl-dismiss').addEventListener('click', closeWaitlist);
+document.getElementById('wl-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('wl-overlay')) closeWaitlist();
+});
+
+document.getElementById('wl-submit').addEventListener('click', () => {
+  const name  = document.getElementById('wl-name').value.trim();
+  const wa    = document.getElementById('wl-wa').value.trim();
+  const email = document.getElementById('wl-email').value.trim();
+  const err   = document.getElementById('wl-err');
+  if (!name || !wa || !email) { err.textContent = 'Please fill in your name, WhatsApp number, and email.'; err.classList.add('show'); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { err.textContent = 'Please enter a valid email address.'; err.classList.add('show'); return; }
+  err.classList.remove('show');
+  const ownerMsg = encodeURIComponent('🎯 NEW METAZONE WAITLIST SIGNUP\n\nName: ' + name + '\nWhatsApp: ' + wa + '\nEmail: ' + email + '\n\nSent from metazone landing page.');
+  const userMsg  = encodeURIComponent('Hey, I just signed up for the Metazone early access waitlist!\n\nName: ' + name + '\nEmail: ' + email + '\n\nLooking forward to the beta drop. 🎯');
+  try {
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = 'mailto:' + OWNER_EMAIL + '?subject=' + encodeURIComponent('Metazone Waitlist · New Signup') + '&body=' + encodeURIComponent('New signup:\n\nName: ' + name + '\nWhatsApp: ' + wa + '\nEmail: ' + email);
+    document.body.appendChild(iframe);
+    setTimeout(() => iframe.remove(), 3000);
+  } catch(e) {}
+  window.open('https://wa.me/' + WA_NUMBER + '?text=' + ownerMsg, '_blank', 'noopener');
+  document.getElementById('wl-form-state').style.display = 'none';
+  document.getElementById('wl-success').classList.add('show');
+  document.getElementById('wl-wa-confirm').href = 'https://wa.me/' + WA_NUMBER + '?text=' + userMsg;
+});
+</script>
+</body>
+</html>

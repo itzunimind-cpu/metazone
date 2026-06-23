@@ -1,0 +1,2612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>METAZONE — Analytics</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@800,700,500,400&f[]=satoshi@700,500,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #020617;
+      --bg-panel: #0b1221;
+      --bg-card: #0f172a;
+      --border: #1e293b;
+      --border-mid: #334155;
+      --accent: #22d3ee;
+      --green: #4ade80;
+      --red: #f87171;
+      --yellow: #facc15;
+      --purple: #a78bfa;
+      --orange: #fb923c;
+      --text: #f1f5f9;
+      --muted: #475569;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Satoshi', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .font-display { font-family: 'Cabinet Grotesk', sans-serif; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 3px; height: 3px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* Auth screen */
+    #auth-screen {
+      position: fixed; inset: 0; z-index: 999;
+      background: var(--bg);
+      display: flex; align-items: center; justify-content: center;
+    }
+    #auth-screen.hidden { display: none; }
+
+    /* Loading state */
+    #loading-screen {
+      position: fixed; inset: 0; z-index: 100;
+      background: var(--bg);
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 16px;
+    }
+    #loading-screen.hidden { display: none; }
+
+    /* Grid background texture */
+    .grid-bg {
+      background-image:
+        linear-gradient(rgba(34,211,238,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(34,211,238,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    /* Chart containers */
+    .chart-wrap {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 20px;
+      transition: border-color 0.2s;
+    }
+    .chart-wrap:hover { border-color: rgba(34,211,238,0.25); }
+
+    /* KPI cards */
+    .kpi-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 20px;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .kpi-card:hover {
+      border-color: rgba(34,211,238,0.3);
+      background: #111827;
+    }
+
+    /* View toggle */
+    .view-btn {
+      padding: 6px 18px;
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .view-btn.active {
+      background: var(--accent);
+      color: #020617;
+      border-color: var(--accent);
+    }
+    .view-btn:hover:not(.active) { color: var(--text); border-color: var(--border-mid); }
+    .view-btn:first-child { border-radius: 3px 0 0 3px; }
+    .view-btn:last-child { border-radius: 0 3px 3px 0; }
+
+    /* Scope pills */
+    .scope-pill {
+      padding: 5px 12px;
+      font-size: 9px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.15s;
+    }
+    .scope-pill.active {
+      background: var(--accent);
+      color: #020617;
+    }
+    .scope-pill:hover:not(.active) { color: var(--text); }
+
+    /* Shared action buttons (matches index.html standard) */
+    .btn-primary{display:inline-flex;align-items:center;gap:7px;padding:10px 18px;background:var(--accent);color:#020617;border:none;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;cursor:pointer;letter-spacing:.1em;text-transform:uppercase;transition:all .15s;text-decoration:none;}
+    .btn-primary:hover{background:#67e8f9;}
+    .btn-secondary{display:inline-flex;align-items:center;gap:7px;padding:10px 16px;background:transparent;color:var(--text);border:1px solid var(--border);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;cursor:pointer;letter-spacing:.1em;text-transform:uppercase;transition:all .15s;text-decoration:none;}
+    .btn-secondary:hover{border-color:rgba(34,211,238,.4);color:var(--accent);}
+
+    /* Insight callouts */
+    .insight { border-radius: 3px; padding: 10px 14px; font-size: 11px; font-weight: 600; line-height: 1.5; margin-top: 12px; }
+    .insight.neutral { background: rgba(71,85,105,0.2); border: 1px solid rgba(71,85,105,0.3); color: #94a3b8; }
+    .insight.warn { background: rgba(250,204,21,0.08); border: 1px solid rgba(250,204,21,0.25); color: var(--yellow); }
+    .insight.critical { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.25); color: var(--red); }
+    .insight.good { background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.25); color: var(--green); }
+
+    /* Profile badge */
+    .profile-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 10px;
+      border-radius: 2px;
+      font-size: 9px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    /* SVG chart elements */
+    .bar-bg { fill: rgba(30,41,59,0.8); }
+    .axis-line { stroke: rgba(71,85,105,0.4); stroke-width: 1; }
+    .axis-label { fill: #475569; font-size: 9px; font-family: 'JetBrains Mono', monospace; }
+
+    /* Pulse dot */
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .pulse { animation: pulse 2s ease-in-out infinite; }
+
+    /* Fade in */
+    @keyframes fadeIn { from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:translateY(0)} }
+    .fade-in { animation: fadeIn 0.3s ease forwards; }
+
+    /* ── A5: Skeleton shimmer ── */
+    @keyframes shimmer {
+      0%   { background-position: -600px 0; }
+      100% { background-position: 600px 0; }
+    }
+    .skel {
+      border-radius: 3px;
+      background: linear-gradient(90deg, #0f172a 25%, #1e293b 50%, #0f172a 75%);
+      background-size: 600px 100%;
+      animation: shimmer 1.6s ease-in-out infinite;
+    }
+    #skeleton-screen {
+      display: none;
+      padding: 32px;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+    }
+    #skeleton-screen.visible { display: block; }
+    .skel-identity {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 20px 24px;
+      margin-bottom: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+    .skel-chart-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    .skel-chart-wrap {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 20px;
+    }
+
+    /* ── A6: Per-chart empty state ── */
+    .chart-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      height: 100%;
+      min-height: 80px;
+      color: var(--muted);
+    }
+    .chart-empty iconify-icon { font-size: 22px; opacity: 0.4; }
+    .chart-empty .empty-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .chart-empty .empty-sub {
+      font-size: 10px;
+      color: #334155;
+      text-align: center;
+      max-width: 220px;
+      line-height: 1.5;
+    }
+
+    /* Scan line effect on profile card */
+    /* ── EVENT BANNER ── */
+    #event-banner{display:none;align-items:center;gap:12px;padding:10px 16px;background:rgba(34,211,238,0.04);border:1px solid rgba(34,211,238,0.15);border-radius:6px;margin-bottom:16px;flex-wrap:wrap;}
+    #event-banner.show{display:flex;}
+    .ev-label{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:0.2em;text-transform:uppercase;white-space:nowrap;}
+    .ev-name{font-family:'Cabinet Grotesk',sans-serif;font-size:13px;font-weight:800;color:var(--accent);white-space:nowrap;}
+    .ev-divider{width:1px;height:16px;background:var(--border);flex-shrink:0;}
+    .ev-pills{display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
+    .ev-pill{padding:4px 12px;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:1px solid var(--border);border-radius:4px;background:transparent;color:var(--muted);cursor:pointer;text-decoration:none;transition:all 0.15s;white-space:nowrap;display:inline-block;}
+    .ev-pill:hover{border-color:rgba(34,211,238,0.4);color:var(--text);}
+    .ev-pill.current{border-color:var(--accent);color:var(--accent);background:rgba(34,211,238,0.08);cursor:default;pointer-events:none;}
+
+    @keyframes scanline {
+      0% { top: -4px; }
+      100% { top: 100%; }
+    }
+    .scanline {
+      position: absolute; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(34,211,238,0.15), transparent);
+      animation: scanline 3s linear infinite;
+      pointer-events: none;
+    }
+
+    /* Header — matches all other pages exactly */
+    #app-header{height:56px;min-height:56px;border-bottom:1px solid var(--border);background:rgba(2,6,23,.9);backdrop-filter:blur(20px);display:flex;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:50;flex-shrink:0;}
+    .header-left{display:flex;align-items:center;gap:32px;}
+    .logo-mark{display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;}
+    .logo-icon{width:28px;height:28px;background:var(--accent);display:flex;align-items:center;justify-content:center;border-radius:3px;transform:rotate(45deg);flex-shrink:0;}
+    .logo-icon-inner{transform:rotate(-45deg);color:#020617;font-size:14px;display:flex;}
+    .header-nav{display:flex;align-items:center;gap:4px;height:56px;}
+    .nav-link{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;color:var(--muted);text-decoration:none;letter-spacing:2px;padding:0 14px;height:100%;display:flex;align-items:center;border-bottom:2px solid transparent;transition:all .15s;}
+    .nav-link:hover{color:var(--text);}
+    .nav-link.active{color:var(--accent);border-bottom-color:var(--accent);}
+    .header-right{display:flex;align-items:center;gap:12px;}
+
+    /* Match table row */
+    .match-row { border-bottom: 1px solid rgba(30,41,59,0.6); transition: background 0.15s; cursor: pointer; }
+    .match-row:hover { background: rgba(30,41,59,0.5); }
+    .match-row:last-child { border-bottom: none; }
+
+    /* Team selector */
+    .team-option { padding: 8px 12px; cursor: pointer; transition: background 0.1s; font-size: 12px; }
+    .team-option:hover { background: rgba(34,211,238,0.08); }
+    .team-option.selected { color: var(--accent); background: rgba(34,211,238,0.06); }
+
+    select.styled {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      padding: 6px 10px;
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+    select.styled:focus { border-color: rgba(34,211,238,0.4); }
+  </style>
+</head>
+<body class="grid-bg">
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- AUTH SCREEN -->
+<!-- ══════════════════════════════════════════════════ -->
+<div id="auth-screen">
+  <div style="width:360px; background:var(--bg-card); border:1px solid var(--border); border-radius:6px; padding:40px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:32px;">
+      <div style="width:32px;height:32px;background:var(--accent);display:flex;align-items:center;justify-content:center;transform:rotate(45deg);border-radius:4px;">
+        <iconify-icon icon="lucide:layers" style="color:#020617;transform:rotate(-45deg);font-size:16px;"></iconify-icon>
+      </div>
+      <span class="font-display" style="font-size:20px;font-weight:800;letter-spacing:-0.03em;">METAZONE</span>
+    </div>
+    <p class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:24px;">Analytics — Magic Link Login</p>
+    <input id="auth-email" type="email" placeholder="your@email.com"
+      style="width:100%;background:#0f172a;border:1px solid var(--border);color:var(--text);font-size:13px;padding:10px 14px;border-radius:3px;outline:none;margin-bottom:12px;"
+      onkeydown="if(event.key==='Enter')sendMagicLink()">
+    <button onclick="sendMagicLink()"
+      style="width:100%;background:var(--accent);color:#020617;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;padding:10px;border:none;border-radius:3px;cursor:pointer;">
+      SEND MAGIC LINK
+    </button>
+    <p id="auth-msg" style="font-size:11px;color:var(--muted);margin-top:12px;text-align:center;min-height:16px;"></p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- LOADING SCREEN -->
+<!-- ══════════════════════════════════════════════════ -->
+<div id="loading-screen">
+  <div style="display:flex;gap:6px;">
+    <div style="width:6px;height:6px;background:var(--accent);border-radius:50%;animation:pulse 1s ease-in-out infinite;"></div>
+    <div style="width:6px;height:6px;background:var(--accent);border-radius:50%;animation:pulse 1s ease-in-out 0.2s infinite;"></div>
+    <div style="width:6px;height:6px;background:var(--accent);border-radius:50%;animation:pulse 1s ease-in-out 0.4s infinite;"></div>
+  </div>
+  <p class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.2em;text-transform:uppercase;">LOADING INTELLIGENCE</p>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- A5: SKELETON LOADING SCREEN -->
+<!-- ══════════════════════════════════════════════════ -->
+<div id="skeleton-screen">
+  <!-- Fake header bar -->
+  <div style="height:56px;border-bottom:1px solid var(--border);background:rgba(2,6,23,.9);display:flex;align-items:center;padding:0 20px;gap:24px;position:fixed;top:0;left:0;right:0;z-index:49;">
+    <div class="skel" style="width:28px;height:28px;border-radius:3px;flex-shrink:0;"></div>
+    <div class="skel" style="width:100px;height:14px;"></div>
+    <div style="display:flex;gap:8px;margin-left:8px;">
+      <div class="skel" style="width:80px;height:10px;border-radius:2px;"></div>
+      <div class="skel" style="width:52px;height:10px;border-radius:2px;"></div>
+      <div class="skel" style="width:130px;height:10px;border-radius:2px;"></div>
+      <div class="skel" style="width:110px;height:10px;border-radius:2px;"></div>
+      <div class="skel" style="width:120px;height:10px;border-radius:2px;"></div>
+    </div>
+  </div>
+  <div style="height:56px;"></div>
+
+  <div style="padding:32px;max-width:1400px;width:100%;margin:0 auto;">
+    <!-- Top bar -->
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;gap:16px;padding-top:4px;">
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div class="skel" style="width:180px;height:8px;"></div>
+        <div class="skel" style="width:260px;height:26px;"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <div class="skel" style="width:160px;height:30px;border-radius:3px;"></div>
+        <div class="skel" style="width:220px;height:30px;border-radius:8px;"></div>
+      </div>
+    </div>
+
+    <!-- Identity card -->
+    <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:4px;padding:20px 24px;margin-bottom:28px;display:flex;align-items:center;justify-content:space-between;gap:24px;">
+      <div style="display:flex;align-items:center;gap:20px;">
+        <div class="skel" style="width:48px;height:48px;border-radius:3px;flex-shrink:0;"></div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;gap:10px;align-items:center;">
+            <div class="skel" style="width:120px;height:18px;border-radius:2px;"></div>
+            <div class="skel" style="width:90px;height:18px;border-radius:10px;"></div>
+          </div>
+          <div class="skel" style="width:260px;height:10px;"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:32px;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+          <div class="skel" style="width:48px;height:26px;"></div>
+          <div class="skel" style="width:52px;height:8px;"></div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+          <div class="skel" style="width:36px;height:26px;"></div>
+          <div class="skel" style="width:44px;height:8px;"></div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+          <div class="skel" style="width:44px;height:26px;"></div>
+          <div class="skel" style="width:80px;height:8px;"></div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+          <div class="skel" style="width:36px;height:26px;"></div>
+          <div class="skel" style="width:60px;height:8px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- View toggle -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+      <div style="display:flex;gap:0;">
+        <div class="skel" style="width:110px;height:32px;border-radius:3px 0 0 3px;"></div>
+        <div class="skel" style="width:120px;height:32px;border-radius:0 3px 3px 0;opacity:0.5;"></div>
+      </div>
+      <div class="skel" style="width:260px;height:9px;"></div>
+    </div>
+
+    <!-- Chart grid -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:20px;grid-column:span 2;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:16px;">
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <div class="skel" style="width:220px;height:12px;"></div>
+            <div class="skel" style="width:300px;height:9px;"></div>
+          </div>
+          <div class="skel" style="width:80px;height:22px;border-radius:2px;"></div>
+        </div>
+        <div class="skel" style="width:100%;height:280px;border-radius:3px;"></div>
+        <div class="skel" style="width:100%;height:32px;border-radius:3px;margin-top:12px;"></div>
+      </div>
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:20px;">
+        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">
+          <div class="skel" style="width:140px;height:12px;"></div>
+          <div class="skel" style="width:200px;height:9px;"></div>
+        </div>
+        <div class="skel" style="width:100%;height:180px;border-radius:3px;"></div>
+        <div class="skel" style="width:100%;height:32px;border-radius:3px;margin-top:12px;"></div>
+      </div>
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:20px;">
+        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">
+          <div class="skel" style="width:160px;height:12px;"></div>
+          <div class="skel" style="width:180px;height:9px;"></div>
+        </div>
+        <div class="skel" style="width:100%;height:180px;border-radius:3px;"></div>
+        <div class="skel" style="width:100%;height:32px;border-radius:3px;margin-top:12px;"></div>
+      </div>
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:20px;grid-column:span 2;">
+        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">
+          <div class="skel" style="width:200px;height:12px;"></div>
+          <div class="skel" style="width:280px;height:9px;"></div>
+        </div>
+        <div class="skel" style="width:100%;height:120px;border-radius:3px;"></div>
+        <div class="skel" style="width:100%;height:32px;border-radius:3px;margin-top:12px;"></div>
+      </div>
+    </div>
+
+    <!-- Match history table skeleton -->
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <div class="skel" style="width:120px;height:12px;"></div>
+        <div class="skel" style="width:60px;height:9px;"></div>
+      </div>
+      <div style="display:flex;gap:12px;padding-bottom:10px;border-bottom:1px solid var(--border);margin-bottom:4px;">
+        <div class="skel" style="flex:2;height:9px;"></div>
+        <div class="skel" style="flex:1;height:9px;"></div>
+        <div class="skel" style="flex:1;height:9px;"></div>
+        <div class="skel" style="flex:1;height:9px;"></div>
+        <div class="skel" style="flex:1;height:9px;"></div>
+        <div class="skel" style="flex:1;height:9px;"></div>
+        <div class="skel" style="flex:1;height:9px;"></div>
+        <div class="skel" style="flex:1;height:9px;"></div>
+        <div class="skel" style="flex:1;height:9px;"></div>
+      </div>
+      <div id="skel-table-rows"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- APP -->
+<!-- ══════════════════════════════════════════════════ -->
+<div id="app" style="display:none;flex-direction:column;min-height:100vh;">
+
+  <!-- HEADER -->
+  <header id="app-header">
+    <div class="header-left">
+      <a href="index.html" class="logo-mark">
+        <div class="logo-icon"><div class="logo-icon-inner"><iconify-icon icon="lucide:layers"></iconify-icon></div></div>
+        <span class="font-display" style="font-size:18px;font-weight:800;letter-spacing:-0.02em;">METAZONE</span>
+      </a>
+      <nav class="header-nav">
+        <a href="index.html" class="nav-link">DASHBOARD</a>
+        <a href="editor.html" class="nav-link">EDITOR</a>
+        <a href="vod.html" class="nav-link">VOD REVIEW</a>
+        <a href="tournament-create.html" class="nav-link">NEW TOURNAMENT</a>
+        <a href="tournament-editor.html" class="nav-link">TOURNAMENT EDITOR</a>
+        <a href="analytics.html" class="nav-link active">TEAM ANALYTICS</a>
+        <a href="player.html" class="nav-link">PLAYER ANALYTICS</a>
+        <a href="history.html" class="nav-link">ALL TOURNAMENTS</a>
+      </nav>
+    </div>
+    <div class="header-right">
+      <div style="display:flex;align-items:center;gap:6px;padding:5px 10px;background:var(--bg-card);border:1px solid var(--border);border-radius:3px;">
+        <span class="pulse" style="width:6px;height:6px;background:var(--green);border-radius:50%;display:inline-block;"></span>
+        <span class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.15em;text-transform:uppercase;">SYSTEM ONLINE</span>
+      </div>
+      <button onclick="signOut()" style="background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:6px 12px;border-radius:3px;cursor:pointer;transition:all 0.15s;"
+        onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">SIGN OUT</button>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <main style="flex:1;padding:32px;max-width:1400px;width:100%;margin:0 auto;" id="main-content">
+
+    <!-- EMPTY STATE — no tournament -->
+    <div id="empty-state" style="display:none;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:16px;text-align:center;">
+      <iconify-icon icon="lucide:bar-chart-2" style="font-size:48px;color:var(--muted);"></iconify-icon>
+      <p class="font-display" style="font-size:20px;font-weight:700;color:var(--text);">No Tournament Selected</p>
+      <p style="font-size:13px;color:var(--muted);max-width:320px;">Open a tournament from the Tournament Editor and click "View Analytics" to load data here.</p>
+      <a href="tournament-editor.html" class="btn-secondary">
+        <iconify-icon icon="lucide:arrow-left" style="font-size:13px;"></iconify-icon> TOURNAMENT EDITOR
+      </a>
+    </div>
+
+    <!-- ANALYTICS BODY -->
+    <div id="analytics-body" class="fade-in" style="display:none;">
+
+      <!-- ── EVENT BANNER ── -->
+      <div id="event-banner">
+        <iconify-icon icon="lucide:calendar-range" style="font-size:14px;color:var(--accent);flex-shrink:0;"></iconify-icon>
+        <span class="ev-label">Event</span>
+        <span class="ev-name" id="ev-name">—</span>
+        <div class="ev-divider"></div>
+        <div class="ev-pills" id="ev-pills"></div>
+      </div>
+
+      <!-- ── TOP BAR: Tournament name + filters ── -->
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;gap:16px;flex-wrap:wrap;">
+        <div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+            <p class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.2em;text-transform:uppercase;">TOURNAMENT INTELLIGENCE</p>
+            <a href="tournament-editor.html" class="btn-secondary" style="padding:4px 10px;font-size:9px;gap:5px;">
+              <iconify-icon icon="lucide:arrow-left" style="font-size:11px;"></iconify-icon> EDITOR
+            </a>
+            <a href="history.html" class="btn-secondary" style="padding:4px 10px;font-size:9px;gap:5px;">
+              <iconify-icon icon="lucide:history" style="font-size:11px;"></iconify-icon> ALL TOURNAMENTS
+            </a>
+          </div>
+          <h1 class="font-display" id="tournament-name-display" style="font-size:28px;font-weight:800;letter-spacing:-0.02em;">—</h1>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <!-- Team selector -->
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.15em;text-transform:uppercase;">TEAM</span>
+            <select id="team-selector" class="styled" onchange="onTeamChange()">
+              <option value="self">YOUR TEAM (SELF)</option>
+            </select>
+          </div>
+        <!-- Scope filters — single row -->
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.15em;text-transform:uppercase;white-space:nowrap;">DAYS</span>
+          <div id="day-pill-strip" style="display:flex;align-items:center;gap:3px;padding:4px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;flex-wrap:nowrap;">
+            <button class="scope-pill active" id="scope-pill-all" onclick="setScopeDay('all')">ALL</button>
+          </div>
+          <span class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.15em;text-transform:uppercase;white-space:nowrap;margin-left:4px;">MAP</span>
+          <div id="map-pill-strip" style="display:flex;align-items:center;gap:3px;padding:4px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;flex-wrap:nowrap;">
+            <button class="scope-pill active" id="map-pill-all" onclick="setScopeMap('all')">ALL</button>
+          </div>
+        </div>
+        </div>
+      </div>
+
+      <!-- ── TEAM IDENTITY CARD ── -->
+      <div id="identity-card" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:4px;padding:20px 24px;margin-bottom:28px;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;position:relative;overflow:hidden;">
+        <div class="scanline"></div>
+        <div style="display:flex;align-items:center;gap:20px;">
+          <div id="team-color-dot" style="width:48px;height:48px;border-radius:3px;background:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <iconify-icon icon="lucide:shield" style="font-size:22px;color:#020617;"></iconify-icon>
+          </div>
+          <div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+              <span class="font-display" id="identity-team-name" style="font-size:20px;font-weight:800;">SELF</span>
+              <span id="profile-tag" class="profile-badge" style="background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.3);color:var(--accent);">
+                <iconify-icon icon="lucide:activity"></iconify-icon>
+                <span id="profile-tag-text">LOADING...</span>
+              </span>
+            </div>
+            <p class="font-mono" id="identity-sub" style="font-size:10px;color:var(--muted);">—</p>
+          </div>
+        </div>
+        <div style="display:flex;gap:32px;">
+          <div style="text-align:center;">
+            <div class="font-display" id="kpi-avg-pts" style="font-size:26px;font-weight:800;color:var(--accent);">—</div>
+            <div class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.15em;text-transform:uppercase;margin-top:2px;">AVG PTS</div>
+          </div>
+          <div style="text-align:center;">
+            <div class="font-display" id="kpi-wwcd" style="font-size:26px;font-weight:800;color:var(--green);">—</div>
+            <div class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.15em;text-transform:uppercase;margin-top:2px;">WWCD</div>
+          </div>
+          <div style="text-align:center;">
+            <div class="font-display" id="kpi-consistency" style="font-size:26px;font-weight:800;color:var(--yellow);">—</div>
+            <div class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.15em;text-transform:uppercase;margin-top:2px;">CONSISTENCY</div>
+          </div>
+          <div style="text-align:center;">
+            <div class="font-display" id="kpi-matches" style="font-size:26px;font-weight:800;">—</div>
+            <div class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.15em;text-transform:uppercase;margin-top:2px;">MATCHES</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── VIEW TOGGLE ── -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+        <div style="display:flex;gap:0;">
+          <button class="view-btn active" id="btn-coach" onclick="setView('coach')">
+            <iconify-icon icon="lucide:user-cog" style="margin-right:5px;"></iconify-icon>COACH VIEW
+          </button>
+          <button class="view-btn" id="btn-analyst" onclick="setView('analyst')">
+            <iconify-icon icon="lucide:microscope" style="margin-right:5px;"></iconify-icon>ANALYST VIEW
+          </button>
+        </div>
+        <p class="font-mono" id="view-desc" style="font-size:9px;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;">Strategy & pattern summary for coaching decisions</p>
+      </div>
+
+      <!-- ── LOBBY ACTIVITY TIMELINE (always visible) ── -->
+      <div class="chart-wrap" style="margin-bottom:24px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <div>
+            <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Lobby Activity Timeline</h3>
+            <p style="font-size:10px;color:var(--muted);margin-top:3px;">Event-by-event match story. Each row = one match. Read left to right across match time.</p>
+          </div>
+          <div style="display:flex;align-items:center;gap:16px;flex-shrink:0;">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <span style="display:flex;align-items:center;gap:4px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);">
+                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#22d3ee;"></span>ZONE
+              </span>
+              <span style="display:flex;align-items:center;gap:4px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);">
+                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#fb923c;"></span>FIGHT
+              </span>
+              <span style="display:flex;align-items:center;gap:4px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);">
+                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#facc15;"></span>PLAYER LOSS
+              </span>
+              <span style="display:flex;align-items:center;gap:4px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);">
+                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#475569;"></span>ENEMY WIPE
+              </span>
+              <span style="display:flex;align-items:center;gap:4px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);">
+                <span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#f87171;"></span>SELF WIPE
+              </span>
+            </div>
+          </div>
+        </div>
+        <div id="lobby-timeline-chart" style="display:flex;flex-direction:column;gap:6px;"></div>
+      </div>
+
+      <!-- ── COACH VIEW ── -->
+      <div id="coach-view" class="fade-in">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+
+          <!-- Chart 1: KP vs PP Scatter (2-col span) -->
+          <div class="chart-wrap" style="grid-column:span 2;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+              <div>
+                <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Strategy Quadrant — KP vs PP</h3>
+                <p style="font-size:10px;color:var(--muted);margin-top:3px;">Kill Points vs Placement Points across all matches. Each dot = one match.</p>
+              </div>
+              <span class="font-mono" style="font-size:9px;color:var(--accent);border:1px solid rgba(34,211,238,0.3);padding:3px 8px;border-radius:2px;">TIER 1 CHART</span>
+            </div>
+            <div style="position:relative;height:280px;">
+              <canvas id="scatter-chart" style="width:100%;height:100%;"></canvas>
+            </div>
+            <div id="scatter-insight" class="insight neutral">Computing strategy profile...</div>
+          </div>
+
+          <!-- Chart 2: Points Race Timeline -->
+          <div class="chart-wrap">
+            <div style="margin-bottom:16px;">
+              <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Points Race</h3>
+              <p style="font-size:10px;color:var(--muted);margin-top:3px;">Total points per match — momentum curve</p>
+            </div>
+            <div style="position:relative;height:180px;">
+              <canvas id="points-race-chart" style="width:100%;height:100%;"></canvas>
+            </div>
+            <div id="points-race-insight" class="insight neutral">Loading...</div>
+          </div>
+
+          <!-- Chart 3: KP vs PP Stacked Bar -->
+          <div class="chart-wrap">
+            <div style="margin-bottom:16px;">
+              <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">KP / PP Breakdown</h3>
+              <p style="font-size:10px;color:var(--muted);margin-top:3px;">Kill points vs placement points per match</p>
+            </div>
+            <div style="position:relative;height:180px;">
+              <canvas id="kp-pp-chart" style="width:100%;height:100%;"></canvas>
+            </div>
+            <div id="kp-pp-insight" class="insight neutral">Loading...</div>
+          </div>
+
+          <!-- Chart 4: Placement Distribution -->
+          <div class="chart-wrap" style="grid-column:span 2;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+              <div>
+                <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Placement Distribution</h3>
+                <p style="font-size:10px;color:var(--muted);margin-top:3px;">How often does this team finish in each placement bucket?</p>
+              </div>
+            </div>
+            <div id="placement-dist-chart" style="display:flex;align-items:flex-end;gap:3px;height:120px;padding-bottom:24px;position:relative;"></div>
+            <div id="placement-insight" class="insight neutral">Loading...</div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ── ANALYST VIEW (hidden by default) ── -->
+      <div id="analyst-view" class="fade-in" style="display:none;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+
+          <!-- Chart A: Survival Time Bar -->
+          <div class="chart-wrap" style="grid-column:span 2;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+              <div>
+                <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Survival Time per Match</h3>
+                <p style="font-size:10px;color:var(--muted);margin-top:3px;">% of match duration survived — decoupled from placement. High survival + poor placement = final circle problem.</p>
+              </div>
+            </div>
+            <div id="survival-chart" style="display:flex;align-items:flex-end;gap:3px;height:140px;padding-bottom:28px;position:relative;"></div>
+            <div id="survival-insight" class="insight neutral">Loading...</div>
+          </div>
+
+          <!-- Chart B: Kill Distribution -->
+          <div class="chart-wrap">
+            <div style="margin-bottom:16px;">
+              <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Kill Frequency Distribution</h3>
+              <p style="font-size:10px;color:var(--muted);margin-top:3px;">How many times did this team get 0, 1, 2... kills in a match?</p>
+            </div>
+            <div id="kill-dist-chart" style="display:flex;align-items:flex-end;gap:4px;height:140px;padding-bottom:24px;position:relative;"></div>
+            <div id="kill-dist-insight" class="insight neutral">Loading...</div>
+          </div>
+
+          <!-- Chart C: Consistency Score Trend -->
+          <div class="chart-wrap">
+            <div style="margin-bottom:16px;">
+              <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Score Variance Trend</h3>
+              <p style="font-size:10px;color:var(--muted);margin-top:3px;">Rolling standard deviation of total points. Low = consistent. High = feast-or-famine.</p>
+            </div>
+            <div style="position:relative;height:140px;">
+              <canvas id="variance-chart" style="width:100%;height:100%;"></canvas>
+            </div>
+            <div id="variance-insight" class="insight neutral">Loading...</div>
+          </div>
+
+          <!-- Chart D: Total Points vs Kills Scatter -->
+          <div class="chart-wrap" style="grid-column:span 2;">
+            <div style="margin-bottom:16px;">
+              <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Kill Aggression vs Final Score</h3>
+              <p style="font-size:10px;color:var(--muted);margin-top:3px;">Does going for kills help or hurt? Each dot = one match. Upward slope = aggression pays off.</p>
+            </div>
+            <div style="position:relative;height:220px;">
+              <canvas id="aggression-chart" style="width:100%;height:100%;"></canvas>
+            </div>
+            <div id="aggression-insight" class="insight neutral">Loading...</div>
+          </div>
+
+          <!-- Chart E: Elimination Phase Profile -->
+          <div class="chart-wrap" style="grid-column:span 2;">
+            <div style="margin-bottom:16px;">
+              <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Elimination Phase Profile</h3>
+              <p style="font-size:10px;color:var(--muted);margin-top:3px;">Which phase of the match does this team typically get eliminated? Early / Mid / Late breakdown.</p>
+            </div>
+            <div id="phase-chart" style="display:flex;gap:12px;align-items:stretch;height:80px;"></div>
+            <div id="phase-insight" class="insight neutral">Loading...</div>
+          </div>
+
+          <!-- Chart F: Lobby Survival Curve -->
+          <div class="chart-wrap" style="grid-column:span 2;">
+            <div style="margin-bottom:16px;">
+              <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Lobby Survival Curve</h3>
+              <p style="font-size:10px;color:var(--muted);margin-top:3px;">% of lobby still alive at each point in match time. Your wipe is the red marker — see how early or late you die vs the field.</p>
+            </div>
+            <div style="position:relative;height:200px;">
+              <canvas id="lobby-survival-chart" style="width:100%;height:100%;"></canvas>
+            </div>
+            <div id="lobby-survival-insight" class="insight neutral">Loading...</div>
+          </div>
+
+          <!-- Chart G: Wipe Time Distribution -->
+          <div class="chart-wrap">
+            <div style="margin-bottom:16px;">
+              <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Wipe Time Distribution</h3>
+              <p style="font-size:10px;color:var(--muted);margin-top:3px;">When do you typically die vs when the average team dies? Your bars vs lobby average bars.</p>
+            </div>
+            <div id="wipe-dist-chart" style="display:flex;align-items:flex-end;gap:2px;height:140px;padding-bottom:28px;position:relative;"></div>
+            <div id="wipe-dist-insight" class="insight neutral">Loading...</div>
+          </div>
+
+          <!-- Chart H: Zone Phase Death -->
+          <div class="chart-wrap">
+            <div style="margin-bottom:16px;">
+              <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Zone Phase Death</h3>
+              <p style="font-size:10px;color:var(--muted);margin-top:3px;">Which zone phase do you die in most? Cross-references your wipe time with recorded zone circle timestamps.</p>
+            </div>
+            <div id="zone-phase-chart" style="display:flex;align-items:flex-end;gap:4px;height:140px;padding-bottom:28px;position:relative;"></div>
+            <div id="zone-phase-insight" class="insight neutral">Loading...</div>
+          </div>
+
+          <!-- Chart I: Fight Timing -->
+          <div class="chart-wrap" style="grid-column:span 2;">
+            <div style="margin-bottom:16px;">
+              <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Fight Timing Across Matches</h3>
+              <p style="font-size:10px;color:var(--muted);margin-top:3px;">When in the match do your fights happen? Each dot = a logged fight. Clusters reveal your engagement pattern.</p>
+            </div>
+            <div id="fight-timing-chart" style="position:relative;min-height:100px;"></div>
+            <div id="fight-timing-insight" class="insight neutral">Loading...</div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ── MATCH HISTORY TABLE ── -->
+      <div class="chart-wrap" style="margin-top:8px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Match History</h3>
+          <span class="font-mono" id="match-count-label" style="font-size:9px;color:var(--muted);">0 MATCHES</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;">
+            <thead>
+              <tr style="border-bottom:1px solid var(--border);">
+                <th class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.12em;text-align:left;padding:0 12px 10px 0;font-weight:700;text-transform:uppercase;">Match</th>
+                <th class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.12em;text-align:left;padding:0 12px 10px 0;font-weight:700;text-transform:uppercase;">Day</th>
+                <th class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.12em;text-align:left;padding:0 12px 10px 0;font-weight:700;text-transform:uppercase;">Map</th>
+                <th class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.12em;text-align:right;padding:0 12px 10px 0;font-weight:700;text-transform:uppercase;">Place</th>
+                <th class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.12em;text-align:right;padding:0 12px 10px 0;font-weight:700;text-transform:uppercase;">Kills</th>
+                <th class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.12em;text-align:right;padding:0 12px 10px 0;font-weight:700;text-transform:uppercase;">KP</th>
+                <th class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.12em;text-align:right;padding:0 12px 10px 0;font-weight:700;text-transform:uppercase;">PP</th>
+                <th class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.12em;text-align:right;padding:0 12px 10px 0;font-weight:700;text-transform:uppercase;">Total</th>
+                <th class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.12em;text-align:right;padding:0 0 10px 0;font-weight:700;text-transform:uppercase;">Survived</th>
+              </tr>
+            </thead>
+            <tbody id="match-history-body">
+              <tr><td colspan="9" style="text-align:center;padding:40px;color:var(--muted);font-size:12px;">No data</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /analytics-body -->
+  </main>
+
+  <!-- FOOTER -->
+  <footer style="height:40px;border-top:1px solid var(--border);background:var(--bg-panel);display:flex;align-items:center;justify-content:between;padding:0 24px;">
+    <div style="display:flex;align-items:center;gap:24px;width:100%;">
+      <span class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.15em;">KERNAL: v4.0.2-ALPHA</span>
+      <span class="font-mono" id="footer-latency" style="font-size:9px;color:var(--muted);letter-spacing:0.15em;">LATENCY: —ms</span>
+      <span class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.15em;margin-left:auto;">© 2024 METAZONE INTELLIGENCE PLATFORM</span>
+    </div>
+  </footer>
+
+</div><!-- /app -->
+
+<script>
+// ══════════════════════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════════════════════
+const SUPA_URL = 'https://qsiqgtdgpcyishtayqhy.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFzaXFndGRncGN5aXNodGF5cWh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5OTMxNTYsImV4cCI6MjA5MjU2OTE1Nn0.tqr45OipzZEr7kMZBIQaSK7mXyUIdWAS_9y1kFabhYI';
+
+const PLACEMENT_POINTS = { 1:10, 2:6, 3:5, 4:4, 5:3, 6:2, 7:1, 8:1 };
+function pp(placement) { return PLACEMENT_POINTS[placement] || 0; }
+function totalPts(kills, placement) { return (kills || 0) + pp(placement); }
+
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+// ══════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════
+let currentUser = null;
+let tournamentId = null;
+let tournamentData = null;
+
+// Raw data
+let allDays = [];        // [{id, name, order_index}]
+let allMatches = [];     // [{id, name, day_id, map_key, duration_seconds}]
+let allTeams = [];       // [{id, name, color, match_id, is_self, placement, kills, time_of_wipe}]
+let allShapes = [];      // [{id, team_id, match_id, type, tag, time_seconds, zone_phase, pin_x, pin_y, fight_team_a, fight_team_b}]
+let allMatchPlayers = [];// [{id, match_id, player_id, time_of_loss, killed_by_team_id}]
+
+// Derived: list of unique team names across all matches (from tournament_teams)
+let teamNames = [];      // [{team_name}]
+
+// View state
+let currentView = 'coach';  // 'coach' | 'analyst'
+let selectedTeamName = 'SELF'; // 'SELF' or a team name
+
+// ══════════════════════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════════════════════
+async function sendMagicLink() {
+  const email = document.getElementById('auth-email').value.trim();
+  const msg = document.getElementById('auth-msg');
+  if (!email) { msg.textContent = 'Enter your email.'; msg.style.color = 'var(--red)'; return; }
+  msg.textContent = 'Sending...'; msg.style.color = 'var(--muted)';
+  const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.href } });
+  if (error) { msg.textContent = error.message; msg.style.color = 'var(--red)'; }
+  else { msg.textContent = '✓ Link sent — check your inbox.'; msg.style.color = 'var(--green)'; }
+}
+
+async function signOut() {
+  await sb.auth.signOut();
+  window.location.reload();
+}
+
+// ══════════════════════════════════════════════════════
+// BOOT
+// ══════════════════════════════════════════════════════
+let _booted = false;
+
+(async () => {
+  const t0 = Date.now();
+
+  // Always hide loading spinner immediately — auth screen or app will take over
+  document.getElementById('loading-screen').classList.add('hidden');
+
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    currentUser = session.user;
+    document.getElementById('auth-screen').classList.add('hidden');
+    if (!_booted) { _booted = true; await boot(); }
+  }
+
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      currentUser = session.user;
+      document.getElementById('auth-screen').classList.add('hidden');
+      if (!_booted) { _booted = true; await boot(); }
+    }
+    if (event === 'SIGNED_OUT') {
+      currentUser = null;
+      _booted = false;
+      document.getElementById('auth-screen').classList.remove('hidden');
+    }
+  });
+
+  document.getElementById('footer-latency').textContent = `LATENCY: ${Date.now() - t0}ms`;
+})();
+
+async function boot() {
+  // Parse URL — sessionStorage fallback
+  const params = new URLSearchParams(window.location.search);
+  let ctx = {};
+  try { ctx = JSON.parse(sessionStorage.getItem('mz_ctx') || '{}'); } catch(e) {}
+  tournamentId = params.get('tournamentId') || ctx.tournamentId || null;
+
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('app').style.flexDirection = 'column';
+
+  if (!tournamentId) {
+    document.getElementById('empty-state').style.display = 'flex';
+    return;
+  }
+
+  // Write context for other pages
+  try { sessionStorage.setItem('mz_ctx', JSON.stringify({...ctx, tournamentId})); } catch(e) {}
+
+  // A5: show skeleton while data loads
+  _showSkeleton();
+  await loadAllData();
+}
+
+async function loadAllData() {
+  // Tournament name
+  const { data: t } = await sb.from('tournaments').select('id,name,event_id,stage,cycle').eq('id', tournamentId).single();
+  if (!t) {
+    _hideSkeleton();
+    document.getElementById('empty-state').style.display = 'flex';
+    return;
+  }
+  tournamentData = t;
+  document.getElementById('tournament-name-display').textContent = t.name;
+
+  // Event banner — only if this tournament belongs to an event
+  await renderEventBanner(t);
+
+  // Days
+  const { data: days } = await sb.from('days').select('id,name,order_index').eq('tournament_id', tournamentId).order('order_index');
+  allDays = days || [];
+
+  // Matches
+  const dayIds = allDays.map(d => d.id);
+  if (dayIds.length === 0) {
+    _hideSkeleton();
+    showAnalytics();
+    return;
+  }
+  const { data: matches } = await sb.from('matches').select('id,name,day_id,map_key,duration_seconds').in('day_id', dayIds).order('created_at');
+  allMatches = matches || [];
+
+  // Teams for all matches (ALL teams including enemies — needed for lobby survival curve)
+  const matchIds = allMatches.map(m => m.id);
+  if (matchIds.length > 0) {
+    const { data: teams } = await sb.from('teams').select('id,name,color,match_id,is_self,placement,kills,time_of_wipe,confirmed_position').in('match_id', matchIds);
+    allTeams = teams || [];
+
+    // Shapes: fights + zone circles for timeline, fight timing, zone phase death charts
+    const { data: shapes } = await sb.from('shapes')
+      .select('id,team_id,match_id,type,tag,time_seconds,zone_phase,pin_x,pin_y,fight_team_a,fight_team_b')
+      .in('match_id', matchIds)
+      .in('type', ['fight', 'circle']);
+    allShapes = shapes || [];
+
+    // Match players: player loss timestamps for timeline
+    const { data: mps } = await sb.from('match_players')
+      .select('id,match_id,player_id,time_of_loss,killed_by_team_id')
+      .in('match_id', matchIds);
+    allMatchPlayers = mps || [];
+  }
+
+  // Tournament teams for dropdown
+  const { data: tTeams } = await sb.from('tournament_teams').select('team_name').eq('tournament_id', tournamentId).order('created_at');
+  teamNames = tTeams || [];
+
+  buildTeamSelector();
+  buildScopeSubFilter();
+  showAnalytics();
+}
+
+const STAGE_LABELS = {
+  qualifiers: 'Qualifiers',
+  group_stage: 'Group Stage',
+  last_chance: 'Last Chance',
+  semi_finals: 'Semi Finals',
+  finals: 'Finals'
+};
+const STAGE_ORDER = ['qualifiers','group_stage','last_chance','semi_finals','finals'];
+
+async function renderEventBanner(t) {
+  const banner = document.getElementById('event-banner');
+  if (!t.event_id) { banner.classList.remove('show'); return; }
+
+  // Load event name
+  const { data: ev } = await sb.from('events').select('id,name').eq('id', t.event_id).single();
+  if (!ev) { banner.classList.remove('show'); return; }
+
+  // Load all tournaments in this event
+  const { data: siblings } = await sb.from('tournaments')
+    .select('id,name,stage,cycle')
+    .eq('event_id', t.event_id)
+    .order('created_at');
+  if (!siblings || siblings.length < 2) { banner.classList.remove('show'); return; }
+
+  // Sort by stage order then cycle
+  siblings.sort((a, b) => {
+    const ai = STAGE_ORDER.indexOf(a.stage); const bi = STAGE_ORDER.indexOf(b.stage);
+    if (ai !== bi) return ai - bi;
+    return (a.cycle || 0) - (b.cycle || 0);
+  });
+
+  document.getElementById('ev-name').textContent = ev.name;
+
+  const pillsEl = document.getElementById('ev-pills');
+  pillsEl.innerHTML = siblings.map(s => {
+    const stageLabel = STAGE_LABELS[s.stage] || s.stage;
+    const cycleLabel = s.stage === 'group_stage' && s.cycle ? ' C' + s.cycle : '';
+    const isCurrent = s.id === t.id;
+    if (isCurrent) {
+      return `<span class="ev-pill current">${stageLabel}${cycleLabel}</span>`;
+    }
+    return `<a class="ev-pill" href="analytics.html?tournamentId=${s.id}">${stageLabel}${cycleLabel}</a>`;
+  }).join('');
+
+  banner.classList.add('show');
+}
+
+function showAnalytics() {
+  _hideSkeleton();
+  document.getElementById('analytics-body').style.display = 'block';
+  renderAll();
+}
+
+// ══════════════════════════════════════════════════════
+// A5: SKELETON HELPERS
+// ══════════════════════════════════════════════════════
+function _showSkeleton() {
+  // Generate 5 shimmer table rows
+  const rowsEl = document.getElementById('skel-table-rows');
+  if (rowsEl && rowsEl.childElementCount === 0) {
+    for (let i = 0; i < 5; i++) {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:12px;padding:12px 0;border-bottom:1px solid rgba(30,41,59,0.5);';
+      const widths = ['flex:2', 'flex:1', 'flex:1', 'flex:1', 'flex:1', 'flex:1', 'flex:1', 'flex:1', 'flex:1'];
+      widths.forEach(w => {
+        const cell = document.createElement('div');
+        cell.className = 'skel';
+        cell.style.cssText = `${w};height:11px;border-radius:2px;`;
+        row.appendChild(cell);
+      });
+      rowsEl.appendChild(row);
+    }
+  }
+  document.getElementById('skeleton-screen').classList.add('visible');
+}
+
+function _hideSkeleton() {
+  document.getElementById('skeleton-screen').classList.remove('visible');
+}
+
+// ══════════════════════════════════════════════════════
+// TEAM SELECTOR
+// ══════════════════════════════════════════════════════
+function buildTeamSelector() {
+  const sel = document.getElementById('team-selector');
+  sel.innerHTML = '<option value="SELF">YOUR TEAM (SELF)</option>';
+  teamNames.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t.team_name;
+    opt.textContent = t.team_name;
+    sel.appendChild(opt);
+  });
+}
+
+function onTeamChange() {
+  selectedTeamName = document.getElementById('team-selector').value;
+  renderAll();
+}
+
+// ══════════════════════════════════════════════════════
+// SCOPE FILTERS — Day pills + Map pills
+// ══════════════════════════════════════════════════════
+let currentScopeDay = 'all';   // 'all' | day_id
+let currentScopeMap = 'all';   // 'all' | map_key
+
+function buildScopeSubFilter() {
+  buildDayPills();
+  buildMapPills();
+}
+
+function buildDayPills() {
+  const strip = document.getElementById('day-pill-strip');
+  strip.innerHTML = '';
+  // ALL button
+  const allBtn = document.createElement('button');
+  allBtn.className = 'scope-pill' + (currentScopeDay === 'all' ? ' active' : '');
+  allBtn.id = 'scope-pill-all';
+  allBtn.textContent = 'ALL';
+  allBtn.onclick = () => setScopeDay('all');
+  strip.appendChild(allBtn);
+  // One button per day
+  allDays.forEach(d => {
+    const btn = document.createElement('button');
+    btn.className = 'scope-pill' + (currentScopeDay === d.id ? ' active' : '');
+    btn.textContent = d.name.toUpperCase();
+    btn.onclick = () => setScopeDay(d.id);
+    strip.appendChild(btn);
+  });
+}
+
+function buildMapPills() {
+  const strip = document.getElementById('map-pill-strip');
+  strip.innerHTML = '';
+  const allBtn = document.createElement('button');
+  allBtn.className = 'scope-pill' + (currentScopeMap === 'all' ? ' active' : '');
+  allBtn.textContent = 'ALL';
+  allBtn.onclick = () => setScopeMap('all');
+  strip.appendChild(allBtn);
+  const maps = [...new Set(allMatches.map(m => m.map_key).filter(Boolean))];
+  maps.forEach(m => {
+    const btn = document.createElement('button');
+    btn.className = 'scope-pill' + (currentScopeMap === m ? ' active' : '');
+    btn.textContent = m.toUpperCase();
+    btn.onclick = () => setScopeMap(m);
+    strip.appendChild(btn);
+  });
+}
+
+function setScopeDay(val) {
+  currentScopeDay = val;
+  buildDayPills();
+  renderAll();
+}
+
+function setScopeMap(val) {
+  currentScopeMap = val;
+  buildMapPills();
+  renderAll();
+}
+
+// ══════════════════════════════════════════════════════
+// VIEW TOGGLE
+// ══════════════════════════════════════════════════════
+function setView(view) {
+  currentView = view;
+  document.getElementById('btn-coach').classList.toggle('active', view === 'coach');
+  document.getElementById('btn-analyst').classList.toggle('active', view === 'analyst');
+
+  const coachEl = document.getElementById('coach-view');
+  const analystEl = document.getElementById('analyst-view');
+
+  if (view === 'coach') {
+    coachEl.style.display = 'block';
+    analystEl.style.display = 'none';
+    document.getElementById('view-desc').textContent = 'Strategy & pattern summary for coaching decisions';
+  } else {
+    coachEl.style.display = 'none';
+    analystEl.style.display = 'block';
+    document.getElementById('view-desc').textContent = 'Mechanical breakdown for deep performance diagnosis';
+  }
+  renderAll();
+}
+
+// ══════════════════════════════════════════════════════
+// DATA HELPERS
+// ══════════════════════════════════════════════════════
+
+function getFilteredMatches() {
+  let matches = [...allMatches];
+  if (currentScopeDay !== 'all') {
+    matches = matches.filter(m => m.day_id === currentScopeDay);
+  }
+  if (currentScopeMap !== 'all') {
+    matches = matches.filter(m => m.map_key === currentScopeMap);
+  }
+  return matches;
+}
+
+// Returns team rows for selected team across filtered matches
+function getTeamRows(filteredMatches) {
+  const matchIds = new Set(filteredMatches.map(m => m.id));
+  let rows;
+  if (selectedTeamName === 'SELF') {
+    rows = allTeams.filter(t => t.is_self && matchIds.has(t.match_id));
+  } else {
+    rows = allTeams.filter(t => t.name === selectedTeamName && matchIds.has(t.match_id));
+  }
+  // Sort by match order
+  return rows.sort((a, b) => {
+    const ai = filteredMatches.findIndex(m => m.id === a.match_id);
+    const bi = filteredMatches.findIndex(m => m.id === b.match_id);
+    return ai - bi;
+  });
+}
+
+// Compute derived stats for a row
+function enrichRow(row, match) {
+  const kp = row.kills || 0;
+  const placement = row.placement;
+  const placementPts = pp(placement);
+  const total = kp + placementPts;
+  const survivalPct = (match && match.duration_seconds && row.time_of_wipe)
+    ? Math.min(100, Math.round((row.time_of_wipe / match.duration_seconds) * 100))
+    : (row.placement === 1 ? 100 : null);
+  return { ...row, kp, placementPts, total, survivalPct, match };
+}
+
+function getEnrichedRows() {
+  const filtered = getFilteredMatches();
+  const rows = getTeamRows(filtered);
+  return rows.map(r => {
+    const match = filtered.find(m => m.id === r.match_id);
+    return enrichRow(r, match);
+  });
+}
+
+function getDayName(dayId) {
+  const d = allDays.find(x => x.id === dayId);
+  return d ? d.name : '—';
+}
+
+function getMatchName(matchId) {
+  const m = allMatches.find(x => x.id === matchId);
+  return m ? m.name : '—';
+}
+
+// ══════════════════════════════════════════════════════
+// MAIN RENDER
+// ══════════════════════════════════════════════════════
+function renderAll() {
+  const rows = getEnrichedRows();
+  const filteredMatches = getFilteredMatches();
+  updateIdentityCard(rows);
+  renderLobbyTimeline(filteredMatches);
+  renderMatchHistory(rows);
+  if (currentView === 'coach') renderCoachCharts(rows);
+  else renderAnalystCharts(rows, filteredMatches);
+}
+
+// ══════════════════════════════════════════════════════
+// IDENTITY CARD
+// ══════════════════════════════════════════════════════
+function updateIdentityCard(rows) {
+  const teamName = selectedTeamName === 'SELF' ? 'YOUR TEAM' : selectedTeamName;
+  document.getElementById('identity-team-name').textContent = teamName;
+
+  if (rows.length === 0) {
+    document.getElementById('kpi-avg-pts').textContent = '—';
+    document.getElementById('kpi-wwcd').textContent = '—';
+    document.getElementById('kpi-consistency').textContent = '—';
+    document.getElementById('kpi-matches').textContent = '0';
+    document.getElementById('profile-tag-text').textContent = 'NO DATA';
+    document.getElementById('identity-sub').textContent = 'No matches found for selected filters.';
+    return;
+  }
+
+  const totals = rows.map(r => r.total);
+  const avg = totals.reduce((a, b) => a + b, 0) / totals.length;
+  const wwcd = rows.filter(r => r.placement === 1).length;
+  const sd = stdDev(totals);
+
+  document.getElementById('kpi-avg-pts').textContent = avg.toFixed(1);
+  document.getElementById('kpi-wwcd').textContent = wwcd;
+  document.getElementById('kpi-matches').textContent = rows.length;
+
+  // Consistency: inverse of relative SD (0–100)
+  const maxPossible = 15;
+  const consistencyScore = Math.max(0, Math.round(100 - (sd / maxPossible) * 100));
+  document.getElementById('kpi-consistency').textContent = consistencyScore;
+
+  // Auto-derived profile tag
+  const profile = deriveProfile(rows);
+  document.getElementById('profile-tag-text').textContent = profile.label;
+  document.getElementById('identity-sub').textContent = `${rows.length} matches analyzed • Avg total: ${avg.toFixed(1)} pts • SD: ${sd.toFixed(1)}`;
+
+  // Color the team dot
+  const selfRow = rows.find(r => r.is_self);
+  if (selfRow && selfRow.color) {
+    document.getElementById('team-color-dot').style.background = selfRow.color;
+  }
+}
+
+function deriveProfile(rows) {
+  if (rows.length < 2) return { label: 'INSUFFICIENT DATA', color: 'var(--muted)' };
+
+  const avgKills = rows.reduce((a, r) => a + r.kp, 0) / rows.length;
+  const avgPlacement = rows.reduce((a, r) => a + (r.placement || 25), 0) / rows.length;
+  const survivedRows = rows.filter(r => r.survivalPct !== null);
+  const avgSurvival = survivedRows.length ? survivedRows.reduce((a, r) => a + r.survivalPct, 0) / survivedRows.length : 50;
+  const earlyWipes = rows.filter(r => r.survivalPct !== null && r.survivalPct < 33).length;
+  const lateRows = rows.filter(r => r.survivalPct !== null && r.survivalPct > 66).length;
+
+  if (earlyWipes / rows.length > 0.5) return { label: 'HOT DROPPERS', color: 'var(--red)' };
+  if (lateRows / rows.length > 0.5 && avgKills > 3) return { label: 'LATE GAME FIGHTERS', color: 'var(--accent)' };
+  if (lateRows / rows.length > 0.5 && avgKills <= 3) return { label: 'PLACEMENT ORIENTED', color: 'var(--green)' };
+  if (avgSurvival > 40 && avgSurvival < 70) return { label: 'ROTATION TEAM', color: 'var(--yellow)' };
+  return { label: 'INCONSISTENT', color: 'var(--purple)' };
+}
+
+// ══════════════════════════════════════════════════════
+// COACH CHARTS
+// ══════════════════════════════════════════════════════
+function renderCoachCharts(rows) {
+  renderScatterChart(rows);
+  renderPointsRaceChart(rows);
+  renderKpPpChart(rows);
+  renderPlacementDist(rows);
+}
+
+// ── Scatter: KP vs PP ──
+function renderScatterChart(rows) {
+  const canvas = document.getElementById('scatter-chart');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth; const H = canvas.offsetHeight;
+  canvas.width = W * devicePixelRatio; canvas.height = H * devicePixelRatio;
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+  ctx.clearRect(0, 0, W, H);
+
+  const pad = { l: 44, r: 20, t: 20, b: 36 };
+  const pw = W - pad.l - pad.r;
+  const ph = H - pad.t - pad.b;
+
+  if (rows.length === 0) { drawEmpty(ctx, W, H, '— NO MATCHES IN FILTER —'); return; }
+
+  const maxKP = Math.max(10, ...rows.map(r => r.kp));
+  const maxPP = Math.max(10, ...rows.map(r => r.placementPts));
+
+  // Axes
+  ctx.strokeStyle = 'rgba(71,85,105,0.4)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t + ph); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(pad.l, pad.t + ph); ctx.lineTo(pad.l + pw, pad.t + ph); ctx.stroke();
+
+  // Quadrant lines
+  ctx.strokeStyle = 'rgba(71,85,105,0.2)'; ctx.setLineDash([4, 6]);
+  ctx.beginPath(); ctx.moveTo(pad.l + pw/2, pad.t); ctx.lineTo(pad.l + pw/2, pad.t + ph); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(pad.l, pad.t + ph/2); ctx.lineTo(pad.l + pw, pad.t + ph/2); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Quadrant labels
+  ctx.font = '600 8px JetBrains Mono'; ctx.fillStyle = 'rgba(71,85,105,0.6)';
+  ctx.textAlign = 'left';
+  ctx.fillText('RAT TEAMS', pad.l + 6, pad.t + ph/2 - 6);
+  ctx.fillText('CONTENDERS', pad.l + pw/2 + 6, pad.t + 14);
+  ctx.fillStyle = 'rgba(248,113,113,0.5)';
+  ctx.fillText('STRUGGLING', pad.l + 6, pad.t + ph - 6);
+  ctx.fillStyle = 'rgba(250,204,21,0.5)';
+  ctx.fillText('RECKLESS', pad.l + pw/2 + 6, pad.t + ph - 6);
+
+  // Axis labels
+  ctx.font = '500 9px JetBrains Mono'; ctx.fillStyle = '#475569';
+  ctx.textAlign = 'center';
+  ctx.fillText('KILL POINTS (KP) →', pad.l + pw/2, pad.t + ph + 28);
+  ctx.save(); ctx.translate(14, pad.t + ph/2); ctx.rotate(-Math.PI/2);
+  ctx.fillText('PLACEMENT PTS (PP) →', 0, 0);
+  ctx.restore();
+
+  // Points
+  rows.forEach((r, i) => {
+    const x = pad.l + (r.kp / (maxKP * 1.1)) * pw;
+    const y = pad.t + ph - (r.placementPts / (maxPP * 1.1)) * ph;
+
+    // Glow
+    ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(34,211,238,0.06)'; ctx.fill();
+
+    // Dot
+    ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI*2);
+    ctx.fillStyle = r.is_self !== false ? '#22d3ee' : 'rgba(100,116,139,0.6)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Match label
+    ctx.font = '500 8px JetBrains Mono'; ctx.fillStyle = 'rgba(148,163,184,0.7)';
+    ctx.textAlign = 'center';
+    ctx.fillText(`M${i+1}`, x, y - 9);
+  });
+
+  // Insight
+  const avgKP = rows.reduce((a, r) => a + r.kp, 0) / rows.length;
+  const avgPP = rows.reduce((a, r) => a + r.placementPts, 0) / rows.length;
+  let insightClass = 'neutral', insightText = '';
+  if (avgKP > 4 && avgPP > 3) { insightClass = 'good'; insightText = '★ CONTENDER PROFILE — High kill output and strong placement. Elite tier performance.'; }
+  else if (avgKP <= 2 && avgPP > 3) { insightClass = 'neutral'; insightText = 'RAT TEAM PROFILE — Low kills but solid placements. Defensive but survivable strategy.'; }
+  else if (avgKP > 4 && avgPP <= 2) { insightClass = 'warn'; insightText = '⚠ RECKLESS PROFILE — High kills but dying early. Aggression is not converting to points.'; }
+  else { insightClass = 'warn'; insightText = '⚠ STRUGGLING — Low kills and low placements. Strategy needs fundamental adjustment.'; }
+
+  const el = document.getElementById('scatter-insight');
+  el.className = `insight ${insightClass}`;
+  el.textContent = insightText;
+}
+
+// ── Points Race ──
+function renderPointsRaceChart(rows) {
+  const canvas = document.getElementById('points-race-chart');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth; const H = canvas.offsetHeight;
+  canvas.width = W * devicePixelRatio; canvas.height = H * devicePixelRatio;
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+  ctx.clearRect(0, 0, W, H);
+
+  const pad = { l: 36, r: 12, t: 12, b: 28 };
+  const pw = W - pad.l - pad.r;
+  const ph = H - pad.t - pad.b;
+
+  if (rows.length < 2) { drawEmpty(ctx, W, H, '2+ MATCHES NEEDED'); return; }
+
+  const totals = rows.map(r => r.total);
+  const maxTotal = Math.max(1, ...totals);
+  const minTotal = Math.min(...totals);
+
+  // Grid lines
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.t + (ph / 4) * i;
+    ctx.strokeStyle = 'rgba(30,41,59,0.8)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + pw, y); ctx.stroke();
+    const val = Math.round(maxTotal - (maxTotal / 4) * i);
+    ctx.font = '500 8px JetBrains Mono'; ctx.fillStyle = '#475569';
+    ctx.textAlign = 'right';
+    ctx.fillText(val, pad.l - 4, y + 3);
+  }
+
+  // Area fill
+  ctx.beginPath();
+  rows.forEach((r, i) => {
+    const x = pad.l + (i / (rows.length - 1)) * pw;
+    const y = pad.t + ph - ((r.total - 0) / (maxTotal * 1.1)) * ph;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.lineTo(pad.l + pw, pad.t + ph);
+  ctx.lineTo(pad.l, pad.t + ph);
+  ctx.closePath();
+  const grad = ctx.createLinearGradient(0, pad.t, 0, pad.t + ph);
+  grad.addColorStop(0, 'rgba(34,211,238,0.15)');
+  grad.addColorStop(1, 'rgba(34,211,238,0)');
+  ctx.fillStyle = grad; ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  rows.forEach((r, i) => {
+    const x = pad.l + (i / (rows.length - 1)) * pw;
+    const y = pad.t + ph - ((r.total - 0) / (maxTotal * 1.1)) * ph;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = '#22d3ee'; ctx.lineWidth = 2; ctx.stroke();
+
+  // Dots + match labels
+  rows.forEach((r, i) => {
+    const x = pad.l + (i / Math.max(rows.length - 1, 1)) * pw;
+    const y = pad.t + ph - ((r.total - 0) / (maxTotal * 1.1)) * ph;
+    ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI*2);
+    ctx.fillStyle = '#22d3ee'; ctx.fill();
+    ctx.font = '500 8px JetBrains Mono'; ctx.fillStyle = '#475569';
+    ctx.textAlign = 'center';
+    ctx.fillText(`M${i+1}`, x, pad.t + ph + 18);
+  });
+
+  // Insight
+  const last3 = totals.slice(-3);
+  const first3 = totals.slice(0, 3);
+  const trend = last3.reduce((a, b) => a+b, 0) / last3.length - first3.reduce((a, b) => a+b, 0) / first3.length;
+  const el = document.getElementById('points-race-insight');
+  if (rows.length < 3) {
+    el.className = 'insight neutral'; el.textContent = 'Need more matches to detect trend.';
+  } else if (trend > 2) {
+    el.className = 'insight good'; el.textContent = `↑ UPWARD TREND — Avg score up ${trend.toFixed(1)} pts in recent matches. Momentum is building.`;
+  } else if (trend < -2) {
+    el.className = 'insight warn'; el.textContent = `↓ SLUMP DETECTED — Avg score down ${Math.abs(trend).toFixed(1)} pts recently. Review recent match strategy.`;
+  } else {
+    el.className = 'insight neutral'; el.textContent = `→ STABLE — Score variance is within normal range across all matches.`;
+  }
+}
+
+// ── KP vs PP Stacked Bar ──
+function renderKpPpChart(rows) {
+  const canvas = document.getElementById('kp-pp-chart');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth; const H = canvas.offsetHeight;
+  canvas.width = W * devicePixelRatio; canvas.height = H * devicePixelRatio;
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+  ctx.clearRect(0, 0, W, H);
+
+  const pad = { l: 32, r: 12, t: 12, b: 28 };
+  const pw = W - pad.l - pad.r;
+  const ph = H - pad.t - pad.b;
+
+  if (rows.length === 0) { drawEmpty(ctx, W, H, '— NO MATCHES IN FILTER —'); return; }
+
+  const maxTotal = Math.max(1, ...rows.map(r => r.total));
+  const barW = Math.min(32, (pw / rows.length) - 4);
+
+  rows.forEach((r, i) => {
+    const x = pad.l + (i / rows.length) * pw + (pw / rows.length - barW) / 2;
+    const ppH = (r.placementPts / maxTotal) * ph;
+    const kpH = (r.kp / maxTotal) * ph;
+    const totalH = ppH + kpH;
+
+    // PP bar (bottom)
+    ctx.fillStyle = 'rgba(74,222,128,0.7)';
+    ctx.fillRect(x, pad.t + ph - ppH, barW, ppH);
+
+    // KP bar (top)
+    ctx.fillStyle = 'rgba(34,211,238,0.7)';
+    ctx.fillRect(x, pad.t + ph - ppH - kpH, barW, kpH);
+
+    // Value label
+    if (r.total > 0) {
+      ctx.font = '600 8px JetBrains Mono'; ctx.fillStyle = 'rgba(241,245,249,0.8)';
+      ctx.textAlign = 'center';
+      ctx.fillText(r.total, x + barW/2, pad.t + ph - totalH - 4);
+    }
+
+    // X label
+    ctx.font = '500 8px JetBrains Mono'; ctx.fillStyle = '#475569';
+    ctx.textAlign = 'center';
+    ctx.fillText(`M${i+1}`, x + barW/2, pad.t + ph + 18);
+  });
+
+  // Y axis
+  ctx.strokeStyle = 'rgba(71,85,105,0.3)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t + ph); ctx.stroke();
+
+  // Legend
+  ctx.font = '600 8px JetBrains Mono';
+  ctx.fillStyle = 'rgba(34,211,238,0.8)'; ctx.fillRect(W - 80, 8, 8, 8);
+  ctx.fillStyle = '#94a3b8'; ctx.fillText('KP', W - 68, 16);
+  ctx.fillStyle = 'rgba(74,222,128,0.8)'; ctx.fillRect(W - 50, 8, 8, 8);
+  ctx.fillStyle = '#94a3b8'; ctx.fillText('PP', W - 38, 16);
+
+  // Insight
+  const avgKP = rows.reduce((a, r) => a + r.kp, 0) / rows.length;
+  const avgPP = rows.reduce((a, r) => a + r.placementPts, 0) / rows.length;
+  const ratio = avgKP / Math.max(avgPP, 0.1);
+  const el = document.getElementById('kp-pp-insight');
+  if (ratio > 2) {
+    el.className = 'insight warn'; el.textContent = `⚠ KILL-HEAVY — ${Math.round(avgKP)}pts avg from kills vs ${Math.round(avgPP)}pts from placement. Survival discipline needed.`;
+  } else if (ratio < 0.5) {
+    el.className = 'insight neutral'; el.textContent = `PLACEMENT-SAFE — Low kill aggression, high placement points. Consider taking more fights.`;
+  } else {
+    el.className = 'insight good'; el.textContent = `✓ BALANCED SPLIT — Good mix of kill and placement points. Keep this strategy.`;
+  }
+}
+
+// ── Placement Distribution ──
+function renderPlacementDist(rows) {
+  const container = document.getElementById('placement-dist-chart');
+  container.innerHTML = '';
+
+  if (rows.length === 0) {
+    container.innerHTML = chartEmpty('lucide:map-pin-off', 'No placement data', 'No matches found for the current filter. Adjust the Day or Map filter above.');
+    document.getElementById('placement-insight').className = 'insight neutral';
+    document.getElementById('placement-insight').textContent = 'Select a different filter scope to see placement distribution.';
+    return;
+  }
+
+  // Buckets: 1st, 2nd, 3rd, top5, top10, 11–25
+  const buckets = [
+    { label: '1ST', check: p => p === 1, color: '#facc15' },
+    { label: '2ND', check: p => p === 2, color: '#94a3b8' },
+    { label: '3RD', check: p => p === 3, color: '#fb923c' },
+    { label: 'TOP 5', check: p => p >= 4 && p <= 5, color: '#4ade80' },
+    { label: 'TOP 10', check: p => p >= 6 && p <= 10, color: '#22d3ee' },
+    { label: '11–25', check: p => !p || p > 10, color: '#475569' },
+  ];
+
+  const counts = buckets.map(b => rows.filter(r => b.check(r.placement)).length);
+  const maxCount = Math.max(1, ...counts);
+
+  // Compute effective chart height for bars (container height minus label space)
+  const chartH = 96;
+
+  buckets.forEach((b, i) => {
+    const pct = counts[i] / maxCount;
+    const barH = Math.max(2, Math.round(pct * chartH));
+
+    const col = document.createElement('div');
+    col.style.cssText = `display:flex;flex-direction:column;align-items:center;flex:1;gap:4px;justify-content:flex-end;`;
+
+    const countLabel = document.createElement('div');
+    countLabel.textContent = counts[i];
+    countLabel.style.cssText = `font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;color:${counts[i] > 0 ? b.color : 'var(--muted)'};`;
+
+    const bar = document.createElement('div');
+    bar.style.cssText = `width:100%;max-width:48px;height:${barH}px;background:${b.color};border-radius:2px 2px 0 0;opacity:${counts[i] > 0 ? '0.85' : '0.2'};transition:height 0.3s;`;
+
+    const label = document.createElement('div');
+    label.textContent = b.label;
+    label.style.cssText = `font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--muted);text-align:center;position:absolute;bottom:0;left:50%;transform:translateX(-50%);white-space:nowrap;`;
+
+    const labelWrap = document.createElement('div');
+    labelWrap.style.cssText = `position:relative;height:20px;width:100%;`;
+    labelWrap.appendChild(label);
+
+    col.appendChild(countLabel);
+    col.appendChild(bar);
+    col.appendChild(labelWrap);
+    container.appendChild(col);
+  });
+
+  // Insight
+  const top3 = rows.filter(r => r.placement <= 3).length;
+  const eliminated = rows.filter(r => !r.placement || r.placement > 10).length;
+  const el = document.getElementById('placement-insight');
+  const top3pct = Math.round((top3 / rows.length) * 100);
+  const elimpct = Math.round((eliminated / rows.length) * 100);
+  if (top3pct > 40) {
+    el.className = 'insight good'; el.textContent = `★ PODIUM REGULAR — Top 3 finish ${top3pct}% of matches. Exceptional consistency.`;
+  } else if (elimpct > 50) {
+    el.className = 'insight critical'; el.textContent = `✗ HIGH ELIMINATION RATE — Finishing 11th+ in ${elimpct}% of matches. Rotation or survival issue.`;
+  } else {
+    el.className = 'insight neutral'; el.textContent = `Mid-table consistency. Top 3 finishes: ${top3pct}%. Early elims: ${elimpct}%.`;
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// ANALYST CHARTS
+// ══════════════════════════════════════════════════════
+function renderAnalystCharts(rows, filteredMatches) {
+  renderSurvivalChart(rows);
+  renderKillDist(rows);
+  renderVarianceChart(rows);
+  renderAggressionChart(rows);
+  renderPhaseChart(rows);
+  renderLobbySurvivalCurve(rows, filteredMatches);
+  renderWipeDistChart(rows, filteredMatches);
+  renderZonePhaseChart(rows, filteredMatches);
+  renderFightTimingChart(filteredMatches);
+}
+
+// ── Survival Time Bar ──
+function renderSurvivalChart(rows) {
+  const container = document.getElementById('survival-chart');
+  container.innerHTML = '';
+
+  if (rows.length === 0) {
+    container.innerHTML = chartEmpty('lucide:timer-off', 'No match data', 'No matches found for the current filter. Try changing the Day or Map scope.');
+    document.getElementById('survival-insight').className = 'insight neutral';
+    document.getElementById('survival-insight').textContent = 'Select a different filter scope to see survival time data.';
+    return;
+  }
+
+  const chartH = 112;
+
+  rows.forEach((r, i) => {
+    const pct = r.survivalPct !== null ? r.survivalPct : 0;
+    const hasData = r.survivalPct !== null;
+    const barH = Math.max(2, Math.round((pct / 100) * chartH));
+
+    let color = '#22d3ee';
+    if (pct < 33) color = '#f87171';
+    else if (pct < 66) color = '#facc15';
+    else color = '#4ade80';
+
+    const col = document.createElement('div');
+    col.style.cssText = `display:flex;flex-direction:column;align-items:center;flex:1;gap:2px;justify-content:flex-end;`;
+
+    const pctLabel = document.createElement('div');
+    pctLabel.textContent = hasData ? `${pct}%` : '?';
+    pctLabel.style.cssText = `font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;color:${color};`;
+
+    const bar = document.createElement('div');
+    bar.style.cssText = `width:100%;max-width:40px;height:${barH}px;background:${color};border-radius:2px 2px 0 0;opacity:${hasData ? '0.8' : '0.2'};`;
+
+    // Placement badge on bar
+    if (r.placement && pct > 20) {
+      bar.title = `Placement: #${r.placement}`;
+    }
+
+    const label = document.createElement('div');
+    label.textContent = `M${i+1}`;
+    label.style.cssText = `font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--muted);text-align:center;position:absolute;bottom:0;left:50%;transform:translateX(-50%);`;
+
+    const labelWrap = document.createElement('div');
+    labelWrap.style.cssText = `position:relative;height:20px;width:100%;`;
+    labelWrap.appendChild(label);
+
+    col.appendChild(pctLabel);
+    col.appendChild(bar);
+    col.appendChild(labelWrap);
+    container.appendChild(col);
+  });
+
+  // Insight
+  const validRows = rows.filter(r => r.survivalPct !== null);
+  const el = document.getElementById('survival-insight');
+  if (validRows.length === 0) {
+    el.className = 'insight neutral'; el.textContent = 'Survival time not recorded (time_of_wipe not set for these matches).';
+    return;
+  }
+  const avgSurv = validRows.reduce((a, r) => a + r.survivalPct, 0) / validRows.length;
+  const highSurvLowPlace = validRows.filter(r => r.survivalPct > 70 && r.placement > 5).length;
+  if (highSurvLowPlace > validRows.length * 0.3) {
+    el.className = 'insight warn'; el.textContent = `⚠ SURVIVAL-PLACEMENT MISMATCH — Surviving ${avgSurv.toFixed(0)}% of match time but not converting to top placements. Final circle fighting is the problem.`;
+  } else if (avgSurv < 40) {
+    el.className = 'insight critical'; el.textContent = `✗ LOW SURVIVAL — Average elimination at ${avgSurv.toFixed(0)}% of match duration. Dying in mid-game. Rotation timing issue.`;
+  } else {
+    el.className = 'insight good'; el.textContent = `✓ SOLID SURVIVAL — Average ${avgSurv.toFixed(0)}% of match duration survived. Late-game presence confirmed.`;
+  }
+}
+
+// ── Kill Distribution ──
+function renderKillDist(rows) {
+  const container = document.getElementById('kill-dist-chart');
+  container.innerHTML = '';
+
+  if (rows.length === 0) {
+    container.innerHTML = chartEmpty('lucide:crosshair', 'No kill data', 'No matches found for the current filter. Adjust the Day or Map scope.');
+    document.getElementById('kill-dist-insight').className = 'insight neutral';
+    document.getElementById('kill-dist-insight').textContent = 'Select a different filter scope to see kill frequency data.';
+    return;
+  }
+
+  const maxKills = Math.max(...rows.map(r => r.kp), 6);
+  const freq = {};
+  for (let i = 0; i <= maxKills; i++) freq[i] = 0;
+  rows.forEach(r => { if (freq[r.kp] !== undefined) freq[r.kp]++; else freq[maxKills]++; });
+
+  const buckets = Object.entries(freq).filter(([k]) => parseInt(k) <= maxKills);
+  const maxFreq = Math.max(1, ...buckets.map(([, v]) => v));
+  const chartH = 112;
+
+  buckets.forEach(([kills, count]) => {
+    const barH = Math.max(1, Math.round((count / maxFreq) * chartH));
+    const isZero = parseInt(kills) === 0;
+
+    const col = document.createElement('div');
+    col.style.cssText = `display:flex;flex-direction:column;align-items:center;flex:1;gap:2px;justify-content:flex-end;min-width:18px;`;
+
+    const cntLbl = document.createElement('div');
+    cntLbl.textContent = count > 0 ? count : '';
+    cntLbl.style.cssText = `font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;color:${isZero ? 'var(--red)' : 'var(--accent)'};`;
+
+    const bar = document.createElement('div');
+    bar.style.cssText = `width:100%;max-width:28px;height:${barH}px;background:${isZero ? 'var(--red)' : 'var(--accent)'};border-radius:2px 2px 0 0;opacity:${count > 0 ? '0.7' : '0.15'};`;
+
+    const label = document.createElement('div');
+    label.textContent = kills;
+    label.style.cssText = `font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--muted);text-align:center;position:absolute;bottom:0;left:50%;transform:translateX(-50%);`;
+
+    const labelWrap = document.createElement('div');
+    labelWrap.style.cssText = `position:relative;height:20px;width:100%;`;
+    labelWrap.appendChild(label);
+
+    col.appendChild(cntLbl);
+    col.appendChild(bar);
+    col.appendChild(labelWrap);
+    container.appendChild(col);
+  });
+
+  // Insight
+  const zeroKillMatches = rows.filter(r => r.kp === 0).length;
+  const avgK = rows.reduce((a, r) => a + r.kp, 0) / rows.length;
+  const el = document.getElementById('kill-dist-insight');
+  const zeroPct = Math.round((zeroKillMatches / rows.length) * 100);
+  if (zeroPct > 30) {
+    el.className = 'insight warn'; el.textContent = `⚠ DRY MATCHES — 0-kill performance in ${zeroPct}% of matches. Team is avoiding engagements or losing all fights.`;
+  } else {
+    el.className = 'insight neutral'; el.textContent = `Average ${avgK.toFixed(1)} kills/match. Zero-kill rate: ${zeroPct}%.`;
+  }
+}
+
+// ── Variance Chart ──
+function renderVarianceChart(rows) {
+  const canvas = document.getElementById('variance-chart');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth; const H = canvas.offsetHeight;
+  canvas.width = W * devicePixelRatio; canvas.height = H * devicePixelRatio;
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+  ctx.clearRect(0, 0, W, H);
+
+  const pad = { l: 32, r: 12, t: 16, b: 28 };
+  const pw = W - pad.l - pad.r;
+  const ph = H - pad.t - pad.b;
+
+  if (rows.length < 3) { drawEmpty(ctx, W, H, '3+ MATCHES NEEDED FOR VARIANCE'); return; }
+  const window = 3;
+  const sdValues = [];
+  for (let i = window - 1; i < rows.length; i++) {
+    const slice = rows.slice(i - window + 1, i + 1).map(r => r.total);
+    sdValues.push({ i, sd: stdDev(slice) });
+  }
+
+  const maxSD = Math.max(1, ...sdValues.map(v => v.sd));
+
+  // Grid
+  for (let i = 0; i <= 3; i++) {
+    const y = pad.t + (ph / 3) * i;
+    ctx.strokeStyle = 'rgba(30,41,59,0.8)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + pw, y); ctx.stroke();
+    ctx.font = '500 8px JetBrains Mono'; ctx.fillStyle = '#475569';
+    ctx.textAlign = 'right';
+    ctx.fillText(Math.round(maxSD - (maxSD / 3) * i), pad.l - 4, y + 3);
+  }
+
+  // Line
+  ctx.beginPath();
+  sdValues.forEach((v, idx) => {
+    const x = pad.l + (v.i / (rows.length - 1)) * pw;
+    const y = pad.t + ph - (v.sd / (maxSD * 1.1)) * ph;
+    idx === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = '#a78bfa'; ctx.lineWidth = 2; ctx.stroke();
+
+  sdValues.forEach(v => {
+    const x = pad.l + (v.i / (rows.length - 1)) * pw;
+    const y = pad.t + ph - (v.sd / (maxSD * 1.1)) * ph;
+    ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI*2);
+    ctx.fillStyle = '#a78bfa'; ctx.fill();
+  });
+
+  // Insight
+  const latestSD = sdValues[sdValues.length - 1]?.sd || 0;
+  const el = document.getElementById('variance-insight');
+  if (latestSD < 3) {
+    el.className = 'insight good'; el.textContent = `✓ LOW VARIANCE (SD=${latestSD.toFixed(1)}) — Highly consistent performance. Reliable scoring pattern.`;
+  } else if (latestSD > 6) {
+    el.className = 'insight warn'; el.textContent = `⚠ HIGH VARIANCE (SD=${latestSD.toFixed(1)}) — Feast-or-famine results. Strategy is inconsistent across matches.`;
+  } else {
+    el.className = 'insight neutral'; el.textContent = `Moderate variance (SD=${latestSD.toFixed(1)}). Some inconsistency present.`;
+  }
+}
+
+// ── Aggression vs Score Scatter ──
+function renderAggressionChart(rows) {
+  const canvas = document.getElementById('aggression-chart');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth; const H = canvas.offsetHeight;
+  canvas.width = W * devicePixelRatio; canvas.height = H * devicePixelRatio;
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+  ctx.clearRect(0, 0, W, H);
+
+  const pad = { l: 40, r: 20, t: 16, b: 36 };
+  const pw = W - pad.l - pad.r;
+  const ph = H - pad.t - pad.b;
+
+  if (rows.length < 3) { drawEmpty(ctx, W, H, '3+ MATCHES NEEDED FOR CORRELATION'); return; }
+  const maxTotal = Math.max(1, ...rows.map(r => r.total));
+
+  ctx.strokeStyle = 'rgba(71,85,105,0.4)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t + ph); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(pad.l, pad.t + ph); ctx.lineTo(pad.l + pw, pad.t + ph); ctx.stroke();
+
+  // Axis labels
+  ctx.font = '500 9px JetBrains Mono'; ctx.fillStyle = '#475569';
+  ctx.textAlign = 'center';
+  ctx.fillText('KILLS IN MATCH →', pad.l + pw/2, pad.t + ph + 28);
+  ctx.save(); ctx.translate(12, pad.t + ph/2); ctx.rotate(-Math.PI/2);
+  ctx.fillText('TOTAL POINTS →', 0, 0); ctx.restore();
+
+  // Regression line
+  const n = rows.length;
+  const sumX = rows.reduce((a, r) => a + r.kp, 0);
+  const sumY = rows.reduce((a, r) => a + r.total, 0);
+  const sumXY = rows.reduce((a, r) => a + r.kp * r.total, 0);
+  const sumX2 = rows.reduce((a, r) => a + r.kp * r.kp, 0);
+  const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX || 1);
+  const intercept = (sumY - slope * sumX) / n;
+
+  const x1 = 0, y1 = slope * x1 + intercept;
+  const x2 = maxKP * 1.1, y2 = slope * x2 + intercept;
+  ctx.beginPath();
+  ctx.moveTo(pad.l + (x1 / (maxKP * 1.1)) * pw, pad.t + ph - (Math.max(0, y1) / (maxTotal * 1.1)) * ph);
+  ctx.lineTo(pad.l + (x2 / (maxKP * 1.1)) * pw, pad.t + ph - (Math.min(maxTotal * 1.1, y2) / (maxTotal * 1.1)) * ph);
+  ctx.strokeStyle = 'rgba(250,204,21,0.3)'; ctx.lineWidth = 1; ctx.setLineDash([6, 4]);
+  ctx.stroke(); ctx.setLineDash([]);
+
+  // Points
+  rows.forEach(r => {
+    const x = pad.l + (r.kp / (maxKP * 1.1)) * pw;
+    const y = pad.t + ph - (r.total / (maxTotal * 1.1)) * ph;
+    ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(34,211,238,0.8)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1; ctx.stroke();
+  });
+
+  const el = document.getElementById('aggression-insight');
+  if (slope > 0.5) {
+    el.className = 'insight good'; el.textContent = `↑ AGGRESSION PAYS OFF — Each additional kill adds ~${slope.toFixed(1)} pts to final score. Prioritize engagements.`;
+  } else if (slope < -0.2) {
+    el.className = 'insight critical'; el.textContent = `✗ AGGRESSION HURTS — More kills correlates with lower final score. Dying after kills. Play safer.`;
+  } else {
+    el.className = 'insight neutral'; el.textContent = `Weak correlation between kills and final score. Placement points are the dominant driver.`;
+  }
+}
+
+// ── Phase Profile ──
+function renderPhaseChart(rows) {
+  const container = document.getElementById('phase-chart');
+  container.innerHTML = '';
+
+  const validRows = rows.filter(r => r.survivalPct !== null);
+  if (validRows.length === 0) {
+    if (rows.length === 0) {
+      container.innerHTML = chartEmpty('lucide:layers-3', 'No match data', 'No matches found for the current filter. Adjust the Day or Map scope.');
+    } else {
+      container.innerHTML = chartEmpty('lucide:clock-x', 'Wipe time not recorded', 'Set time_of_wipe when logging eliminations to enable phase analysis.');
+    }
+    document.getElementById('phase-insight').className = 'insight neutral';
+    document.getElementById('phase-insight').textContent = rows.length === 0
+      ? 'Select a different filter scope to see phase data.'
+      : 'Record time_of_wipe on team eliminations to unlock this chart.';
+    return;
+  }
+
+  const early = validRows.filter(r => r.survivalPct < 33).length;
+  const mid = validRows.filter(r => r.survivalPct >= 33 && r.survivalPct < 66).length;
+  const late = validRows.filter(r => r.survivalPct >= 66).length;
+  const total = validRows.length;
+
+  const phases = [
+    { label: 'EARLY', count: early, color: '#f87171', desc: 'Hot drop / early wipe' },
+    { label: 'MID', count: mid, color: '#facc15', desc: 'Rotation / zone death' },
+    { label: 'LATE', count: late, color: '#4ade80', desc: 'Circle fight / clutch' },
+  ];
+
+  phases.forEach(p => {
+    const pct = Math.round((p.count / total) * 100);
+    const block = document.createElement('div');
+    block.style.cssText = `flex:${Math.max(1, p.count)};background:${p.color}18;border:1px solid ${p.color}40;border-radius:3px;padding:12px;display:flex;flex-direction:column;gap:4px;`;
+
+    const topRow = document.createElement('div');
+    topRow.style.cssText = `display:flex;align-items:baseline;gap:6px;`;
+    const big = document.createElement('span');
+    big.className = 'font-display';
+    big.style.cssText = `font-size:28px;font-weight:800;color:${p.color};`;
+    big.textContent = p.count;
+    const pctSpan = document.createElement('span');
+    pctSpan.className = 'font-mono';
+    pctSpan.style.cssText = `font-size:11px;color:${p.color};opacity:0.7;`;
+    pctSpan.textContent = `${pct}%`;
+    topRow.appendChild(big); topRow.appendChild(pctSpan);
+
+    const lbl = document.createElement('div');
+    lbl.className = 'font-mono';
+    lbl.style.cssText = `font-size:9px;font-weight:700;letter-spacing:0.12em;color:${p.color};text-transform:uppercase;`;
+    lbl.textContent = p.label;
+
+    const desc = document.createElement('div');
+    desc.style.cssText = `font-size:9px;color:var(--muted);margin-top:2px;`;
+    desc.textContent = p.desc;
+
+    block.appendChild(topRow);
+    block.appendChild(lbl);
+    block.appendChild(desc);
+    container.appendChild(block);
+  });
+
+  const el = document.getElementById('phase-insight');
+  const dominant = phases.reduce((a, b) => a.count > b.count ? a : b);
+  if (dominant.label === 'EARLY') {
+    el.className = 'insight critical'; el.textContent = `✗ HOT DROP PROBLEM — ${early}/${total} eliminations happen before 33% of match time. Avoid contested landing zones.`;
+  } else if (dominant.label === 'MID') {
+    el.className = 'insight warn'; el.textContent = `⚠ ROTATION DEATHS — ${mid}/${total} eliminations in mid-phase. Caught in the open during zone moves.`;
+  } else {
+    el.className = 'insight good'; el.textContent = `✓ LATE-GAME PRESENCE — ${late}/${total} eliminations in late phase. Team consistently reaches final circles.`;
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// LOBBY ACTIVITY TIMELINE (always visible)
+// ══════════════════════════════════════════════════════
+function fmtSec(s) {
+  if (s == null) return '?';
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m}:${String(sec).padStart(2,'0')}`;
+}
+
+function renderLobbyTimeline(filteredMatches) {
+  const container = document.getElementById('lobby-timeline-chart');
+  container.innerHTML = '';
+
+  if (!filteredMatches || filteredMatches.length === 0) {
+    container.innerHTML = chartEmpty('lucide:activity', 'No matches in filter', 'Select a different scope to see match timelines.');
+    return;
+  }
+
+  // Determine global max time across all filtered matches for consistent x-axis
+  const globalMax = Math.max(
+    ...filteredMatches.map(m => {
+      const dur = m.duration_seconds;
+      const matchTeams = allTeams.filter(t => t.match_id === m.id);
+      const lastWipe = Math.max(0, ...matchTeams.map(t => t.time_of_wipe || 0));
+      return Math.max(dur || 0, lastWipe, 120);
+    }),
+    120
+  );
+
+  filteredMatches.forEach((match, mi) => {
+    const matchTeams = allTeams.filter(t => t.match_id === match.id);
+    const selfTeam = matchTeams.find(t => t.is_self);
+    const matchShapes = allShapes.filter(s => s.match_id === match.id);
+    const matchPlayers = allMatchPlayers.filter(p => p.match_id === match.id);
+    const duration = match.duration_seconds || globalMax;
+
+    // Row wrapper
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:10px;';
+
+    // Match label
+    const label = document.createElement('div');
+    label.style.cssText = 'font-family:\'JetBrains Mono\',monospace;font-size:9px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;width:52px;flex-shrink:0;text-align:right;';
+    label.textContent = match.name || `M${mi+1}`;
+    row.appendChild(label);
+
+    // Track area
+    const track = document.createElement('div');
+    track.style.cssText = 'flex:1;position:relative;height:28px;background:rgba(15,23,42,0.8);border:1px solid var(--border);border-radius:3px;overflow:visible;';
+
+    // Survival bar (how long self team survived)
+    if (selfTeam && selfTeam.time_of_wipe != null) {
+      const pct = Math.min(100, (selfTeam.time_of_wipe / globalMax) * 100);
+      const bar = document.createElement('div');
+      bar.style.cssText = `position:absolute;left:0;top:0;bottom:0;width:${pct}%;background:rgba(34,211,238,0.07);border-right:none;border-radius:2px 0 0 2px;`;
+      track.appendChild(bar);
+    } else if (selfTeam && selfTeam.placement === 1) {
+      // WWCD — full bar green
+      const bar = document.createElement('div');
+      bar.style.cssText = 'position:absolute;left:0;top:0;bottom:0;width:100%;background:rgba(74,222,128,0.07);border-radius:2px;';
+      track.appendChild(bar);
+    }
+
+    // Zone circle events (cyan ticks)
+    matchShapes.filter(s => s.type === 'circle').forEach(s => {
+      const t = s.time_seconds || 0;
+      const pct = Math.min(99, (t / globalMax) * 100);
+      const tick = document.createElement('div');
+      tick.style.cssText = `position:absolute;left:${pct}%;top:0;bottom:0;width:2px;background:rgba(34,211,238,0.5);`;
+      tick.title = `Zone ${s.zone_phase || '?'} @ ${fmtSec(t)}`;
+      track.appendChild(tick);
+      // Zone label
+      const lbl = document.createElement('div');
+      lbl.style.cssText = `position:absolute;left:${pct}%;top:-14px;font-family:'JetBrains Mono',monospace;font-size:8px;color:rgba(34,211,238,0.6);transform:translateX(-50%);white-space:nowrap;pointer-events:none;`;
+      lbl.textContent = `Z${s.zone_phase||'?'}`;
+      track.appendChild(lbl);
+    });
+
+    // Enemy wipe events (grey dots)
+    matchTeams.filter(t => !t.is_self && t.time_of_wipe != null).forEach(t => {
+      const pct = Math.min(99, (t.time_of_wipe / globalMax) * 100);
+      const dot = document.createElement('div');
+      dot.style.cssText = `position:absolute;left:${pct}%;top:50%;transform:translate(-50%,-50%);width:6px;height:6px;border-radius:50%;background:rgba(71,85,105,0.9);border:1px solid rgba(100,116,139,0.5);cursor:default;`;
+      dot.title = `${t.name} wiped @ ${fmtSec(t.time_of_wipe)}`;
+      track.appendChild(dot);
+    });
+
+    // Player loss events (yellow dots — self team players)
+    const selfTeamId = selfTeam ? selfTeam.id : null;
+    matchPlayers.filter(p => p.time_of_loss != null).forEach(p => {
+      const pct = Math.min(99, (p.time_of_loss / globalMax) * 100);
+      const dot = document.createElement('div');
+      dot.style.cssText = `position:absolute;left:${pct}%;top:50%;transform:translate(-50%,-50%);width:7px;height:7px;border-radius:50%;background:#facc15;border:1px solid rgba(250,204,21,0.5);cursor:default;`;
+      dot.title = `Player loss @ ${fmtSec(p.time_of_loss)}`;
+      track.appendChild(dot);
+    });
+
+    // Fight events (orange dots — self team fights)
+    const selfFights = matchShapes.filter(s => s.type === 'fight' && s.team_id === selfTeamId);
+    selfFights.forEach(s => {
+      const t = s.time_seconds || 0;
+      const pct = Math.min(99, (t / globalMax) * 100);
+      const dot = document.createElement('div');
+      dot.style.cssText = `position:absolute;left:${pct}%;top:50%;transform:translate(-50%,-50%);width:8px;height:8px;border-radius:50%;background:#fb923c;border:1px solid rgba(251,146,60,0.5);cursor:default;`;
+      dot.title = `Fight: ${s.fight_team_a||'?'} vs ${s.fight_team_b||'?'} @ ${fmtSec(t)}`;
+      track.appendChild(dot);
+    });
+
+    // Self wipe marker (red X / bar)
+    if (selfTeam && selfTeam.time_of_wipe != null) {
+      const pct = Math.min(99, (selfTeam.time_of_wipe / globalMax) * 100);
+      const marker = document.createElement('div');
+      marker.style.cssText = `position:absolute;left:${pct}%;top:0;bottom:0;width:3px;background:#f87171;border-radius:1px;transform:translateX(-50%);`;
+      marker.title = `SELF WIPE @ ${fmtSec(selfTeam.time_of_wipe)} — #${selfTeam.confirmed_position||selfTeam.placement||'?'}`;
+      track.appendChild(marker);
+    }
+
+    // Time axis ticks at bottom (every 60s)
+    for (let t = 60; t < globalMax; t += 60) {
+      const pct = (t / globalMax) * 100;
+      const tick = document.createElement('div');
+      tick.style.cssText = `position:absolute;left:${pct}%;bottom:-16px;font-family:'JetBrains Mono',monospace;font-size:7px;color:var(--muted);transform:translateX(-50%);`;
+      tick.textContent = fmtSec(t);
+      track.appendChild(tick);
+    }
+
+    row.appendChild(track);
+
+    // Right label: placement
+    const placeEl = document.createElement('div');
+    const placement = selfTeam ? selfTeam.placement : null;
+    const placeColor = placement === 1 ? 'var(--yellow)' : placement <= 3 ? 'var(--green)' : placement <= 5 ? 'var(--accent)' : 'var(--muted)';
+    placeEl.style.cssText = `font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;color:${placeColor};width:28px;flex-shrink:0;text-align:left;`;
+    placeEl.textContent = placement ? `#${placement}` : '—';
+    row.appendChild(placeEl);
+
+    container.appendChild(row);
+
+    // Add a time axis spacer row after last match
+    if (mi === filteredMatches.length - 1) {
+      const spacer = document.createElement('div');
+      spacer.style.cssText = 'height:18px;';
+      container.appendChild(spacer);
+    }
+  });
+}
+
+// ══════════════════════════════════════════════════════
+// CHART F: LOBBY SURVIVAL CURVE
+// ══════════════════════════════════════════════════════
+function renderLobbySurvivalCurve(rows, filteredMatches) {
+  const canvas = document.getElementById('lobby-survival-chart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth; const H = canvas.offsetHeight;
+  canvas.width = W * devicePixelRatio; canvas.height = H * devicePixelRatio;
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+  ctx.clearRect(0, 0, W, H);
+
+  const pad = { l: 44, r: 20, t: 16, b: 32 };
+  const pw = W - pad.l - pad.r;
+  const ph = H - pad.t - pad.b;
+  const el = document.getElementById('lobby-survival-insight');
+
+  if (!filteredMatches || filteredMatches.length === 0) {
+    drawEmpty(ctx, W, H, '— NO MATCHES IN FILTER —'); el.className='insight neutral'; el.textContent='Select a different scope.'; return;
+  }
+
+  // Check if any team has wipe times
+  const anyWipes = allTeams.some(t => t.time_of_wipe != null && filteredMatches.some(m => m.id === t.match_id));
+  if (!anyWipes) {
+    drawEmpty(ctx, W, H, '— RECORD ENEMY WIPES TO UNLOCK —'); el.className='insight neutral'; el.textContent='Log enemy wipes in the editor to see the lobby survival curve.'; return;
+  }
+
+  const globalMax = Math.max(...filteredMatches.map(m => m.duration_seconds || 120), 120);
+  const steps = 100;
+
+  // For each match, build a survival curve: at time t, how many % of teams are still alive
+  const curves = filteredMatches.map(match => {
+    const matchTeams = allTeams.filter(t => t.match_id === match.id);
+    const total = matchTeams.length;
+    if (!total) return null;
+    return Array.from({length: steps+1}, (_, i) => {
+      const t = (i / steps) * globalMax;
+      const alive = matchTeams.filter(team => team.time_of_wipe == null || team.time_of_wipe > t).length;
+      return alive / total * 100;
+    });
+  }).filter(Boolean);
+
+  if (!curves.length) { drawEmpty(ctx, W, H, '— NO DATA —'); return; }
+
+  // Draw axes
+  ctx.strokeStyle = 'rgba(71,85,105,0.3)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t+ph); ctx.lineTo(pad.l+pw, pad.t+ph); ctx.stroke();
+
+  // Y axis labels
+  [0,25,50,75,100].forEach(v => {
+    const y = pad.t + ph - (v/100)*ph;
+    ctx.fillStyle='#334155'; ctx.font='500 8px JetBrains Mono'; ctx.textAlign='right';
+    ctx.fillText(v+'%', pad.l-5, y+3);
+    if (v > 0) {
+      ctx.beginPath(); ctx.setLineDash([3,4]); ctx.strokeStyle='rgba(71,85,105,0.15)';
+      ctx.moveTo(pad.l, y); ctx.lineTo(pad.l+pw, y); ctx.stroke(); ctx.setLineDash([]);
+    }
+  });
+
+  // X axis labels
+  ctx.fillStyle='#475569'; ctx.textAlign='center'; ctx.font='500 8px JetBrains Mono';
+  [0, 0.25, 0.5, 0.75, 1].forEach(pct => {
+    ctx.fillText(fmtSec(Math.round(pct*globalMax)), pad.l + pct*pw, pad.t+ph+18);
+  });
+
+  // Draw each match curve (faint grey)
+  curves.forEach(curve => {
+    ctx.beginPath();
+    curve.forEach((v, i) => {
+      const x = pad.l + (i/steps)*pw;
+      const y = pad.t + ph - (v/100)*ph;
+      i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    });
+    ctx.strokeStyle = 'rgba(71,85,105,0.4)'; ctx.lineWidth = 1; ctx.stroke();
+  });
+
+  // Average curve (white)
+  const avgCurve = Array.from({length: steps+1}, (_, i) => curves.reduce((a,c) => a+c[i], 0) / curves.length);
+  ctx.beginPath();
+  avgCurve.forEach((v, i) => {
+    const x = pad.l + (i/steps)*pw;
+    const y = pad.t + ph - (v/100)*ph;
+    i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  });
+  ctx.strokeStyle = 'rgba(241,245,249,0.5)'; ctx.lineWidth = 1.5; ctx.stroke();
+
+  // Self wipe markers per match (red vertical dots on the average curve position)
+  let selfWipePcts = [];
+  filteredMatches.forEach((match, mi) => {
+    const selfTeam = allTeams.find(t => t.match_id === match.id && t.is_self);
+    if (!selfTeam || selfTeam.time_of_wipe == null) return;
+    const pct = Math.min(1, selfTeam.time_of_wipe / globalMax);
+    selfWipePcts.push(pct);
+    const x = pad.l + pct*pw;
+    const curveIdx = Math.round(pct*steps);
+    const lobbyAlive = avgCurve[Math.min(curveIdx, avgCurve.length-1)];
+    const y = pad.t + ph - (lobbyAlive/100)*ph;
+    ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI*2);
+    ctx.fillStyle = '#f87171'; ctx.fill();
+    ctx.strokeStyle = 'rgba(248,113,113,0.3)'; ctx.lineWidth = 2; ctx.stroke();
+  });
+
+  // Insight
+  if (selfWipePcts.length) {
+    const avgSelfPct = selfWipePcts.reduce((a,b)=>a+b,0)/selfWipePcts.length;
+    const avgLobbyAliveAtSelf = avgSelfPct > 0 ? avgCurve[Math.round(avgSelfPct*steps)] : 100;
+    if (avgLobbyAliveAtSelf > 60) {
+      el.className='insight critical'; el.textContent=`✗ DYING EARLY — When you get wiped, ~${avgLobbyAliveAtSelf.toFixed(0)}% of the lobby is still alive. You're dying before most teams.`;
+    } else if (avgLobbyAliveAtSelf < 30) {
+      el.className='insight good'; el.textContent=`✓ LATE GAME PRESENCE — When you get wiped, only ~${avgLobbyAliveAtSelf.toFixed(0)}% of the lobby remains. You're consistently reaching final circles.`;
+    } else {
+      el.className='insight neutral'; el.textContent=`Mid-game exits — ~${avgLobbyAliveAtSelf.toFixed(0)}% of lobby alive when you typically die. Room to push later into matches.`;
+    }
+  } else {
+    el.className='insight neutral'; el.textContent='Log your team wipe times in the editor to see where you stand in the lobby.';
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// CHART G: WIPE TIME DISTRIBUTION
+// ══════════════════════════════════════════════════════
+function renderWipeDistChart(rows, filteredMatches) {
+  const container = document.getElementById('wipe-dist-chart');
+  container.innerHTML = '';
+  const el = document.getElementById('wipe-dist-insight');
+
+  const selfWipes = rows.filter(r => r.time_of_wipe != null && r.match && r.match.duration_seconds);
+  const allEnemyWipes = allTeams.filter(t => !t.is_self && t.time_of_wipe != null && filteredMatches.some(m => m.id === t.match_id));
+
+  if (selfWipes.length === 0 && allEnemyWipes.length === 0) {
+    container.innerHTML = chartEmpty('lucide:clock-x', 'No wipe times recorded', 'Log enemy wipes in the editor to unlock this chart.');
+    el.className='insight neutral'; el.textContent='Record wipe times to compare your timing to the lobby average.';
+    return;
+  }
+
+  // Bucket wipe times into 30s intervals, expressed as % of match
+  const BUCKETS = 10; // 10 buckets = 0-10%, 10-20%, ... 90-100% of match
+  const selfCounts = Array(BUCKETS).fill(0);
+  const lobbyCounts = Array(BUCKETS).fill(0);
+
+  selfWipes.forEach(r => {
+    const pct = Math.min(0.999, r.time_of_wipe / r.match.duration_seconds);
+    selfCounts[Math.floor(pct * BUCKETS)]++;
+  });
+
+  allEnemyWipes.forEach(t => {
+    const match = allMatches.find(m => m.id === t.match_id);
+    if (!match || !match.duration_seconds) return;
+    const pct = Math.min(0.999, t.time_of_wipe / match.duration_seconds);
+    lobbyCounts[Math.floor(pct * BUCKETS)]++;
+  });
+
+  const maxCount = Math.max(1, ...selfCounts, ...lobbyCounts);
+  const chartH = 112;
+
+  BUCKETS_LOOP: for (let i = 0; i < BUCKETS; i++) {
+    const col = document.createElement('div');
+    col.style.cssText = 'display:flex;flex-direction:column;align-items:center;flex:1;gap:1px;justify-content:flex-end;';
+
+    // Self bar (cyan)
+    const selfH = Math.max(selfCounts[i] > 0 ? 3 : 0, Math.round((selfCounts[i]/maxCount)*chartH));
+    const selfBar = document.createElement('div');
+    selfBar.style.cssText = `width:100%;max-width:18px;height:${selfH}px;background:var(--accent);border-radius:2px 2px 0 0;opacity:0.85;`;
+    selfBar.title = `Your team: ${selfCounts[i]} wipes`;
+
+    // Lobby bar (grey, behind)
+    const lobbyH = Math.max(lobbyCounts[i] > 0 ? 3 : 0, Math.round((lobbyCounts[i]/maxCount)*chartH));
+    const lobbyBar = document.createElement('div');
+    lobbyBar.style.cssText = `width:100%;max-width:18px;height:${lobbyH}px;background:rgba(71,85,105,0.5);border-radius:2px 2px 0 0;`;
+    lobbyBar.title = `Lobby avg: ${lobbyCounts[i]} wipes`;
+
+    const barsWrap = document.createElement('div');
+    barsWrap.style.cssText = 'display:flex;gap:1px;align-items:flex-end;width:100%;justify-content:center;';
+    barsWrap.appendChild(lobbyBar);
+    barsWrap.appendChild(selfBar);
+
+    const lbl = document.createElement('div');
+    const pctLabel = `${i*10}%`;
+    lbl.style.cssText = 'font-family:\'JetBrains Mono\',monospace;font-size:7px;color:var(--muted);text-align:center;position:absolute;bottom:0;left:50%;transform:translateX(-50%);white-space:nowrap;';
+    lbl.textContent = pctLabel;
+    const lblWrap = document.createElement('div');
+    lblWrap.style.cssText = 'position:relative;height:20px;width:100%;';
+    lblWrap.appendChild(lbl);
+
+    col.appendChild(barsWrap);
+    col.appendChild(lblWrap);
+    container.appendChild(col);
+  }
+
+  // Legend
+  const legend = document.createElement('div');
+  legend.style.cssText = 'position:absolute;top:0;right:0;display:flex;gap:10px;';
+  legend.innerHTML = `<span style="font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--accent);">■ YOUR TEAM</span><span style="font-family:'JetBrains Mono',monospace;font-size:8px;color:rgba(71,85,105,0.8);">■ LOBBY</span>`;
+  container.style.position = 'relative';
+  container.appendChild(legend);
+
+  // Insight
+  const selfPeak = selfCounts.indexOf(Math.max(...selfCounts));
+  if (selfWipes.length === 0) {
+    el.className='insight neutral'; el.textContent='No self wipe times recorded.';
+  } else if (selfPeak < 3) {
+    el.className='insight critical'; el.textContent=`✗ EARLY EXITS — Most of your deaths cluster in the first 30% of match time. You're dying significantly earlier than the lobby.`;
+  } else if (selfPeak >= 7) {
+    el.className='insight good'; el.textContent=`✓ LATE GAME — Your deaths are concentrated in the final phases of matches. You're reaching endgame consistently.`;
+  } else {
+    el.className='insight neutral'; el.textContent=`Mid-game wipe cluster. Your exits peak around ${selfPeak*10}–${(selfPeak+1)*10}% of match time.`;
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// CHART H: ZONE PHASE DEATH
+// ══════════════════════════════════════════════════════
+function renderZonePhaseChart(rows, filteredMatches) {
+  const container = document.getElementById('zone-phase-chart');
+  container.innerHTML = '';
+  const el = document.getElementById('zone-phase-insight');
+
+  // For each match, find which zone phase self team was in when wiped
+  // by comparing self wipe time to zone circle timestamps
+  const phaseCounts = {}; // zone_phase → count
+
+  rows.forEach(r => {
+    if (!r.time_of_wipe || !r.match_id) return;
+    const matchZones = allShapes.filter(s => s.match_id === r.match_id && s.type === 'circle')
+      .sort((a, b) => (a.time_seconds||0) - (b.time_seconds||0));
+    if (!matchZones.length) return;
+
+    // Find the last zone that started before the wipe time
+    let deathZone = null;
+    for (const z of matchZones) {
+      if ((z.time_seconds || 0) <= r.time_of_wipe) deathZone = z;
+      else break;
+    }
+    if (!deathZone) deathZone = matchZones[0]; // died before any zone — zone 1
+    const phase = deathZone.zone_phase || 1;
+    phaseCounts[phase] = (phaseCounts[phase] || 0) + 1;
+  });
+
+  const phases = Object.keys(phaseCounts).map(Number).sort((a,b) => a-b);
+  if (!phases.length) {
+    container.innerHTML = chartEmpty('lucide:circle-dashed', 'No zone data', 'Record zone circles AND wipe times in the editor to unlock this chart.');
+    el.className='insight neutral'; el.textContent='Log zone circles in the editor to see which zone phase you die in most.';
+    return;
+  }
+
+  const maxCount = Math.max(1, ...phases.map(p => phaseCounts[p]));
+  const chartH = 112;
+  const colors = ['#22d3ee','#4ade80','#facc15','#fb923c','#f87171','#a78bfa','#f87171'];
+
+  phases.forEach(phase => {
+    const count = phaseCounts[phase];
+    const barH = Math.max(4, Math.round((count/maxCount)*chartH));
+    const color = colors[Math.min(phase-1, colors.length-1)];
+
+    const col = document.createElement('div');
+    col.style.cssText = 'display:flex;flex-direction:column;align-items:center;flex:1;gap:2px;justify-content:flex-end;';
+
+    const cntLbl = document.createElement('div');
+    cntLbl.textContent = count;
+    cntLbl.style.cssText = `font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;color:${color};`;
+
+    const bar = document.createElement('div');
+    bar.style.cssText = `width:100%;max-width:36px;height:${barH}px;background:${color};border-radius:2px 2px 0 0;opacity:0.8;`;
+
+    const lblWrap = document.createElement('div');
+    lblWrap.style.cssText = 'position:relative;height:20px;width:100%;';
+    const lbl = document.createElement('div');
+    lbl.style.cssText = 'font-family:\'JetBrains Mono\',monospace;font-size:9px;color:var(--muted);text-align:center;position:absolute;bottom:0;left:50%;transform:translateX(-50%);';
+    lbl.textContent = `Z${phase}`;
+    lblWrap.appendChild(lbl);
+
+    col.appendChild(cntLbl);
+    col.appendChild(bar);
+    col.appendChild(lblWrap);
+    container.appendChild(col);
+  });
+
+  const dominantPhase = phases.reduce((a, b) => phaseCounts[a] > phaseCounts[b] ? a : b);
+  if (dominantPhase <= 2) {
+    el.className='insight critical'; el.textContent=`✗ DYING IN ZONE ${dominantPhase} — You're getting eliminated in early circles. Landing zone or early rotation is the issue.`;
+  } else if (dominantPhase >= 4) {
+    el.className='insight good'; el.textContent=`✓ ZONE ${dominantPhase} PRESENCE — You consistently reach late circles before dying. Final ring fighting is your main challenge.`;
+  } else {
+    el.className='insight neutral'; el.textContent=`Mid-game exits most common in Zone ${dominantPhase}. Rotation timing and mid-game positioning to examine.`;
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// CHART I: FIGHT TIMING
+// ══════════════════════════════════════════════════════
+function renderFightTimingChart(filteredMatches) {
+  const container = document.getElementById('fight-timing-chart');
+  container.innerHTML = '';
+  const el = document.getElementById('fight-timing-insight');
+
+  // Get self team fight shapes for filtered matches
+  const selfFights = [];
+  filteredMatches.forEach(match => {
+    const selfTeam = allTeams.find(t => t.match_id === match.id && t.is_self);
+    if (!selfTeam) return;
+    const fights = allShapes.filter(s => s.match_id === match.id && s.type === 'fight' && s.team_id === selfTeam.id);
+    fights.forEach(f => selfFights.push({ ...f, match, matchDur: match.duration_seconds || 120 }));
+  });
+
+  if (selfFights.length === 0) {
+    container.innerHTML = chartEmpty('lucide:swords', 'No fight data', 'Log fight markers in the editor to see your engagement timing pattern.');
+    el.className='insight neutral'; el.textContent='Use the Fight marker in the editor to record engagements.';
+    return;
+  }
+
+  const globalMax = Math.max(...filteredMatches.map(m => m.duration_seconds || 120), 120);
+
+  // One row per match, dots placed at fight times
+  filteredMatches.forEach((match, mi) => {
+    const matchFights = selfFights.filter(f => f.match_id === match.id);
+    if (!matchFights.length && filteredMatches.length > 6) return; // skip empty rows when many matches
+
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:4px;';
+
+    const label = document.createElement('div');
+    label.style.cssText = 'font-family:\'JetBrains Mono\',monospace;font-size:8px;color:var(--muted);width:52px;flex-shrink:0;text-align:right;';
+    label.textContent = match.name || `M${mi+1}`;
+    row.appendChild(label);
+
+    const track = document.createElement('div');
+    track.style.cssText = 'flex:1;position:relative;height:20px;background:rgba(15,23,42,0.6);border:1px solid rgba(30,41,59,0.6);border-radius:2px;';
+
+    // Zone ticks (faint)
+    allShapes.filter(s => s.match_id === match.id && s.type === 'circle').forEach(z => {
+      const pct = Math.min(99, ((z.time_seconds||0)/globalMax)*100);
+      const tick = document.createElement('div');
+      tick.style.cssText = `position:absolute;left:${pct}%;top:0;bottom:0;width:1px;background:rgba(34,211,238,0.2);`;
+      track.appendChild(tick);
+    });
+
+    matchFights.forEach(f => {
+      const t = f.time_seconds || 0;
+      const pct = Math.min(98, (t/globalMax)*100);
+      const dot = document.createElement('div');
+      dot.style.cssText = `position:absolute;left:${pct}%;top:50%;transform:translate(-50%,-50%);width:9px;height:9px;border-radius:50%;background:#fb923c;border:1px solid rgba(251,146,60,0.4);`;
+      dot.title = `Fight: ${f.fight_team_a||'?'} vs ${f.fight_team_b||'?'} @ ${fmtSec(t)}`;
+      track.appendChild(dot);
+    });
+
+    row.appendChild(track);
+
+    const countEl = document.createElement('div');
+    countEl.style.cssText = 'font-family:\'JetBrains Mono\',monospace;font-size:8px;color:var(--orange);width:20px;flex-shrink:0;';
+    countEl.textContent = matchFights.length ? `×${matchFights.length}` : '';
+    row.appendChild(countEl);
+
+    container.appendChild(row);
+  });
+
+  // X axis
+  const axisRow = document.createElement('div');
+  axisRow.style.cssText = 'display:flex;align-items:center;gap:10px;margin-top:4px;';
+  const axisLabel = document.createElement('div');
+  axisLabel.style.cssText = 'width:52px;flex-shrink:0;';
+  axisRow.appendChild(axisLabel);
+  const axisTrack = document.createElement('div');
+  axisTrack.style.cssText = 'flex:1;position:relative;height:12px;';
+  [0, 0.25, 0.5, 0.75, 1].forEach(pct => {
+    const t = document.createElement('div');
+    t.style.cssText = `position:absolute;left:${pct*100}%;font-family:'JetBrains Mono',monospace;font-size:7px;color:var(--muted);transform:translateX(-50%);`;
+    t.textContent = fmtSec(Math.round(pct*globalMax));
+    axisTrack.appendChild(t);
+  });
+  axisRow.appendChild(axisTrack);
+  container.appendChild(axisRow);
+
+  // Insight
+  const fightTimes = selfFights.map(f => f.time_seconds || 0);
+  const avgFightTime = fightTimes.reduce((a,b)=>a+b,0)/fightTimes.length;
+  const avgPct = avgFightTime / globalMax;
+  const totalFights = selfFights.length;
+  const avgPerMatch = (totalFights / filteredMatches.length).toFixed(1);
+
+  if (avgPct < 0.33) {
+    el.className='insight warn'; el.textContent=`⚠ EARLY AGGRESSORS — Average fight @ ${fmtSec(Math.round(avgFightTime))} (first third of match). ${avgPerMatch} fights/match. Hot drop tendency.`;
+  } else if (avgPct > 0.66) {
+    el.className='insight good'; el.textContent=`✓ LATE GAME FIGHTERS — Avg engagement @ ${fmtSec(Math.round(avgFightTime))}. ${avgPerMatch} fights/match. Patient, circle-oriented style.`;
+  } else {
+    el.className='insight neutral'; el.textContent=`Mid-game engagement style. Avg fight @ ${fmtSec(Math.round(avgFightTime))}. ${avgPerMatch} logged fights per match.`;
+  }
+}
+
+// ══════════════════════════════════════════════════════
+function renderMatchHistory(rows) {
+  const tbody = document.getElementById('match-history-body');
+  document.getElementById('match-count-label').textContent = `${rows.length} MATCH${rows.length !== 1 ? 'ES' : ''}`;
+
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9" style="padding:40px 0;">
+      <div class="chart-empty" style="min-height:60px;">
+        <iconify-icon icon="lucide:table-2"></iconify-icon>
+        <div class="empty-title">No matches in filter</div>
+        <div class="empty-sub">Try selecting a different Day or Map scope above.</div>
+      </div>
+    </td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map((r, i) => {
+    const match = allMatches.find(m => m.id === r.match_id);
+    const dayName = match ? getDayName(match.day_id) : '—';
+    const matchName = match ? match.name : '—';
+    const mapName = match ? (match.map_key || '—') : '—';
+    const place = r.placement ? `#${r.placement}` : '—';
+    const survPct = r.survivalPct !== null ? `${r.survivalPct}%` : '—';
+    const placeColor = r.placement === 1 ? 'var(--yellow)' : r.placement <= 3 ? 'var(--green)' : r.placement <= 5 ? 'var(--accent)' : 'var(--muted)';
+
+    return `
+      <tr class="match-row" onclick="window.location='editor.html?matchId=${r.match_id}&tournamentId=${tournamentId}'">
+        <td style="padding:12px 12px 12px 0;font-size:12px;font-weight:600;">${matchName}</td>
+        <td class="font-mono" style="padding:12px 12px 12px 0;font-size:10px;color:var(--muted);">${dayName}</td>
+        <td class="font-mono" style="padding:12px 12px 12px 0;font-size:10px;color:var(--muted);text-transform:capitalize;">${mapName}</td>
+        <td class="font-mono" style="padding:12px 12px 12px 0;font-size:11px;font-weight:700;color:${placeColor};text-align:right;">${place}</td>
+        <td class="font-mono" style="padding:12px 12px 12px 0;font-size:11px;color:var(--text);text-align:right;">${r.kp}</td>
+        <td class="font-mono" style="padding:12px 12px 12px 0;font-size:11px;color:var(--accent);text-align:right;">+${r.kp}</td>
+        <td class="font-mono" style="padding:12px 12px 12px 0;font-size:11px;color:var(--green);text-align:right;">+${r.placementPts}</td>
+        <td class="font-mono" style="padding:12px 12px 12px 0;font-size:12px;font-weight:700;color:var(--text);text-align:right;">${r.total}</td>
+        <td class="font-mono" style="padding:12px 0 12px 0;font-size:10px;color:var(--muted);text-align:right;">${survPct}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════════════
+function stdDev(arr) {
+  if (arr.length < 2) return 0;
+  const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
+  const variance = arr.reduce((a, b) => a + (b - mean) ** 2, 0) / arr.length;
+  return Math.sqrt(variance);
+}
+
+function drawEmpty(ctx, W, H, msg) {
+  ctx.font = '500 11px JetBrains Mono';
+  ctx.fillStyle = '#475569';
+  ctx.textAlign = 'center';
+  ctx.fillText(msg, W / 2, H / 2);
+}
+
+// A6: Rich empty state for DOM-based charts
+function chartEmpty(icon, title, sub) {
+  return `<div class="chart-empty">
+    <iconify-icon icon="${icon}"></iconify-icon>
+    <div class="empty-title">${title}</div>
+    <div class="empty-sub">${sub}</div>
+  </div>`;
+}
+
+// Resize observer for canvas redraws
+const resizeObserver = new ResizeObserver(() => {
+  if (document.getElementById('analytics-body').style.display !== 'none') {
+    renderAll();
+  }
+});
+document.addEventListener('DOMContentLoaded', () => {
+  const body = document.getElementById('analytics-body');
+  if (body) resizeObserver.observe(body);
+});
+</script>
+</body>
+</html>

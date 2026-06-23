@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>METAZONE — Create Tournament</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@800,700,500,400&f[]=satoshi@700,500,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --bg:#020617;--bg-panel:#0b1221;--bg-card:#0f172a;--border:#1e293b;--border-dim:#131e30;
+  --accent:#22d3ee;--accent-dim:rgba(34,211,238,.1);--green:#4ade80;--red:#f87171;
+  --orange:#fb923c;--yellow:#facc15;--purple:#a78bfa;--text:#f1f5f9;--muted:#475569;--muted2:#334155;
+  --font-display:'Cabinet Grotesk',sans-serif;--font-body:'Satoshi',sans-serif;--font-mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font-body);background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;flex-direction:column;}
+
+.grid-bg{background-image:linear-gradient(to right,rgba(34,211,238,.04) 1px,transparent 1px),linear-gradient(to bottom,rgba(34,211,238,.04) 1px,transparent 1px);background-size:40px 40px;}
+
+/* AUTH */
+#auth-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:1000;flex-direction:column;}
+#auth-screen.hidden{display:none;}
+.auth-box{background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:40px;width:360px;display:flex;flex-direction:column;gap:16px;align-items:center;}
+.auth-logo{font-family:var(--font-display);font-size:28px;font-weight:800;color:var(--text);text-align:center;}
+.auth-logo-icon{width:44px;height:44px;background:var(--accent);display:inline-flex;align-items:center;justify-content:center;border-radius:7px;transform:rotate(45deg);margin-bottom:12px;}
+.auth-logo-icon iconify-icon{transform:rotate(-45deg);color:#020617;font-size:22px;}
+.auth-sub{font-family:var(--font-mono);font-size:10px;color:var(--muted);text-align:center;letter-spacing:3px;text-transform:uppercase;}
+.auth-input{width:100%;padding:12px 14px;background:var(--bg-card);color:var(--text);border:1px solid var(--border);border-radius:8px;font-family:var(--font-body);font-size:14px;outline:none;transition:border-color .2s;}
+.auth-input:focus{border-color:var(--accent);}
+.auth-btn{width:100%;padding:13px;background:var(--accent);color:#020617;border:none;border-radius:8px;font-family:var(--font-display);font-size:14px;font-weight:800;cursor:pointer;letter-spacing:1px;text-transform:uppercase;transition:background .15s;}
+.auth-btn:hover{background:#67e8f9;}
+.auth-msg{font-family:var(--font-mono);font-size:11px;color:var(--muted);text-align:center;min-height:16px;}
+.auth-msg.ok{color:var(--green);}.auth-msg.err{color:var(--red);}
+
+/* HEADER */
+#app-header{height:56px;min-height:56px;border-bottom:1px solid var(--border);background:rgba(2,6,23,.9);backdrop-filter:blur(20px);display:flex;align-items:center;justify-content:space-between;padding:0 20px;z-index:50;flex-shrink:0;}
+.header-left{display:flex;align-items:center;gap:32px;}
+.logo-mark{display:flex;align-items:center;gap:10px;}
+.logo-icon{width:32px;height:32px;background:var(--accent);display:flex;align-items:center;justify-content:center;border-radius:5px;transform:rotate(45deg);}
+.logo-icon-inner{transform:rotate(-45deg);color:#020617;font-size:16px;display:flex;}
+.logo-text{font-family:var(--font-display);font-size:22px;font-weight:800;letter-spacing:-.5px;}
+.header-nav{display:flex;align-items:center;gap:4px;height:56px;}
+.nav-link{font-family:var(--font-mono);font-size:11px;font-weight:500;color:var(--muted);text-decoration:none;letter-spacing:2px;padding:0 14px;height:100%;display:flex;align-items:center;border-bottom:2px solid transparent;transition:all .15s;}
+.nav-link:hover{color:var(--text);}
+.nav-link.active{color:var(--accent);border-bottom-color:var(--accent);}
+.header-right{display:flex;align-items:center;gap:12px;}
+.sync-badge{display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--green);}
+.sync-label{font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:2px;}
+.btn-logout{font-family:var(--font-mono);font-size:10px;letter-spacing:2px;padding:6px 12px;background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;cursor:pointer;transition:all .15s;}
+.btn-logout:hover{border-color:var(--red);color:var(--red);}
+
+/* LAYOUT */
+#app-body{flex:1;display:flex;overflow:hidden;}
+
+/* SIDEBAR */
+#tc-sidebar{width:280px;min-width:280px;background:rgba(11,18,33,.6);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;}
+.sidebar-inner{padding:32px 28px;flex:1;}
+.sidebar-label{font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:4px;text-transform:uppercase;margin-bottom:40px;display:block;}
+
+/* STEPS */
+.steps-track{position:relative;display:flex;flex-direction:column;gap:36px;}
+.steps-track::before{content:'';position:absolute;left:15px;top:8px;bottom:8px;width:1px;background:var(--border);}
+.step-item{display:flex;align-items:flex-start;gap:16px;position:relative;}
+.step-num{width:32px;height:32px;min-width:32px;border-radius:6px;background:var(--bg-card);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--muted);z-index:1;transition:all .3s;}
+.step-item.active .step-num{border-color:var(--accent);color:var(--accent);}
+.step-item.done .step-num{border-color:var(--green);color:var(--green);background:rgba(74,222,128,.07);}
+.step-label{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;transition:color .3s;padding-top:5px;}
+.step-item.active .step-label{color:var(--text);}
+.step-item.done .step-label{color:var(--green);}
+.step-sub{font-family:var(--font-mono);font-size:10px;color:var(--muted2);text-transform:uppercase;letter-spacing:1px;margin-top:3px;}
+.step-underline{height:2px;background:var(--accent);margin-top:4px;transform:scaleX(0);transform-origin:left;transition:transform .3s;}
+.step-item.active .step-underline{transform:scaleX(1);}
+
+.sidebar-footer{padding:20px 28px;border-top:1px solid var(--border);}
+.sidebar-hint{display:flex;align-items:flex-start;gap:10px;}
+.sidebar-hint iconify-icon{color:var(--accent);font-size:16px;margin-top:1px;flex-shrink:0;}
+.sidebar-hint p{font-family:var(--font-mono);font-size:10px;color:var(--muted);line-height:1.6;text-transform:uppercase;letter-spacing:.5px;}
+
+/* MAIN */
+#tc-main{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative;}
+
+/* Progress bar */
+#progress-bar{height:3px;background:var(--border);flex-shrink:0;}
+#progress-fill{height:100%;background:var(--accent);box-shadow:0 0 10px rgba(34,211,238,.5);transition:width .5s ease;}
+
+/* Content scroll */
+#tc-content{flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border) transparent;padding:60px 80px;}
+#tc-content::-webkit-scrollbar{width:3px;}
+#tc-content::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+.step-eyebrow{font-family:var(--font-mono);font-size:10px;color:var(--accent);letter-spacing:5px;text-transform:uppercase;display:block;margin-bottom:10px;}
+.step-title{font-family:var(--font-display);font-size:36px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:-.5px;line-height:1.1;}
+.step-accent-bar{width:64px;height:3px;background:var(--accent);margin-top:16px;margin-bottom:48px;}
+
+/* Form elements */
+.field-label{font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:3px;text-transform:uppercase;display:block;margin-bottom:10px;}
+.field-input{width:100%;padding:13px 16px;background:var(--bg-card);color:var(--text);border:1px solid var(--border);border-radius:8px;font-family:var(--font-body);font-size:15px;font-weight:500;outline:none;transition:border-color .2s;max-width:600px;}
+.field-input:focus{border-color:var(--accent);}
+.field-input::placeholder{color:var(--muted2);}
+
+/* Mode toggle buttons */
+.mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:600px;}
+.mode-btn{padding:28px 24px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;text-align:left;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
+.mode-btn:hover{border-color:rgba(34,211,238,.3);}
+.mode-btn.selected{border-color:var(--accent);background:rgba(34,211,238,.05);box-shadow:0 0 24px rgba(34,211,238,.1);}
+.mode-btn.selected::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;background:var(--accent);}
+.mode-btn-icon{font-size:28px;color:var(--muted2);margin-bottom:16px;display:block;transition:color .2s;}
+.mode-btn.selected .mode-btn-icon{color:var(--accent);}
+.mode-btn-title{font-family:var(--font-display);font-size:18px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;transition:color .2s;}
+.mode-btn.selected .mode-btn-title{color:var(--text);}
+.mode-btn-sub{font-family:var(--font-mono);font-size:10px;color:var(--muted2);margin-top:6px;line-height:1.5;}
+.mode-check{position:absolute;top:14px;right:14px;width:18px;height:18px;border-radius:50%;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;transition:all .2s;}
+.mode-btn.selected .mode-check{background:var(--accent);border-color:var(--accent);}
+.mode-check iconify-icon{font-size:11px;color:#020617;opacity:0;transition:opacity .2s;}
+.mode-btn.selected .mode-check iconify-icon{opacity:1;}
+
+/* Teams section */
+.teams-section{max-width:600px;}
+.teams-section-label{font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:3px;text-transform:uppercase;margin-bottom:12px;display:block;}
+
+/* Autocomplete wrapper */
+.autocomplete-wrap{position:relative;}
+.team-add-row{display:flex;gap:10px;align-items:center;}
+.team-add-input{flex:1;padding:11px 16px;background:var(--bg-card);color:var(--text);border:1px solid var(--border);border-radius:8px;font-family:var(--font-body);font-size:14px;outline:none;transition:border-color .2s;}
+.team-add-input:focus{border-color:var(--accent);}
+.team-add-input::placeholder{color:var(--muted2);}
+.team-add-btn{padding:11px 20px;background:var(--accent);color:#020617;border:none;border-radius:8px;font-family:var(--font-display);font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0;}
+.team-add-btn:hover{background:#67e8f9;}
+.team-add-btn:disabled{background:var(--muted2);color:var(--muted);cursor:not-allowed;}
+
+/* Suggestions dropdown */
+.suggestions-drop{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;z-index:100;overflow:hidden;display:none;}
+.suggestions-drop.open{display:block;}
+.suggestion-item{padding:10px 14px;font-size:13px;color:var(--text);cursor:pointer;transition:background .1s;}
+.suggestion-item:hover{background:var(--accent-dim);color:var(--accent);}
+.suggestion-empty{padding:10px 14px;font-family:var(--font-mono);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+
+/* Chips */
+.chips-wrap{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;min-height:0;}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;font-size:13px;font-weight:600;color:var(--text);}
+.chip-remove{width:16px;height:16px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;transition:all .15s;padding:0;}
+.chip-remove:hover{background:rgba(248,113,113,.15);color:var(--red);}
+.chips-empty{font-family:var(--font-mono);font-size:11px;color:var(--muted2);text-transform:uppercase;letter-spacing:1px;margin-top:12px;}
+
+/* Groups */
+.groups-wrap{display:flex;flex-direction:column;gap:20px;max-width:600px;}
+.group-card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.group-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.02);}
+.group-name-input{background:none;border:none;font-family:var(--font-display);font-size:14px;font-weight:800;color:var(--text);outline:none;text-transform:uppercase;letter-spacing:.5px;width:180px;}
+.group-name-input::placeholder{color:var(--muted2);}
+.group-remove-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;display:flex;align-items:center;transition:color .15s;}
+.group-remove-btn:hover{color:var(--red);}
+.group-body{padding:16px 18px;}
+.group-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;min-height:0;}
+
+.btn-add-group{display:flex;align-items:center;gap:10px;padding:14px 20px;background:none;border:1px dashed var(--border);border-radius:10px;color:var(--muted);font-family:var(--font-mono);font-size:11px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:all .2s;max-width:600px;width:100%;}
+.btn-add-group:hover{border-color:var(--accent);color:var(--accent);}
+.btn-add-group iconify-icon{font-size:16px;}
+
+/* Footer nav */
+#tc-footer{height:72px;min-height:72px;background:rgba(11,18,33,.85);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 80px;flex-shrink:0;}
+.footer-cancel{display:flex;align-items:center;gap:10px;padding:8px 16px;background:none;border:none;color:var(--muted);font-family:var(--font-mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;border-radius:6px;transition:all .15s;}
+.footer-cancel:hover{color:var(--text);background:rgba(255,255,255,.04);}
+.footer-right{display:flex;align-items:center;gap:24px;}
+.footer-next-hint{display:flex;flex-direction:column;align-items:flex-end;}
+.footer-next-label{font-family:var(--font-mono);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;}
+.footer-next-sub{font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+.btn-confirm{padding:0 40px;height:46px;background:var(--accent);color:#020617;border:none;border-radius:6px;font-family:var(--font-display);font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:all .2s;box-shadow:0 0 20px rgba(34,211,238,.2);}
+.btn-confirm:hover{background:#67e8f9;box-shadow:0 0 30px rgba(34,211,238,.35);}
+.btn-confirm:disabled{background:var(--muted2);color:var(--muted);cursor:not-allowed;box-shadow:none;}
+.btn-confirm.loading{opacity:.7;cursor:not-allowed;}
+
+/* Divider */
+.section-divider{height:1px;background:var(--border);margin:40px 0;max-width:600px;}
+
+/* Event assignment */
+.event-section{margin-top:40px;max-width:600px;}
+.event-card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;overflow:hidden;transition:border-color .2s;}
+.event-card.active{border-color:var(--accent);box-shadow:0 0 24px rgba(34,211,238,.1);}
+.event-card-header{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;cursor:pointer;user-select:none;}
+.event-card-left{display:flex;align-items:center;gap:14px;}
+.event-card-icon{width:36px;height:36px;border-radius:8px;background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.15);display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:18px;transition:all .2s;}
+.event-card.active .event-card-icon{background:rgba(34,211,238,.15);border-color:rgba(34,211,238,.3);}
+.event-card-title{font-family:var(--font-display);font-size:16px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;transition:color .2s;}
+.event-card.active .event-card-title{color:var(--text);}
+.event-card-sub{font-family:var(--font-mono);font-size:10px;color:var(--muted2);letter-spacing:1px;text-transform:uppercase;margin-top:2px;}
+.event-toggle-pill{display:flex;align-items:center;gap:8px;padding:6px 14px;border:1px solid var(--border);border-radius:20px;font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:1px;transition:all .2s;}
+.event-card.active .event-toggle-pill{border-color:var(--accent);color:var(--accent);background:rgba(34,211,238,.08);}
+.event-toggle-dot{width:6px;height:6px;border-radius:50%;background:var(--muted2);transition:background .2s;}
+.event-card.active .event-toggle-dot{background:var(--accent);}
+.event-fields{padding:0 22px 22px;display:none;flex-direction:column;gap:20px;border-top:1px solid var(--border);}
+.event-fields.show{display:flex;}
+.event-sub-label{font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:3px;text-transform:uppercase;display:block;margin-bottom:10px;}
+.event-option-row{display:flex;gap:8px;align-items:center;}
+.event-select{flex:1;padding:11px 14px;background:var(--bg-panel);color:var(--text);border:1px solid var(--border);border-radius:8px;font-family:var(--font-body);font-size:14px;outline:none;transition:border-color .2s;cursor:pointer;}
+.event-select:focus{border-color:var(--accent);}
+.event-select option{background:var(--bg-card);}
+.btn-new-event{padding:11px 16px;background:none;border:1px solid var(--border);color:var(--muted);border-radius:8px;font-family:var(--font-mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0;}
+.btn-new-event:hover{border-color:var(--accent);color:var(--accent);}
+.new-event-form{display:none;flex-direction:column;gap:8px;}
+.new-event-form.show{display:flex;}
+.new-event-row{display:flex;gap:8px;}
+.stage-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
+.stage-opt{padding:14px 6px;background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;text-align:center;cursor:pointer;transition:all .15s;font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;line-height:1.4;}
+.stage-opt:hover{border-color:rgba(34,211,238,.3);color:var(--text);}
+.stage-opt.sel{border-color:var(--accent);background:rgba(34,211,238,.08);color:var(--accent);}
+.cycle-row{display:flex;gap:8px;}
+.cycle-btn{flex:1;padding:12px;background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;text-align:center;cursor:pointer;transition:all .15s;font-family:var(--font-mono);font-size:11px;color:var(--muted);}
+.cycle-btn:hover{border-color:rgba(34,211,238,.3);color:var(--text);}
+.cycle-btn.sel{border-color:var(--accent);background:rgba(34,211,238,.08);color:var(--accent);font-weight:700;}
+.event-summary-chip{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(34,211,238,.07);border:1px solid rgba(34,211,238,.2);border-radius:6px;font-family:var(--font-mono);font-size:11px;color:var(--accent);letter-spacing:1px;}
+.event-fields-inner{padding-top:20px;display:flex;flex-direction:column;gap:20px;}
+
+/* Toast */
+#toast{position:fixed;bottom:90px;right:28px;padding:12px 20px;background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;font-family:var(--font-mono);font-size:12px;color:var(--text);z-index:999;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none;}
+#toast.show{opacity:1;transform:translateY(0);}
+#toast.err{border-color:var(--red);color:var(--red);}
+#toast.ok{border-color:var(--green);color:var(--green);}
+
+/* System footer */
+#app-footer{height:32px;min-height:32px;border-top:1px solid var(--border);background:var(--bg-panel);display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;}
+.footer-sys{font-family:var(--font-mono);font-size:10px;color:var(--muted2);letter-spacing:1px;}
+.footer-sys span{color:var(--accent);}
+</style>
+</head>
+<body class="grid-bg">
+
+<!-- AUTH SCREEN -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <div style="text-align:center;">
+      <div class="auth-logo-icon">
+        <iconify-icon icon="lucide:layers"></iconify-icon>
+      </div>
+      <div class="auth-logo">METAZONE</div>
+      <div class="auth-sub" style="margin-top:6px;">INTELLIGENCE SYSTEM</div>
+    </div>
+    <input id="auth-email" class="auth-input" type="email" placeholder="operator@team.gg" />
+    <button class="auth-btn" onclick="sendMagicLink()">SEND ACCESS LINK</button>
+    <div id="auth-msg" class="auth-msg"></div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header id="app-header">
+  <div class="header-left">
+    <a href="index.html" class="logo-mark" style="text-decoration:none;color:inherit;">
+      <div class="logo-icon"><div class="logo-icon-inner"><iconify-icon icon="lucide:layers"></iconify-icon></div></div>
+      <span class="logo-text">METAZONE</span>
+    </a>
+    <nav class="header-nav">
+      <a href="index.html" class="nav-link">DASHBOARD</a>
+      <a href="editor.html" class="nav-link">EDITOR</a>
+      <a href="vod.html" class="nav-link">VOD REVIEW</a>
+      <a href="tournament-create.html" class="nav-link active">NEW TOURNAMENT</a>
+      <a href="tournament-editor.html" class="nav-link">TOURNAMENT EDITOR</a>
+      <a href="analytics.html" class="nav-link">TEAM ANALYTICS</a>
+      <a href="player.html" class="nav-link">PLAYER ANALYTICS</a>
+      <a href="history.html" class="nav-link">ALL TOURNAMENTS</a>
+    </nav>
+  </div>
+  <div class="header-right">
+    <div class="sync-badge">
+      <div class="sync-dot"></div>
+      <span class="sync-label">SYSTEM ONLINE</span>
+    </div>
+    <button class="btn-logout" onclick="signOut()">SIGN OUT</button>
+  </div>
+</header>
+
+<!-- BODY -->
+<div id="app-body">
+
+  <!-- SIDEBAR -->
+  <aside id="tc-sidebar">
+    <div class="sidebar-inner">
+      <span class="sidebar-label">Creation Flow</span>
+      <div class="steps-track">
+
+        <div class="step-item active" id="step-item-1">
+          <div class="step-num">01</div>
+          <div>
+            <div class="step-label">Tournament Name</div>
+            <div class="step-underline"></div>
+            <div class="step-sub">Basic Identity</div>
+          </div>
+        </div>
+
+        <div class="step-item" id="step-item-2">
+          <div class="step-num">02</div>
+          <div>
+            <div class="step-label">Tournament Format</div>
+            <div class="step-underline"></div>
+            <div class="step-sub">Pool or Groups</div>
+          </div>
+        </div>
+
+        <div class="step-item" id="step-item-3">
+          <div class="step-num">03</div>
+          <div>
+            <div class="step-label">Opposition Roster</div>
+            <div class="step-underline"></div>
+            <div class="step-sub">Add Teams</div>
+          </div>
+        </div>
+
+        <div class="step-item" id="step-item-4">
+          <div class="step-num">04</div>
+          <div>
+            <div class="step-label">Squad Registration</div>
+            <div class="step-underline"></div>
+            <div class="step-sub">Your Players</div>
+          </div>
+        </div>
+
+        <div class="step-item" id="step-item-5">
+          <div class="step-num">05</div>
+          <div>
+            <div class="step-label">Confirm & Deploy</div>
+            <div class="step-underline"></div>
+            <div class="step-sub">Finalise</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="sidebar-hint">
+        <iconify-icon icon="lucide:info"></iconify-icon>
+        <p>Tournament data is scoped to your account via RLS. Only you can view and edit your tournaments.</p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main id="tc-main">
+    <!-- Progress bar -->
+    <div id="progress-bar"><div id="progress-fill" style="width:25%"></div></div>
+
+    <!-- Scrollable content -->
+    <div id="tc-content">
+
+      <!-- STEP 1: Name -->
+      <div id="step-1-panel">
+        <span class="step-eyebrow">Step 01 / 05</span>
+        <h1 class="step-title">Tournament Name</h1>
+        <div class="step-accent-bar"></div>
+        <label class="field-label" for="tc-name">Tournament Identifier</label>
+        <input id="tc-name" class="field-input" type="text" placeholder="e.g. BGMI Pro Series — Season 4" maxlength="120" />
+
+        <!-- EVENT ASSIGNMENT -->
+        <div class="event-section">
+          <div class="event-card" id="event-card" onclick="toggleEventAssign()">
+            <div class="event-card-header">
+              <div class="event-card-left">
+                <div class="event-card-icon">
+                  <iconify-icon icon="lucide:calendar-range"></iconify-icon>
+                </div>
+                <div>
+                  <div class="event-card-title">Part of an Event?</div>
+                  <div class="event-card-sub">Link this tournament to a series — Qualifiers, Group Stage, Finals…</div>
+                </div>
+              </div>
+              <div class="event-toggle-pill">
+                <div class="event-toggle-dot"></div>
+                <span id="event-toggle-label">OFF</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="event-fields" id="event-fields" onclick="event.stopPropagation()">
+            <div class="event-fields-inner">
+              <div>
+                <span class="event-sub-label">Event</span>
+                <div class="event-option-row">
+                  <select class="event-select" id="event-select" onchange="onEventSelectChange()">
+                    <option value="">Select event…</option>
+                  </select>
+                  <button class="btn-new-event" onclick="event.stopPropagation();toggleNewEventForm()">+ NEW EVENT</button>
+                </div>
+                <div class="new-event-form" id="new-event-form">
+                  <div class="new-event-row" style="margin-top:10px;">
+                    <input id="new-event-name" class="field-input" type="text" placeholder="e.g. BGMI Masters Season 1" maxlength="120" style="flex:1;" onclick="event.stopPropagation()" />
+                    <button class="team-add-btn" onclick="event.stopPropagation();createNewEvent()" style="flex-shrink:0;">CREATE</button>
+                    <button class="btn-new-event" onclick="event.stopPropagation();cancelNewEventForm()">CANCEL</button>
+                  </div>
+                </div>
+              </div>
+
+              <div id="stage-section">
+                <span class="event-sub-label">Stage</span>
+                <div class="stage-grid" id="stage-grid">
+                  <div class="stage-opt" data-stage="qualifiers" onclick="event.stopPropagation();selectStage('qualifiers')">Qualifiers</div>
+                  <div class="stage-opt" data-stage="group_stage" onclick="event.stopPropagation();selectStage('group_stage')">Group Stage</div>
+                  <div class="stage-opt" data-stage="last_chance" onclick="event.stopPropagation();selectStage('last_chance')">Last Chance</div>
+                  <div class="stage-opt" data-stage="semi_finals" onclick="event.stopPropagation();selectStage('semi_finals')">Semi Finals</div>
+                  <div class="stage-opt" data-stage="finals" onclick="event.stopPropagation();selectStage('finals')">Finals</div>
+                </div>
+              </div>
+
+              <div id="cycle-section" style="display:none;">
+                <span class="event-sub-label">Cycle</span>
+                <div class="cycle-row">
+                  <div class="cycle-btn" data-cycle="1" onclick="event.stopPropagation();selectCycle(1)">Cycle 1</div>
+                  <div class="cycle-btn" data-cycle="2" onclick="event.stopPropagation();selectCycle(2)">Cycle 2</div>
+                  <div class="cycle-btn" data-cycle="3" onclick="event.stopPropagation();selectCycle(3)">Cycle 3</div>
+                  <div class="cycle-btn" data-cycle="4" onclick="event.stopPropagation();selectCycle(4)">Cycle 4</div>
+                </div>
+              </div>
+
+              <div id="event-summary-wrap" style="display:none;">
+                <div class="event-summary-chip" id="event-summary-chip"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 2: Format -->
+      <div id="step-2-panel" style="display:none;">
+        <span class="step-eyebrow">Step 02 / 05</span>
+        <h1 class="step-title">Tournament Format</h1>
+        <div class="step-accent-bar"></div>
+        <label class="field-label">Select Team Organisation Mode</label>
+        <div class="mode-grid">
+          <button class="mode-btn" id="mode-pool" onclick="selectMode('pool')">
+            <div class="mode-check"><iconify-icon icon="lucide:check"></iconify-icon></div>
+            <iconify-icon icon="lucide:users" class="mode-btn-icon"></iconify-icon>
+            <div class="mode-btn-title">Pool</div>
+            <div class="mode-btn-sub">All teams in one flat roster. Best for standard battle royale tournaments.</div>
+          </button>
+          <button class="mode-btn" id="mode-groups" onclick="selectMode('groups')">
+            <div class="mode-check"><iconify-icon icon="lucide:check"></iconify-icon></div>
+            <iconify-icon icon="lucide:layout-grid" class="mode-btn-icon"></iconify-icon>
+            <div class="mode-btn-title">Groups</div>
+            <div class="mode-btn-sub">Divide teams into named groups. Ideal for group-stage tournaments.</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- STEP 3: Opposition Roster -->
+      <div id="step-3-panel" style="display:none;">
+        <span class="step-eyebrow">Step 03 / 05</span>
+        <h1 class="step-title">Opposition Roster</h1>
+        <div class="step-accent-bar"></div>
+
+        <!-- POOL mode -->
+        <div id="pool-teams" style="display:none;">
+          <div class="teams-section">
+            <span class="teams-section-label">Add Teams to Pool</span>
+            <div class="autocomplete-wrap" id="pool-autocomplete-wrap">
+              <div class="team-add-row">
+                <input id="pool-team-input" class="team-add-input" type="text" placeholder="Search or type team name…" autocomplete="off"
+                  oninput="onPoolInput()" onkeydown="onPoolKeydown(event)" />
+                <button class="team-add-btn" onclick="addPoolTeam()">+ ADD</button>
+              </div>
+              <div id="pool-suggestions" class="suggestions-drop"></div>
+            </div>
+            <div id="pool-chips" class="chips-wrap"></div>
+            <div id="pool-empty" class="chips-empty">No teams added yet.</div>
+          </div>
+        </div>
+
+        <!-- GROUPS mode -->
+        <div id="groups-teams" style="display:none;">
+          <div class="groups-wrap" id="groups-container"></div>
+          <button class="btn-add-group" style="margin-top:16px;" onclick="addGroup()">
+            <iconify-icon icon="lucide:plus-circle"></iconify-icon>
+            ADD GROUP
+          </button>
+        </div>
+
+      </div>
+
+      <!-- STEP 4: Squad Registration -->
+      <div id="step-4-panel" style="display:none;">
+        <span class="step-eyebrow">Step 04 / 05</span>
+        <h1 class="step-title">Squad Registration</h1>
+        <div class="step-accent-bar"></div>
+        <div style="max-width:600px;">
+          <p style="font-family:var(--font-mono);font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:32px;line-height:1.7;">
+            Select 4–6 players from your roster to register for this tournament. They will be available in the editor for kill and loss tracking.
+          </p>
+
+          <span class="teams-section-label">Search Players</span>
+          <div class="autocomplete-wrap" id="squad-ac-wrap">
+            <div class="team-add-row">
+              <input id="squad-player-input" class="team-add-input" type="text"
+                placeholder="Search player by name…" autocomplete="off"
+                oninput="onSquadPlayerInput()" onkeydown="onSquadPlayerKeydown(event)" />
+              <button class="team-add-btn" id="squad-add-btn" onclick="addSquadPlayer()" disabled>+ ADD</button>
+            </div>
+            <div id="squad-suggestions" class="suggestions-drop"></div>
+          </div>
+
+          <div id="squad-chips" class="chips-wrap" style="margin-top:16px;"></div>
+          <div id="squad-empty" class="chips-empty" style="margin-top:12px;">No players selected yet. Minimum 4 required.</div>
+          <div id="squad-count" style="margin-top:16px;font-family:var(--font-mono);font-size:11px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;display:none;">
+            <span id="squad-count-num">0</span> / 6 PLAYERS SELECTED
+          </div>
+
+          <div class="section-divider"></div>
+          <span class="teams-section-label">Create New Player</span>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <input id="new-player-name" class="team-add-input" type="text"
+              placeholder="Player name…" maxlength="60" style="flex:1;"
+              onkeydown="if(event.key==='Enter')createAndAddPlayer()" />
+            <select id="new-player-role" style="padding:11px 14px;background:var(--bg-card);color:var(--text);border:1px solid var(--border);border-radius:8px;font-family:var(--font-body);font-size:14px;outline:none;cursor:pointer;min-width:130px;">
+              <option value="">Role (opt.)</option>
+              <option value="IGL">IGL</option>
+              <option value="Entry">Entry</option>
+              <option value="Support">Support</option>
+              <option value="Sniper">Sniper</option>
+              <option value="Flex">Flex</option>
+            </select>
+            <button class="team-add-btn" onclick="createAndAddPlayer()">+ CREATE</button>
+          </div>
+          <p style="font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:1px;margin-top:8px;">Player is saved to your roster and added to this squad.</p>
+        </div>
+      </div>
+
+      <!-- STEP 5: Confirm & Deploy -->
+      <div id="step-5-panel" style="display:none;">
+        <span class="step-eyebrow">Step 05 / 05</span>
+        <h1 class="step-title">Confirm & Deploy</h1>
+        <div class="step-accent-bar"></div>
+        <div id="review-block" style="max-width:600px;"></div>
+      </div>
+
+    </div>
+
+    <!-- Footer nav -->
+    <div id="tc-footer">
+      <button class="footer-cancel" onclick="goBack()">
+        <iconify-icon icon="lucide:arrow-left" style="font-size:16px;"></iconify-icon>
+        Back
+      </button>
+      <div class="footer-right">
+        <div class="footer-next-hint" id="footer-hint">
+          <span class="footer-next-label">Next Step</span>
+          <span class="footer-next-sub" id="footer-next-sub">Tournament Format</span>
+        </div>
+        <button class="btn-confirm" id="btn-confirm" onclick="goNext()">CONTINUE</button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- SYSTEM FOOTER -->
+<footer id="app-footer">
+  <div class="footer-sys">KERNEL: <span>v5.0.0-ALPHA</span></div>
+  <div class="footer-sys">© 2025 METAZONE INTELLIGENCE SYSTEMS. ALL RIGHTS RESERVED.</div>
+</footer>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+const SUPA_URL = 'https://qsiqgtdgpcyishtayqhy.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFzaXFndGRncGN5aXNodGF5cWh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5OTMxNTYsImV4cCI6MjA5MjU2OTE1Nn0.tqr45OipzZEr7kMZBIQaSK7mXyUIdWAS_9y1kFabhYI';
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+let currentUser = null;
+let currentStep = 1;
+let teamMode = null; // 'pool' | 'groups'
+let poolTeams = []; // [{name}]
+let groups = []; // [{id, name, teams:[{name}]}]
+let groupIdCounter = 0;
+let suggestionTimer = null;
+let activeSuggestionGroup = null; // for groups mode: group id
+let knownTeams = []; // preloaded team names for instant autocomplete
+let squadPlayers = []; // [{id, name, role}] selected players for this tournament
+let allPlayers = [];  // [{id, name, role}] from players table
+
+// EVENT ASSIGNMENT STATE
+let eventAssignEnabled = false;
+let allEvents = []; // [{id, name}] loaded from DB
+let selectedEventId = null;
+let selectedStage = null; // 'qualifiers'|'group_stage'|'last_chance'|'semi_finals'|'finals'
+let selectedCycle = null; // 1-4, only when group_stage
+
+const STAGES = [
+  { value: 'qualifiers',  label: 'Qualifiers' },
+  { value: 'group_stage', label: 'Group Stage' },
+  { value: 'last_chance', label: 'Last Chance' },
+  { value: 'semi_finals', label: 'Semi Finals' },
+  { value: 'finals',      label: 'Finals' },
+];
+
+// ──────────────────────────────────────────────
+// AUTH
+// ──────────────────────────────────────────────
+async function sendMagicLink() {
+  const email = document.getElementById('auth-email').value.trim();
+  const msg = document.getElementById('auth-msg');
+  if (!email) { setMsg('Enter your email address.', 'err'); return; }
+  const { error } = await sb.auth.signInWithOtp({ email });
+  if (error) { setMsg(error.message, 'err'); return; }
+  setMsg('Magic link sent — check your inbox.', 'ok');
+}
+function setMsg(t, cls) {
+  const el = document.getElementById('auth-msg');
+  el.textContent = t; el.className = 'auth-msg ' + (cls || '');
+}
+async function signOut() {
+  await sb.auth.signOut();
+  window.location.reload();
+}
+// ──────────────────────────────────────────────
+// INIT
+// ──────────────────────────────────────────────
+let _booted = false;
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    _booted = true;
+    currentUser = session.user;
+    document.getElementById('auth-screen').classList.add('hidden');
+    init();
+  }
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      if (_booted) return;
+      _booted = true;
+      currentUser = session.user;
+      document.getElementById('auth-screen').classList.add('hidden');
+      init();
+    }
+    if (event === 'SIGNED_OUT') {
+      _booted = false;
+      resetLocalState();
+      document.getElementById('auth-screen').classList.remove('hidden');
+    }
+  });
+})();
+
+async function init() {
+  try {
+    const { data, error } = await sb.from('tournament_teams').select('team_name').eq('user_id', currentUser.id);
+    if (!error && data) {
+      const seen = new Set();
+      knownTeams = data.map(r => r.team_name).filter(n => { const k = n.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
+    }
+  } catch(e) {}
+  try {
+    const { data, error } = await sb.from('players').select('id, name, role').eq('user_id', currentUser.id).order('name');
+    if (!error && data) allPlayers = data;
+  } catch(e) {}
+  await loadEvents();
+  renderStep(1);
+}
+
+// ──────────────────────────────────────────────
+// EVENT ASSIGNMENT
+// ──────────────────────────────────────────────
+async function loadEvents() {
+  try {
+    const { data, error } = await sb.from('events').select('id, name').eq('user_id', currentUser.id).order('created_at');
+    if (!error && data) {
+      allEvents = data;
+      populateEventSelect();
+    }
+  } catch(e) {}
+}
+
+function populateEventSelect() {
+  const sel = document.getElementById('event-select');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Select event…</option>';
+  allEvents.forEach(ev => {
+    const opt = document.createElement('option');
+    opt.value = ev.id;
+    opt.textContent = ev.name;
+    if (ev.id === selectedEventId) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function toggleEventAssign() {
+  eventAssignEnabled = !eventAssignEnabled;
+  document.getElementById('event-card').classList.toggle('active', eventAssignEnabled);
+  document.getElementById('event-toggle-label').textContent = eventAssignEnabled ? 'ON' : 'OFF';
+  const fields = document.getElementById('event-fields');
+  fields.classList.toggle('show', eventAssignEnabled);
+  if (!eventAssignEnabled) {
+    selectedEventId = null; selectedStage = null; selectedCycle = null;
+    document.querySelectorAll('.stage-opt').forEach(el => el.classList.remove('sel'));
+    document.querySelectorAll('.cycle-btn').forEach(el => el.classList.remove('sel'));
+    document.getElementById('cycle-section').style.display = 'none';
+    updateEventSummary();
+  }
+}
+
+function onEventSelectChange() {
+  selectedEventId = document.getElementById('event-select').value || null;
+  updateEventSummary();
+}
+
+function toggleNewEventForm() {
+  const form = document.getElementById('new-event-form');
+  form.classList.add('show');
+  document.getElementById('new-event-name').focus();
+}
+
+function cancelNewEventForm() {
+  document.getElementById('new-event-form').classList.remove('show');
+  document.getElementById('new-event-name').value = '';
+}
+
+async function createNewEvent() {
+  const name = document.getElementById('new-event-name').value.trim();
+  if (!name) { toast('Enter an event name.', 'err'); return; }
+  const { data, error } = await sb.from('events').insert({ name, user_id: currentUser.id }).select('id, name').single();
+  if (error) { toast('Could not create event: ' + error.message, 'err'); return; }
+  allEvents.push(data);
+  selectedEventId = data.id;
+  populateEventSelect();
+  cancelNewEventForm();
+  toast('Event created: ' + data.name, 'ok');
+  updateEventSummary();
+}
+
+function selectStage(stage) {
+  selectedStage = stage;
+  document.querySelectorAll('.stage-opt').forEach(el => el.classList.toggle('sel', el.dataset.stage === stage));
+  // Show/hide cycle picker
+  const showCycle = stage === 'group_stage';
+  document.getElementById('cycle-section').style.display = showCycle ? 'block' : 'none';
+  if (!showCycle) { selectedCycle = null; document.querySelectorAll('.cycle-btn').forEach(el => el.classList.remove('sel')); }
+  updateEventSummary();
+}
+
+function selectCycle(cycle) {
+  selectedCycle = cycle;
+  document.querySelectorAll('.cycle-btn').forEach(el => el.classList.toggle('sel', parseInt(el.dataset.cycle) === cycle));
+  updateEventSummary();
+}
+
+function reviewEventHtml() {
+  if (!eventAssignEnabled || !selectedEventId || !selectedStage) return '';
+  const ev = allEvents.find(e => e.id === selectedEventId);
+  const stageLabel = STAGES.find(s => s.value === selectedStage)?.label || selectedStage;
+  const cycleLabel = selectedCycle ? ' — Cycle ' + selectedCycle : '';
+  return '<div>' +
+    '<div style="font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">Event</div>' +
+    '<div style="font-size:13px;font-weight:700;color:var(--accent);">' + esc(ev?.name||'') + ' · ' + stageLabel + cycleLabel + '</div>' +
+    '</div>';
+}
+
+function updateEventSummary() {
+  const wrap = document.getElementById('event-summary-wrap');
+  const chip = document.getElementById('event-summary-chip');
+  if (!eventAssignEnabled || !selectedEventId || !selectedStage) { wrap.style.display = 'none'; return; }
+  if (selectedStage === 'group_stage' && !selectedCycle) { wrap.style.display = 'none'; return; }
+  const ev = allEvents.find(e => e.id === selectedEventId);
+  const stageLabel = STAGES.find(s => s.value === selectedStage)?.label || selectedStage;
+  const cycleLabel = selectedCycle ? ` — Cycle ${selectedCycle}` : '';
+  chip.textContent = (ev?.name || '') + '  ·  ' + stageLabel + cycleLabel;
+  wrap.style.display = 'block';
+}
+
+function resetLocalState() {
+  currentUser = null;
+  currentStep = 1; teamMode = null; poolTeams = []; groups = [];
+  squadPlayers = []; allPlayers = [];
+  eventAssignEnabled = false; allEvents = []; selectedEventId = null; selectedStage = null; selectedCycle = null;
+}
+
+// ──────────────────────────────────────────────
+// STEP NAVIGATION
+// ──────────────────────────────────────────────
+const STEP_CONFIG = {
+  1: { eyebrow:'Step 01 / 05', nextLabel:'Tournament Format', btnText:'CONTINUE', progress:'20%' },
+  2: { eyebrow:'Step 02 / 05', nextLabel:'Opposition Roster', btnText:'CONTINUE', progress:'40%' },
+  3: { eyebrow:'Step 03 / 05', nextLabel:'Squad Registration', btnText:'CONTINUE', progress:'60%' },
+  4: { eyebrow:'Step 04 / 05', nextLabel:'Review & Confirm',  btnText:'CONTINUE', progress:'80%' },
+  5: { eyebrow:'Step 05 / 05', nextLabel:'',                  btnText:'DEPLOY TOURNAMENT', progress:'100%' },
+};
+
+function renderStep(n) {
+  currentStep = n;
+  [1,2,3,4,5].forEach(i => {
+    document.getElementById('step-'+i+'-panel').style.display = (i===n)?'block':'none';
+  });
+  [1,2,3,4,5].forEach(i => {
+    const el = document.getElementById('step-item-'+i);
+    el.classList.remove('active','done');
+    if (i < n) el.classList.add('done');
+    else if (i === n) el.classList.add('active');
+  });
+  document.getElementById('progress-fill').style.width = STEP_CONFIG[n].progress;
+  const cfg = STEP_CONFIG[n];
+  document.getElementById('btn-confirm').textContent = cfg.btnText;
+  const hint = document.getElementById('footer-hint');
+  if (n === 5) {
+    hint.style.display = 'none';
+  } else {
+    hint.style.display = 'flex';
+    document.getElementById('footer-next-sub').textContent = cfg.nextLabel;
+  }
+  if (n === 3) renderStep3();
+  if (n === 4) renderSquadChips();
+  if (n === 5) renderReview();
+}
+
+function goNext() {
+  if (currentStep === 1) {
+    const name = document.getElementById('tc-name').value.trim();
+    if (!name) { toast('Enter a tournament name.', 'err'); return; }
+    renderStep(2);
+  } else if (currentStep === 2) {
+    if (!teamMode) { toast('Select a tournament format.', 'err'); return; }
+    renderStep(3);
+  } else if (currentStep === 3) {
+    if (teamMode === 'pool') {
+      if (poolTeams.length === 0) { toast('Add at least one team.', 'err'); return; }
+    } else {
+      if (groups.length === 0) { toast('Add at least one group.', 'err'); return; }
+      const empty = groups.find(g => g.teams.length === 0);
+      if (empty) { toast(`Group "${empty.name || 'unnamed'}" has no teams.`, 'err'); return; }
+    }
+    renderStep(4);
+  } else if (currentStep === 4) {
+    if (squadPlayers.length < 4) { toast('Select at least 4 players for your squad.', 'err'); return; }
+    renderStep(5);
+  } else if (currentStep === 5) {
+    confirmCreate();
+  }
+}
+
+function goBack() {
+  if (currentStep === 1) {
+    window.location.href = 'index.html';
+  } else {
+    renderStep(currentStep - 1);
+  }
+}
+
+// ──────────────────────────────────────────────
+// STEP 2 — Mode selection
+// ──────────────────────────────────────────────
+function selectMode(mode) {
+  teamMode = mode;
+  document.getElementById('mode-pool').classList.toggle('selected', mode==='pool');
+  document.getElementById('mode-groups').classList.toggle('selected', mode==='groups');
+}
+
+// ──────────────────────────────────────────────
+// STEP 3 — Roster
+// ──────────────────────────────────────────────
+function renderStep3() {
+  document.getElementById('pool-teams').style.display = (teamMode==='pool') ? 'block' : 'none';
+  document.getElementById('groups-teams').style.display = (teamMode==='groups') ? 'block' : 'none';
+  if (teamMode === 'pool') renderPoolChips();
+  if (teamMode === 'groups') renderGroups();
+}
+
+// POOL
+function renderPoolChips() {
+  const wrap = document.getElementById('pool-chips');
+  const empty = document.getElementById('pool-empty');
+  wrap.innerHTML = '';
+  poolTeams.forEach((t, i) => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.innerHTML = `<span>${esc(t.name)}</span><button class="chip-remove" title="Remove" onclick="removePoolTeam(${i})">×</button>`;
+    wrap.appendChild(chip);
+  });
+  empty.style.display = poolTeams.length ? 'none' : 'block';
+}
+function removePoolTeam(i) {
+  poolTeams.splice(i, 1);
+  renderPoolChips();
+}
+function addPoolTeam() {
+  const inp = document.getElementById('pool-team-input');
+  const name = inp.value.trim();
+  if (!name) return;
+  if (poolTeams.find(t => t.name.toLowerCase() === name.toLowerCase())) {
+    toast('Team already in list.', 'err'); return;
+  }
+  poolTeams.push({ name });
+  // Add to knownTeams if not already there (available in suggestions for groups too)
+  if (!knownTeams.some(n => n.toLowerCase() === name.toLowerCase())) knownTeams.push(name);
+  inp.value = '';
+  closeSuggestions('pool-suggestions');
+  renderPoolChips();
+}
+function onPoolInput() {
+  const val = document.getElementById('pool-team-input').value.trim();
+  if (val.length < 2) { closeSuggestions('pool-suggestions'); return; }
+  fetchSuggestions(val, 'pool-suggestions', null);
+}
+function onPoolKeydown(e) {
+  if (e.key === 'Enter') { addPoolTeam(); }
+  if (e.key === 'Escape') { closeSuggestions('pool-suggestions'); }
+}
+
+// GROUPS
+function addGroup() {
+  const id = ++groupIdCounter;
+  groups.push({ id, name: '', teams: [] });
+  renderGroups();
+}
+function removeGroup(id) {
+  groups = groups.filter(g => g.id !== id);
+  renderGroups();
+}
+function renderGroups() {
+  const container = document.getElementById('groups-container');
+  container.innerHTML = '';
+  groups.forEach(g => {
+    const card = document.createElement('div');
+    card.className = 'group-card';
+    card.id = 'group-card-' + g.id;
+    card.innerHTML = `
+      <div class="group-header">
+        <input class="group-name-input" type="text" placeholder="GROUP NAME (e.g. GROUP A)"
+          value="${esc(g.name)}" maxlength="60"
+          oninput="updateGroupName(${g.id}, this.value)" />
+        <button class="group-remove-btn" title="Remove group" onclick="removeGroup(${g.id})">
+          <iconify-icon icon="lucide:x"></iconify-icon>
+        </button>
+      </div>
+      <div class="group-body">
+        <div class="autocomplete-wrap" id="group-ac-wrap-${g.id}">
+          <div class="team-add-row">
+            <input id="group-input-${g.id}" class="team-add-input" type="text"
+              placeholder="Search or type team name…" autocomplete="off"
+              oninput="onGroupInput(${g.id})"
+              onkeydown="onGroupKeydown(event, ${g.id})" />
+            <button class="team-add-btn" onclick="addGroupTeam(${g.id})">+ ADD</button>
+          </div>
+          <div id="group-suggestions-${g.id}" class="suggestions-drop"></div>
+        </div>
+        <div class="group-chips" id="group-chips-${g.id}"></div>
+      </div>
+    `;
+    container.appendChild(card);
+    renderGroupChips(g.id);
+  });
+}
+function updateGroupName(id, val) {
+  const g = groups.find(g => g.id === id);
+  if (g) g.name = val;
+}
+function addGroupTeam(gid) {
+  const inp = document.getElementById('group-input-' + gid);
+  const name = inp.value.trim();
+  if (!name) return;
+  const g = groups.find(g => g.id === gid);
+  if (!g) return;
+  if (g.teams.find(t => t.name.toLowerCase() === name.toLowerCase())) {
+    toast('Team already in this group.', 'err'); return;
+  }
+  g.teams.push({ name });
+  inp.value = '';
+  closeSuggestions('group-suggestions-' + gid);
+  renderGroupChips(gid);
+}
+function removeGroupTeam(gid, ti) {
+  const g = groups.find(g => g.id === gid);
+  if (g) { g.teams.splice(ti, 1); renderGroupChips(gid); }
+}
+function renderGroupChips(gid) {
+  const g = groups.find(g => g.id === gid);
+  if (!g) return;
+  const wrap = document.getElementById('group-chips-' + gid);
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  if (g.teams.length === 0) {
+    wrap.innerHTML = '<div class="chips-empty" style="margin-top:8px;">No teams in this group yet.</div>';
+    return;
+  }
+  g.teams.forEach((t, i) => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.innerHTML = `<span>${esc(t.name)}</span><button class="chip-remove" title="Remove" onclick="removeGroupTeam(${gid}, ${i})">×</button>`;
+    wrap.appendChild(chip);
+  });
+}
+function onGroupInput(gid) {
+  const val = document.getElementById('group-input-' + gid).value.trim();
+  if (val.length < 2) { closeSuggestions('group-suggestions-' + gid); return; }
+  activeSuggestionGroup = gid;
+  fetchSuggestions(val, 'group-suggestions-' + gid, gid);
+}
+function onGroupKeydown(e, gid) {
+  if (e.key === 'Enter') { addGroupTeam(gid); }
+  if (e.key === 'Escape') { closeSuggestions('group-suggestions-' + gid); }
+}
+
+// AUTOCOMPLETE — shared
+function fetchSuggestions(query, dropId, gid) {
+  // Filter preloaded knownTeams client-side — instant, no DB call
+  const q = query.toLowerCase();
+  const matches = knownTeams
+    .filter(n => n.toLowerCase().includes(q))
+    .slice(0, 8);
+  const drop = document.getElementById(dropId);
+  if (!drop) return;
+  if (matches.length === 0) {
+    drop.innerHTML = `<div class="suggestion-empty">No matches — press ENTER to add "${esc(query)}"</div>`;
+  } else {
+    drop.innerHTML = matches.map(n =>
+      `<div class="suggestion-item" onmousedown="pickSuggestion('${dropId}', '${esc(n)}', ${JSON.stringify(gid)})">${esc(n)}</div>`
+    ).join('');
+  }
+  drop.classList.add('open');
+}
+function pickSuggestion(dropId, name, gid) {
+  if (gid === null) {
+    document.getElementById('pool-team-input').value = name;
+    closeSuggestions(dropId);
+    addPoolTeam();
+  } else {
+    document.getElementById('group-input-' + gid).value = name;
+    closeSuggestions(dropId);
+    addGroupTeam(gid);
+  }
+}
+function closeSuggestions(dropId) {
+  const d = document.getElementById(dropId);
+  if (d) { d.innerHTML = ''; d.classList.remove('open'); }
+}
+// Close suggestions on outside click
+document.addEventListener('click', (e) => {
+  document.querySelectorAll('.suggestions-drop.open').forEach(d => {
+    if (!d.parentElement.contains(e.target)) {
+      d.innerHTML = ''; d.classList.remove('open');
+    }
+  });
+});
+
+// ──────────────────────────────────────────────
+// STEP 4 — Squad Registration
+// ──────────────────────────────────────────────
+function renderSquadChips() {
+  const wrap = document.getElementById('squad-chips');
+  const empty = document.getElementById('squad-empty');
+  const countEl = document.getElementById('squad-count');
+  const countNum = document.getElementById('squad-count-num');
+  wrap.innerHTML = '';
+  squadPlayers.forEach((p, i) => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.innerHTML = `<span>${esc(p.name)}${p.role ? `<span style="font-family:var(--font-mono);font-size:9px;color:var(--muted);margin-left:6px;letter-spacing:1px;text-transform:uppercase;">${esc(p.role)}</span>` : ''}</span><button class="chip-remove" onclick="removeSquadPlayer(${i})">×</button>`;
+    wrap.appendChild(chip);
+  });
+  const n = squadPlayers.length;
+  empty.style.display = n ? 'none' : 'block';
+  countEl.style.display = n ? 'block' : 'none';
+  if (countNum) countNum.textContent = n;
+  const addBtn = document.getElementById('squad-add-btn');
+  if (addBtn) addBtn.disabled = (n >= 6);
+}
+
+function removeSquadPlayer(i) {
+  squadPlayers.splice(i, 1);
+  renderSquadChips();
+}
+
+function onSquadPlayerInput() {
+  const val = document.getElementById('squad-player-input').value.trim();
+  const addBtn = document.getElementById('squad-add-btn');
+  if (addBtn) addBtn.disabled = (squadPlayers.length >= 6);
+  if (val.length < 1) { closeSuggestions('squad-suggestions'); return; }
+  const q = val.toLowerCase();
+  const selectedIds = new Set(squadPlayers.map(p => p.id));
+  const matches = allPlayers.filter(p => p.name.toLowerCase().includes(q) && !selectedIds.has(p.id)).slice(0, 8);
+  const drop = document.getElementById('squad-suggestions');
+  if (matches.length === 0) {
+    drop.innerHTML = `<div class="suggestion-empty">No matches — use "Create New Player" below</div>`;
+  } else {
+    drop.innerHTML = matches.map(p =>
+      `<div class="suggestion-item" onmousedown="pickSquadPlayer('${p.id}')">${esc(p.name)}${p.role ? `<span style="font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-left:8px;text-transform:uppercase;">${esc(p.role)}</span>` : ''}</div>`
+    ).join('');
+  }
+  drop.classList.add('open');
+}
+
+function onSquadPlayerKeydown(e) {
+  if (e.key === 'Enter') addSquadPlayer();
+  if (e.key === 'Escape') closeSuggestions('squad-suggestions');
+}
+
+function pickSquadPlayer(playerId) {
+  const p = allPlayers.find(p => p.id === playerId);
+  if (!p) return;
+  closeSuggestions('squad-suggestions');
+  document.getElementById('squad-player-input').value = '';
+  if (squadPlayers.length >= 6) { toast('Maximum 6 players allowed.', 'err'); return; }
+  if (squadPlayers.find(sp => sp.id === p.id)) { toast('Player already in squad.', 'err'); return; }
+  squadPlayers.push({ id: p.id, name: p.name, role: p.role || '' });
+  renderSquadChips();
+}
+
+function addSquadPlayer() {
+  const val = document.getElementById('squad-player-input').value.trim();
+  if (!val) return;
+  if (squadPlayers.length >= 6) { toast('Maximum 6 players allowed.', 'err'); return; }
+  const q = val.toLowerCase();
+  const selectedIds = new Set(squadPlayers.map(p => p.id));
+  const match = allPlayers.find(p => p.name.toLowerCase() === q && !selectedIds.has(p.id));
+  if (match) {
+    pickSquadPlayer(match.id);
+  } else {
+    toast('Use autocomplete or create a new player below.', 'err');
+  }
+}
+
+async function createAndAddPlayer() {
+  const nameInput = document.getElementById('new-player-name');
+  const roleInput = document.getElementById('new-player-role');
+  const name = nameInput.value.trim();
+  if (!name) { toast('Enter a player name.', 'err'); return; }
+  if (squadPlayers.length >= 6) { toast('Maximum 6 players allowed.', 'err'); return; }
+  if (allPlayers.find(p => p.name.toLowerCase() === name.toLowerCase())) {
+    toast('Player already exists — search above.', 'err'); return;
+  }
+  const role = roleInput.value;
+  const { data, error } = await sb.from('players').insert({ user_id: currentUser.id, name, role: role || null }).select('id, name, role').single();
+  if (error) { toast('Error creating player: ' + error.message, 'err'); return; }
+  allPlayers.push(data);
+  squadPlayers.push({ id: data.id, name: data.name, role: data.role || '' });
+  nameInput.value = ''; roleInput.value = '';
+  renderSquadChips();
+  toast(`${name} created and added to squad.`, 'ok');
+}
+
+// ──────────────────────────────────────────────
+// STEP 5 — Review
+// ──────────────────────────────────────────────
+function renderReview() {
+  const name = document.getElementById('tc-name').value.trim();
+  const block = document.getElementById('review-block');
+  let html = `
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:20px;">
+      <div style="padding:16px 20px;border-bottom:1px solid var(--border);background:rgba(34,211,238,.04);">
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:3px;text-transform:uppercase;margin-bottom:4px;">Tournament</div>
+        <div style="font-family:var(--font-display);font-size:22px;font-weight:800;color:var(--text);">${esc(name)}</div>
+      </div>
+      <div style="padding:14px 20px;display:flex;gap:32px;">
+        <div>
+          <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">Format</div>
+          <div style="font-size:14px;font-weight:700;color:var(--accent);text-transform:uppercase;">${teamMode}</div>
+        </div>
+        <div>
+          <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">Game</div>
+          <div style="font-size:14px;font-weight:700;color:var(--text);">BGMI — Battle Royale</div>
+        </div>
+        ${reviewEventHtml()}
+      </div>
+    </div>
+  `;
+  if (teamMode === 'pool') {
+    html += `
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:3px;text-transform:uppercase;margin-bottom:12px;">${poolTeams.length} Teams in Pool</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;">
+        ${poolTeams.map(t => `<div class="chip">${esc(t.name)}</div>`).join('')}
+      </div>
+    `;
+  } else {
+    groups.forEach(g => {
+      html += `
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;margin-bottom:14px;overflow:hidden;">
+          <div style="padding:12px 18px;border-bottom:1px solid var(--border);font-family:var(--font-display);font-size:14px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;">
+            ${esc(g.name || 'Unnamed Group')} <span style="font-family:var(--font-mono);font-size:10px;color:var(--muted);font-weight:400;">${g.teams.length} TEAMS</span>
+          </div>
+          <div style="padding:14px 18px;display:flex;flex-wrap:wrap;gap:8px;">
+            ${g.teams.map(t => `<div class="chip">${esc(t.name)}</div>`).join('')}
+          </div>
+        </div>
+      `;
+    });
+  }
+  html += `
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-top:8px;">
+      <div style="padding:12px 18px;border-bottom:1px solid var(--border);background:rgba(34,211,238,.04);">
+        <div style="font-family:var(--font-display);font-size:14px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;">
+          Squad <span style="font-family:var(--font-mono);font-size:10px;color:var(--muted);font-weight:400;">${squadPlayers.length} PLAYERS</span>
+        </div>
+      </div>
+      <div style="padding:14px 18px;display:flex;flex-wrap:wrap;gap:8px;">
+        ${squadPlayers.map(p => `<div class="chip">${esc(p.name)}${p.role ? `<span style="font-family:var(--font-mono);font-size:9px;color:var(--muted);margin-left:6px;text-transform:uppercase;">${esc(p.role)}</span>` : ''}</div>`).join('')}
+      </div>
+    </div>
+  `;
+  block.innerHTML = html;
+}
+
+// ──────────────────────────────────────────────
+// CONFIRM CREATE
+// ──────────────────────────────────────────────
+async function confirmCreate() {
+  const btn = document.getElementById('btn-confirm');
+  btn.disabled = true; btn.classList.add('loading'); btn.textContent = 'DEPLOYING…';
+
+  const name = document.getElementById('tc-name').value.trim();
+  const uid = currentUser.id;
+
+  // 1. Create tournament — include event assignment if set
+  const tInsert = { name, user_id: uid, team_mode: teamMode };
+  if (eventAssignEnabled && selectedEventId && selectedStage) {
+    tInsert.event_id = selectedEventId;
+    tInsert.stage = selectedStage;
+    if (selectedStage === 'group_stage' && selectedCycle) tInsert.cycle = selectedCycle;
+  }
+  const { data: tData, error: tErr } = await sb
+    .from('tournaments')
+    .insert(tInsert)
+    .select('id')
+    .single();
+  if (tErr) { handleCreateError(btn, tErr.message); return; }
+  const tid = tData.id;
+
+  if (teamMode === 'pool') {
+    // 2a. Insert tournament_teams
+    if (poolTeams.length > 0) {
+      const rows = poolTeams.map(t => ({ tournament_id: tid, user_id: uid, team_name: t.name }));
+      const { error: ttErr } = await sb.from('tournament_teams').insert(rows);
+      if (ttErr) { handleCreateError(btn, ttErr.message); return; }
+    }
+  } else {
+    // 2b. Insert groups then group_members
+    for (const g of groups) {
+      const { data: gData, error: gErr } = await sb
+        .from('groups')
+        .insert({ tournament_id: tid, user_id: uid, name: g.name || 'Group' })
+        .select('id')
+        .single();
+      if (gErr) { handleCreateError(btn, gErr.message); return; }
+      if (g.teams.length > 0) {
+        const memberRows = g.teams.map(t => ({ group_id: gData.id, team_name: t.name }));
+        const { error: gmErr } = await sb.from('group_members').insert(memberRows);
+        if (gmErr) { handleCreateError(btn, gmErr.message); return; }
+      }
+    }
+  }
+
+  toast('Tournament created! Redirecting…', 'ok');
+
+  // 3. Insert tournament_players (squad)
+  if (squadPlayers.length > 0) {
+    const tpRows = squadPlayers.map(p => ({ tournament_id: tid, player_id: p.id, user_id: uid }));
+    const { error: tpErr } = await sb.from('tournament_players').insert(tpRows);
+    if (tpErr) { handleCreateError(btn, tpErr.message); return; }
+  }
+
+  setTimeout(() => { window.location.href = 'index.html?tournamentId=' + tid + '&autostart=1'; }, 900);
+}
+function handleCreateError(btn, msg) {
+  btn.disabled = false; btn.classList.remove('loading'); btn.textContent = 'DEPLOY TOURNAMENT';
+  toast('Error: ' + msg, 'err');
+}
+
+// ──────────────────────────────────────────────
+// UTILS
+// ──────────────────────────────────────────────
+function esc(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+let toastTimer;
+function toast(msg, cls) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + (cls || '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = ''; }, 3200);
+}
+</script>
+</body>
+</html>
