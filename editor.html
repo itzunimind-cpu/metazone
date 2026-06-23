@@ -132,14 +132,14 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 .sb-section+.sb-section{ border-top:1px solid var(--border-dim); }
 
 .sb-label{
-  font-family:var(--font-mono);font-size:9px;font-weight:500;color:var(--muted);
+  font-family:var(--font-mono);font-size:9px;font-weight:600;color:var(--forest);
   letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px;display:block;
 }
 
 /* selects & inputs */
 .mz-select, .mz-input{
   width:100%;padding:7px 10px;background:var(--bg);color:var(--text);
-  border:1px solid var(--border);border-radius:6px;font-family:var(--font-body);
+  border:1px solid var(--border-mid);border-radius:6px;font-family:var(--font-body);
   font-size:12px;font-weight:500;outline:none;transition:border-color .2s;
 }
 .mz-select:focus,.mz-input:focus{ border-color:var(--accent); }
@@ -158,26 +158,27 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 .btn-add:hover{ background:rgba(44,74,46,.18); }
 .btn-add-inline{
   width:100%;margin-top:5px;padding:6px 10px;
-  background:none;border:1px dashed var(--border);border-radius:6px;
-  color:var(--muted);font-family:var(--font-mono);font-size:10px;font-weight:500;
+  background:none;border:1px dashed var(--border-mid);border-radius:6px;
+  color:var(--text);font-family:var(--font-mono);font-size:10px;font-weight:500;
   letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .15s;text-align:center;
 }
 .btn-add-inline:hover{ border-color:var(--accent);color:var(--accent); }
 .btn-del{
-  background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;
+  background:var(--bg-card);border:1px solid var(--border-mid);color:var(--muted);border-radius:6px;
   padding:0 8px;font-family:var(--font-mono);font-size:12px;
   cursor:pointer;transition:all .15s;flex-shrink:0;
 }
-.btn-del:hover{ border-color:var(--red);color:var(--red); }
+.btn-del:hover{ border-color:var(--red);color:var(--red);background:rgba(155,28,17,.06); }
 
 /* ── Draw mode buttons ── */
-.mode-grid{ display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:4px; }
 .btn-mode{
-  padding:7px 4px;background:var(--bg);color:var(--muted);border:1px solid var(--border);
-  border-radius:6px;font-family:var(--font-body);font-size:11px;font-weight:600;cursor:pointer;
-  text-align:center;transition:all .15s;
+  padding:6px 9px;background:var(--bg-card);color:var(--text);border:1px solid var(--border-mid);
+  border-radius:5px;font-family:var(--font-mono);font-size:9px;font-weight:600;cursor:pointer;
+  text-align:center;transition:all .15s;letter-spacing:.06em;
+  display:flex;flex-direction:column;align-items:center;gap:2px;min-width:44px;
 }
-.btn-mode:hover{ border-color:var(--muted2);color:var(--text); }
+.btn-mode iconify-icon{ font-size:16px;pointer-events:none; }
+.btn-mode:hover{ border-color:var(--accent);color:var(--accent);background:var(--bg); }
 .btn-mode.active[data-mode="zone"]    { background:rgba(44,74,46,.12);color:var(--accent);border-color:var(--accent); }
 .btn-mode.active[data-mode="fight"]   { background:rgba(155,28,17,.1);color:var(--red);border-color:var(--red); }
 .btn-mode.active[data-mode="rotation"]{ background:rgba(78,124,47,.1);color:var(--green);border-color:var(--green); }
@@ -188,19 +189,19 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 /* ── Color mode ── */
 .color-mode-row{ display:flex;gap:4px;margin-bottom:4px; }
 .btn-cm{
-  flex:1;padding:6px 4px;background:var(--bg);color:var(--muted);border:1px solid var(--border);
+  flex:1;padding:6px 4px;background:var(--bg-card);color:var(--text);border:1px solid var(--border-mid);
   border-radius:6px;font-family:var(--font-mono);font-size:10px;cursor:pointer;
-  text-align:center;transition:all .15s;line-height:1.4;
+  text-align:center;transition:all .15s;line-height:1.4;font-weight:500;
 }
-.btn-cm.active{ border-color:var(--yellow);color:var(--yellow);background:rgba(124,90,0,.08); }
-.btn-cm:hover{ border-color:var(--muted2);color:var(--text); }
+.btn-cm.active{ border-color:var(--forest);color:var(--forest);background:rgba(44,74,46,.08); }
+.btn-cm:hover{ border-color:var(--accent);color:var(--accent); }
 
 /* ── Filter buttons ── */
 .filter-row{ display:flex;gap:4px;margin-bottom:4px; }
 .btn-filter{
-  flex:1;padding:5px 2px;background:var(--bg);color:var(--muted);border:1px solid var(--border);
-  border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;text-align:center;
-  transition:all .15s;font-family:var(--font-mono);
+  flex:1;padding:5px 2px;background:var(--bg-card);color:var(--text);border:1px solid var(--border-mid);
+  border-radius:6px;font-size:9px;font-weight:600;cursor:pointer;text-align:center;
+  transition:all .15s;font-family:var(--font-mono);letter-spacing:.06em;
 }
 .btn-filter.on[data-filter="zone"]    { color:var(--accent);border-color:var(--accent); }
 .btn-filter.on[data-filter="fight"]   { color:var(--red);border-color:var(--red); }
@@ -275,11 +276,11 @@ input[type="range"]{ flex:1;accent-color:var(--accent);height:3px;cursor:pointer
 
 /* ── Action buttons ── */
 .btn-action{
-  width:100%;padding:7px;background:var(--bg);color:var(--text);border:1px solid var(--border);
-  border-radius:6px;font-family:var(--font-body);font-size:12px;font-weight:600;cursor:pointer;
-  margin-bottom:3px;transition:all .15s;
+  width:100%;padding:7px;background:var(--bg-card);color:var(--text);border:1px solid var(--border-mid);
+  border-radius:6px;font-family:var(--font-mono);font-size:10px;font-weight:600;cursor:pointer;
+  margin-bottom:3px;transition:all .15s;letter-spacing:.06em;text-transform:uppercase;
 }
-.btn-action:hover{ border-color:var(--muted2);color:var(--accent); }
+.btn-action:hover{ border-color:var(--accent);color:var(--accent); }
 
 /* ══════════════════════════════════════════
    CENTER — EDITOR AREA
@@ -300,32 +301,28 @@ input[type="range"]{ flex:1;accent-color:var(--accent);height:3px;cursor:pointer
 .btn-editmode{
   padding:5px 12px;font-family:var(--font-mono);font-size:10px;font-weight:500;
   letter-spacing:.06em;border:none;border-radius:4px;cursor:pointer;transition:all .15s;
-  text-transform:uppercase;
+  text-transform:uppercase;display:flex;align-items:center;gap:5px;
 }
 .btn-editmode.active{ background:var(--accent);color:var(--bg); }
 .btn-editmode:not(.active){ background:none;color:var(--muted); }
 .btn-editmode:not(.active):hover{ color:var(--text); }
 
-.toolbar-divider{ width:1px;height:20px;background:var(--border); }
+.toolbar-divider{ width:1px;height:24px;background:var(--border-mid);flex-shrink:0; }
 
 .btn-tool{
   width:32px;height:32px;display:flex;align-items:center;justify-content:center;
-  background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);
-  cursor:pointer;font-size:14px;transition:all .15s;
+  background:var(--bg-card);border:1px solid var(--border-mid);border-radius:5px;color:var(--text);
+  cursor:pointer;font-size:16px;transition:all .15s;flex-shrink:0;
 }
-.btn-tool:hover{ border-color:var(--muted2);color:var(--text); }
+.btn-tool:hover{ border-color:var(--accent);color:var(--accent);background:var(--bg); }
+.btn-tool iconify-icon{ pointer-events:none; }
 
 .toolbar-right{ display:flex;align-items:center;gap:8px; }
-.btn-export{
-  padding:7px 14px;background:var(--bg);border:1px solid var(--border);color:var(--muted);
-  border-radius:6px;font-family:var(--font-mono);font-size:10px;font-weight:500;
-  letter-spacing:.06em;cursor:pointer;transition:all .15s;text-transform:uppercase;
-}
-.btn-export:hover{ border-color:var(--muted2);color:var(--text); }
 
 .btn-save{
   padding:7px 16px;border-radius:6px;font-family:var(--font-display);
   font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;border:1px solid;
+  display:flex;align-items:center;gap:6px;
 }
 .btn-save.idle{ background:rgba(44,74,46,.12);color:var(--forest);border-color:var(--forest); }
 .btn-save.idle:hover{ background:rgba(44,74,46,.2); }
@@ -337,10 +334,6 @@ input[type="range"]{ flex:1;accent-color:var(--accent);height:3px;cursor:pointer
 
 /* ── Toolbar draw mode buttons ── */
 .toolbar-draw{ display:flex;gap:3px; }
-.toolbar-draw .btn-mode{
-  padding:5px 9px;font-size:9px;letter-spacing:.06em;font-weight:500;
-  font-family:var(--font-mono);
-}
 
 /* ── Canvas wrap ── */
 #canvas-wrap{
@@ -1224,24 +1217,24 @@ canvas.path-mode{ cursor:cell; }
     <div id="editor-toolbar">
       <div class="toolbar-left">
         <div class="mode-toggle">
-          <button class="btn-editmode active" id="btn-edit-mode" onclick="toggleAnnotationMode(true)">ANNOTATE</button>
-          <button class="btn-editmode" id="btn-preview-mode" onclick="toggleAnnotationMode(false)">PREVIEW</button>
+          <button class="btn-editmode active" id="btn-edit-mode" onclick="toggleAnnotationMode(true)"><iconify-icon icon="lucide:pen-line"></iconify-icon>ANNOTATE</button>
+          <button class="btn-editmode" id="btn-preview-mode" onclick="toggleAnnotationMode(false)"><iconify-icon icon="lucide:eye"></iconify-icon>PREVIEW</button>
         </div>
         <div class="toolbar-divider"></div>
-        <button class="btn-tool" id="btn-undo" onclick="undo()" title="Undo (Ctrl+Z)">↩</button>
-        <button class="btn-tool" id="btn-redo" onclick="redo()" title="Redo" style="opacity:.4;cursor:not-allowed">↪</button>
+        <button class="btn-tool" id="btn-undo" onclick="undo()" title="Undo (Ctrl+Z)"><iconify-icon icon="lucide:undo-2"></iconify-icon></button>
+        <button class="btn-tool" id="btn-redo" onclick="redo()" title="Redo" style="opacity:.4;cursor:not-allowed"><iconify-icon icon="lucide:redo-2"></iconify-icon></button>
         <div class="toolbar-divider"></div>
         <div class="toolbar-draw">
-          <button class="btn-mode active" data-mode="zone"     onclick="setMode('zone')">ZONE</button>
-          <button class="btn-mode"        data-mode="fight"    onclick="setMode('fight')">FIGHT</button>
-          <button class="btn-mode"        data-mode="rotation" onclick="setMode('rotation')">ARROW</button>
-          <button class="btn-mode"        data-mode="path"     onclick="setMode('path')">PATH</button>
-          <button class="btn-mode"        data-mode="pin"      onclick="setMode('pin')">PIN</button>
-          <button class="btn-mode"        data-mode="erase"    onclick="setMode('erase')">ERASE</button>
+          <button class="btn-mode active" data-mode="zone"     onclick="setMode('zone')"><iconify-icon icon="lucide:circle"></iconify-icon>ZONE</button>
+          <button class="btn-mode"        data-mode="fight"    onclick="setMode('fight')"><iconify-icon icon="lucide:crosshair"></iconify-icon>FIGHT</button>
+          <button class="btn-mode"        data-mode="rotation" onclick="setMode('rotation')"><iconify-icon icon="lucide:arrow-right"></iconify-icon>ARROW</button>
+          <button class="btn-mode"        data-mode="path"     onclick="setMode('path')"><iconify-icon icon="lucide:spline"></iconify-icon>PATH</button>
+          <button class="btn-mode"        data-mode="pin"      onclick="setMode('pin')"><iconify-icon icon="lucide:map-pin"></iconify-icon>PIN</button>
+          <button class="btn-mode"        data-mode="erase"    onclick="setMode('erase')"><iconify-icon icon="lucide:eraser"></iconify-icon>ERASE</button>
         </div>
       </div>
       <div class="toolbar-right">
-        <button class="btn-save idle" id="btn-save" onclick="manualSave()"></button>
+        <button class="btn-save idle" id="btn-save" onclick="manualSave()"><iconify-icon icon="lucide:save" style="font-size:14px;pointer-events:none"></iconify-icon></button>
       </div>
     </div>
 
@@ -2172,7 +2165,8 @@ function setSaveState(s) {
 }
 
 function setSyncState(s) {
-  document.getElementById('sync-dot').className='sync-dot '+s;
+  const el=document.getElementById('sync-dot');
+  if(el) el.className='sync-dot '+s;
 }
 
 // ══════════════════════════════════════════════════════
