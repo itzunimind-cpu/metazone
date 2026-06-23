@@ -350,6 +350,76 @@ input[type="range"]{ flex:1;accent-color:var(--accent);height:3px;cursor:pointer
 }
 canvas{ display:block;touch-action:none;position:absolute;top:0;left:0;cursor:crosshair; }
 canvas.panning{ cursor:grab; }
+
+/* ══ MAP LOADING OVERLAY ══ */
+#map-loading-overlay{
+  position:absolute;inset:0;z-index:8;
+  background:#050a10;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+  opacity:0;pointer-events:none;transition:opacity .2s ease;
+}
+#map-loading-overlay.show{ opacity:1; }
+.mlo-icon{ color:rgba(44,74,46,.3);font-size:40px; }
+.mlo-label{
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;
+  text-transform:uppercase;color:rgba(44,74,46,.45);
+}
+.mlo-bar-wrap{
+  width:180px;height:2px;background:rgba(44,74,46,.1);border-radius:1px;overflow:hidden;
+}
+.mlo-bar{
+  height:100%;width:45%;
+  background:linear-gradient(90deg,transparent,rgba(44,74,46,.75),transparent);
+  animation:mlo-sweep 1.3s ease-in-out infinite;
+}
+@keyframes mlo-sweep{
+  0%{ transform:translateX(-120%); }
+  100%{ transform:translateX(400%); }
+}
+
+/* ══ CANVAS EMPTY STATE (no match selected) ══ */
+#canvas-empty-state{
+  position:absolute;inset:0;z-index:6;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  pointer-events:none;opacity:0;transition:opacity .3s;
+}
+#canvas-empty-state.show{ opacity:1; }
+.ces-icon{ color:rgba(200,168,128,.12);font-size:52px; }
+.ces-hint{
+  font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;
+  text-transform:uppercase;color:rgba(200,168,128,.25);
+}
+
+/* ══ MATCH DATA LOADING BAR (top edge of canvas) ══ */
+#match-loading-bar{
+  position:absolute;top:0;left:0;right:0;height:2px;z-index:9;
+  overflow:hidden;opacity:0;transition:opacity .15s;
+}
+#match-loading-bar.show{ opacity:1; }
+.mlb-fill{
+  height:100%;width:100%;
+  background:linear-gradient(90deg,transparent 0%,rgba(44,74,46,.7) 50%,transparent 100%);
+  background-size:200% 100%;
+  animation:mlo-sweep 1s ease-in-out infinite;
+}
+
+/* ══ SIDEBAR DATA LOADING DOTS ══ */
+#sidebar-loading{
+  display:none;align-items:center;gap:5px;padding:10px 14px;
+  font-family:var(--font-mono);font-size:9px;color:var(--muted2);
+  letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--border-dim);
+}
+#sidebar-loading.show{ display:flex; }
+.sbl-dot{
+  width:4px;height:4px;border-radius:50%;background:var(--muted2);
+  animation:sbl-pulse 1.1s ease-in-out infinite;
+}
+.sbl-dot:nth-child(2){ animation-delay:.18s; }
+.sbl-dot:nth-child(3){ animation-delay:.36s; }
+@keyframes sbl-pulse{
+  0%,80%,100%{ opacity:.2;transform:scale(.7); }
+  40%{ opacity:1;transform:scale(1); }
+}
 canvas.panning-active{ cursor:grabbing; }
 canvas.path-mode{ cursor:cell; }
 
@@ -1130,6 +1200,12 @@ canvas.path-mode{ cursor:cell; }
   <!-- ══ LEFT SIDEBAR ══════════════════════════════ -->
   <div id="sidebar">
 
+    <!-- Sidebar loading indicator -->
+    <div id="sidebar-loading">
+      <div class="sbl-dot"></div><div class="sbl-dot"></div><div class="sbl-dot"></div>
+      Loading data...
+    </div>
+
     <!-- TOURNAMENT -->
     <div class="sb-section">
       <span class="sb-label">Tournament</span>
@@ -1270,6 +1346,20 @@ canvas.path-mode{ cursor:cell; }
 
     <!-- Canvas -->
     <div id="canvas-wrap">
+      <!-- Map loading overlay -->
+      <div id="map-loading-overlay">
+        <iconify-icon class="mlo-icon" icon="lucide:map"></iconify-icon>
+        <div class="mlo-label" id="mlo-label">Loading map...</div>
+        <div class="mlo-bar-wrap"><div class="mlo-bar"></div></div>
+      </div>
+      <!-- Canvas empty state (no match selected) -->
+      <div id="canvas-empty-state">
+        <iconify-icon class="ces-icon" icon="lucide:layers"></iconify-icon>
+        <div class="ces-hint">Select a match to begin annotating</div>
+      </div>
+      <!-- Match data loading progress bar -->
+      <div id="match-loading-bar"><div class="mlb-fill"></div></div>
+
       <canvas id="canvas"></canvas>
       <div id="zoom-hud">1.00×</div>
       <div id="path-indicator">PATH — CLICK POINTS · DBL-CLICK TO FINISH · ESC CANCEL</div>
@@ -1708,6 +1798,7 @@ function resetLocalState() {
   const logFilter=document.getElementById('mt-log-filter');
   if(logFilter) logFilter.style.display='none';
   state.tournamentId=null; state.dayId=null; state.matchId=null; state.activeTeamId=null;
+  setCanvasEmptyState(true);
   refreshDropdowns(); renderTeamList(); updateRightPanel();
 }
 
@@ -1726,6 +1817,7 @@ async function preloadKnownTeams(tournamentId) {
 // ══════════════════════════════════════════════════════
 async function loadAllData() {
   setSyncState('syncing');
+  setSidebarLoading(true);
   try {
     const uid = currentUser.id;
     const [t,d,m,tm] = await Promise.all([
@@ -1743,6 +1835,8 @@ async function loadAllData() {
   } catch(e) {
     console.error(e); setSyncState('error');
     setStatus('DB ERROR: '+e.message, false);
+  } finally {
+    setSidebarLoading(false);
   }
 }
 
@@ -1752,6 +1846,7 @@ async function loadAllData() {
 async function loadShapesForMatch(matchId) {
   const matchTeams = teams.filter(t=>t.match_id===matchId);
   setSyncState('syncing');
+  setMatchLoading(true);
   try {
     // Load team shapes (non-circle only — circles are match-level)
     if (matchTeams.length) {
@@ -1776,6 +1871,8 @@ async function loadShapesForMatch(matchId) {
     draw();
   } catch(e) {
     setSyncState('error');
+  } finally {
+    setMatchLoading(false);
   }
 }
 
@@ -2254,6 +2351,30 @@ function _loadMapRes(key, res, onload) {
   img.src = src;
 }
 
+// ── Loading state helpers ────────────────────
+function showMapLoading(label) {
+  const el = document.getElementById('map-loading-overlay');
+  if (!el) return;
+  document.getElementById('mlo-label').textContent = label || 'Loading map...';
+  el.classList.add('show');
+}
+function hideMapLoading() {
+  const el = document.getElementById('map-loading-overlay');
+  if (el) el.classList.remove('show');
+}
+function setMatchLoading(on) {
+  const el = document.getElementById('match-loading-bar');
+  if (el) el.classList.toggle('show', on);
+}
+function setCanvasEmptyState(on) {
+  const el = document.getElementById('canvas-empty-state');
+  if (el) el.classList.toggle('show', on);
+}
+function setSidebarLoading(on) {
+  const el = document.getElementById('sidebar-loading');
+  if (el) el.classList.toggle('show', on);
+}
+
 function loadMapKey(key) {
   if(key==='custom'){ document.getElementById('file-map').click(); return; }
   state.mapKey=key;
@@ -2265,14 +2386,26 @@ function loadMapKey(key) {
     document.getElementById('map-display-name').textContent = key.charAt(0).toUpperCase()+key.slice(1);
   }
 
-  // Check if multi-res files exist — if not, fall back to original
+  const keyLabel = key.charAt(0).toUpperCase()+key.slice(1);
+
+  // Check cache first — if already loaded, no overlay needed
   const srcs = MAP_SRCS[key];
+  const loSrc = srcs ? (srcs.lo || srcs.mid || srcs.hi) : key+'.png';
+  if (loSrc && mapImgCache[loSrc]) {
+    // Already cached — instant swap, no loading overlay
+    mapImg = mapImgCache[loSrc];
+    WORLD_W = mapImg.naturalWidth || 2048;
+    WORLD_H = mapImg.naturalHeight || 2048;
+    resetView(); draw(); return;
+  }
+
+  showMapLoading('Loading ' + keyLabel + '...');
+
   if (!srcs) {
-    // Unknown map key — load directly
     const src = key+'.png';
     const img = new Image(); img.crossOrigin='anonymous'; img.src=src;
-    img.onload=()=>{ mapImg=img; WORLD_W=img.naturalWidth||2048; WORLD_H=img.naturalHeight||2048; resetView(); draw(); };
-    img.onerror=()=>{ toast('MAP NOT FOUND: '+src,'warn'); };
+    img.onload=()=>{ mapImg=img; WORLD_W=img.naturalWidth||2048; WORLD_H=img.naturalHeight||2048; resetView(); draw(); hideMapLoading(); };
+    img.onerror=()=>{ toast('MAP NOT FOUND: '+src,'warn'); hideMapLoading(); };
     return;
   }
 
@@ -2282,8 +2415,9 @@ function loadMapKey(key) {
     WORLD_W = img.naturalWidth || 2048;
     WORLD_H = img.naturalHeight || 2048;
     resetView(); draw();
+    hideMapLoading();
   });
-  // Pre-load mid + hi in background so they're ready when zooming in
+  // Pre-load mid + hi in background
   _loadMapRes(key, 'mid');
   _loadMapRes(key, 'hi');
 }
@@ -2296,10 +2430,11 @@ function selectMapFromDropdown(key) {
 
 document.getElementById('file-map').onchange=e=>{
   const file=e.target.files[0]; if(!file) return;
+  showMapLoading('Loading custom map...');
   const reader=new FileReader();
   reader.onload=ev=>{
     const img=new Image();
-    img.onload=()=>{ mapImg=img; WORLD_W=img.naturalWidth; WORLD_H=img.naturalHeight; resetView(); draw(); };
+    img.onload=()=>{ mapImg=img; WORLD_W=img.naturalWidth; WORLD_H=img.naturalHeight; resetView(); draw(); hideMapLoading(); };
     img.src=ev.target.result;
     state.mapKey='custom';
     document.getElementById('sel-map').value='custom';
@@ -2358,6 +2493,7 @@ function _dwmConfirm() {
 }
 
 loadMapKey('erangel');
+setCanvasEmptyState(true); // no match selected on init
 
 // ══════════════════════════════════════════════════════
 // ZOOM / PAN
@@ -2662,8 +2798,6 @@ function draw() {
     ctx.drawImage(mapImg,0,0,WORLD_W,WORLD_H);
   } else {
     ctx.fillStyle='#050a10'; ctx.fillRect(0,0,WORLD_W,WORLD_H);
-    ctx.fillStyle='#1e3a5f'; ctx.font=`${14/zoom}px JetBrains Mono,monospace`;
-    ctx.fillText('SELECT A MAP',40/zoom,60/zoom);
   }
 
   // Zone circles — match-level, always cyan, visible regardless of active team
@@ -3266,6 +3400,7 @@ async function _activateMatch(match, statusMsg) {
   }
   // Switch map section to display mode (name + delete, no dropdown)
   setMapDisplayMode(true);
+  setCanvasEmptyState(false);
 
   // Set active team to SELF or first team
   const matchTeams = teams.filter(t => t.match_id === match.id);
@@ -3331,6 +3466,7 @@ document.getElementById('sel-tournament').onchange=async function(){
   } else {
     knownTeams=[];
   }
+  setCanvasEmptyState(true);
   refreshDropdowns(); renderTeamList(); draw(); updateRightPanel(); annotations=[]; renderAnnotationLog();
   setMapDisplayMode(false);
 };
@@ -3341,11 +3477,13 @@ document.getElementById('sel-day').onchange=async function(){
     const {data,error}=await sb.from('matches').select('*').eq('day_id',state.dayId).order('created_at');
     if(!error){ matches=matches.filter(m=>m.day_id!==state.dayId); matches.push(...data); }
   }
+  setCanvasEmptyState(true);
   refreshDropdowns(); renderTeamList(); draw(); updateRightPanel(); annotations=[]; renderAnnotationLog();
   setMapDisplayMode(false);
 };
 document.getElementById('sel-match').onchange=async function(){
   state.matchId=this.value||null; state.activeTeamId=null; overlayState={};
+  setCanvasEmptyState(!state.matchId);
   if(state.matchId){
     const m=matches.find(x=>x.id===state.matchId);
     if(m?.map_key){ state.mapKey=m.map_key; document.getElementById('sel-map').value=m.map_key; loadMapKey(m.map_key); }
