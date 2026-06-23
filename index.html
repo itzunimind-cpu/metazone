@@ -723,12 +723,11 @@ async function loadAll(){
 }
 
 async function loadMatchesForDay(dayId){
-  _matchesLoading=true;
-  renderGrid();
   setStatus('LOADING…');
   try{
     const{data:mData,error:mErr}=await sb.from('matches').select('id,name,map_key,duration_seconds,created_at').eq('day_id',dayId).order('created_at');
     if(mErr)throw mErr;
+    if(activeDayId!==dayId)return; // stale — user switched day while fetching
     const matchIds=mData.map(m=>m.id);
     let teams=[];
     let elimsByMatch={};
@@ -746,10 +745,11 @@ async function loadMatchesForDay(dayId){
       }
     }
     matches=mData.map(m=>({...m,teams:teams.filter(t=>t.match_id===m.id),_elims:elimsByMatch[m.id]||[]}));
-    _matchesLoading=false;
     setStatus('READY');
     renderGrid();
-  }catch(e){_matchesLoading=false;console.error(e);toast('Failed to load matches: '+e.message,'err');setStatus('ERROR');}
+    const mc=matches.length;
+    document.getElementById('main-sub').textContent=`${mc} match${mc===1?'':'es'}`;
+  }catch(e){console.error(e);toast('Failed to load matches: '+e.message,'err');setStatus('ERROR');}
 }
 
 // ── SIDEBAR TREE ──
@@ -981,10 +981,12 @@ async function selectDay(tournamentId,dayId){
   activeDayId=dayId;
   activeMatchId=null;
   selectedMatch=null;
+  matches=[];
   const d=t.days.find(x=>x.id===dayId);
+  const mc=d?.match_count||0;
   document.getElementById('main-eyebrow').textContent=esc(t.name);
   document.getElementById('main-title').textContent=esc(d?.name||'Day');
-  document.getElementById('main-sub').textContent='';
+  document.getElementById('main-sub').textContent=`${mc} match${mc===1?'':'es'}`;
   document.getElementById('main-actions').style.display='flex';
   document.getElementById('modal-day-sub').textContent=`ADD MATCH TO ${(d?.name||'DAY').toUpperCase()}`;
   // Patch selection classes in-place — no full tree rebuild unless subtree needs injecting
@@ -995,6 +997,7 @@ async function selectDay(tournamentId,dayId){
   }
   renderDayTabs();
   renderRP();
+  renderGrid();
   await loadMatchesForDay(dayId);
 }
 
@@ -1022,8 +1025,6 @@ function addMatchCard(){
   </div>`;
 }
 
-let _matchesLoading=false;
-
 function renderGrid(){
   const el=document.getElementById('match-grid');
   const t=tournaments.find(x=>x.id===activeTournamentId);
@@ -1038,11 +1039,6 @@ function renderGrid(){
     } else {
       el.innerHTML=`<div class="empty-state"><div class="es-icon"><iconify-icon icon="lucide:calendar"></iconify-icon></div><div class="es-title">Select a Day</div><div class="es-sub">Pick a day from the tabs above to view its matches</div></div>`;
     }
-    return;
-  }
-  // While fetching, show shimmer — don't flash empty then full
-  if(_matchesLoading){
-    el.innerHTML=`<div class="match-grid">${[1,2,3].map(()=>`<div class="match-card" style="opacity:.4;pointer-events:none;"><div class="card-img-wrap" style="background:var(--bg-panel);"></div><div class="card-foot"><div style="flex:1;height:38px;background:var(--bg-panel);"></div></div></div>`).join('')}</div>`;
     return;
   }
   if(!matches.length){
