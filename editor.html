@@ -586,12 +586,12 @@ canvas.path-mode{ cursor:cell; }
   padding:10px 14px;border-top:1px solid var(--border-dim);
 }
 .btn-add-annotation{
-  display:block;width:100%;padding:8px 14px;margin:0;
-  background:var(--bg);border:none;border-bottom:1px solid var(--border-dim);
-  color:var(--muted);font-family:var(--font-mono);font-size:10px;font-weight:500;
-  cursor:pointer;transition:all .15s;letter-spacing:.06em;text-transform:uppercase;text-align:left;
+  display:block;width:100%;padding:10px 14px;margin:0;
+  background:var(--orange);border:none;border-bottom:1px solid rgba(0,0,0,.1);
+  color:#fff;font-family:var(--font-mono);font-size:10px;font-weight:600;
+  cursor:pointer;transition:all .15s;letter-spacing:.08em;text-transform:uppercase;text-align:left;
 }
-.btn-add-annotation:hover{ background:rgba(44,74,46,.06);color:var(--forest); }
+.btn-add-annotation:hover{ background:#a84d08; }
 
 /* ══════════════════════════════════════════
    RESULTS PANEL (slides up on match end)
@@ -1034,21 +1034,49 @@ canvas.path-mode{ cursor:cell; }
 #sl-width,#sl-opacity{ margin:0; }
 
 
-/* ══ MATCH STATUS CHIP ══ */
-.match-status-chip{
-  display:flex;align-items:center;gap:6px;padding:5px 9px;
-  border-radius:5px;border:1px solid var(--border);background:var(--bg-card);
-  font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;
-  margin-top:5px;transition:all .3s;
+/* ══ COLLAPSIBLE RIGHT PANEL SECTION ══ */
+.rp-collapse-header{
+  display:flex;align-items:center;justify-content:space-between;
+  width:100%;background:none;border:none;cursor:pointer;padding:0;
 }
-.match-status-chip.hidden{ display:none; }
-.msc-dot{ width:6px;height:6px;border-radius:50%;flex-shrink:0;transition:background .3s; }
-.msc-label{ flex:1;color:var(--muted); }
-.msc-vod{ font-size:8px;padding:1px 5px;border-radius:3px;background:rgba(44,74,46,.1);color:var(--accent);border:1px solid rgba(44,74,46,.3);margin-left:auto;white-space:nowrap; }
-.match-status-chip[data-level="empty"] .msc-dot{ background:var(--muted2); }
-.match-status-chip[data-level="partial"] .msc-dot{ background:var(--yellow); }
-.match-status-chip[data-level="complete"] .msc-dot{ background:var(--green); }
-.match-status-chip[data-level="complete"]{ border-color:rgba(78,124,47,.3); }
+.rp-collapse-header .rp-label{ margin-bottom:0;cursor:pointer; }
+.rp-collapse-header iconify-icon{ color:var(--muted2);font-size:14px;transition:transform .2s; }
+.rp-collapse-header.open iconify-icon{ transform:rotate(180deg); }
+.rp-collapse-body{ margin-top:12px; }
+
+/* ══ ACTIVE SQUAD INLINE ══ */
+.btn-active-squad{
+  margin-top:0;width:100%;padding:8px 10px;
+  background:var(--bg-card);border:1px solid var(--border);border-radius:6px;
+  font-family:var(--font-mono);font-size:10px;color:var(--muted);
+  cursor:pointer;letter-spacing:.08em;text-transform:uppercase;
+  transition:all .15s;display:flex;align-items:center;justify-content:space-between;gap:6px;
+}
+.btn-active-squad:hover{ border-color:var(--accent);color:var(--accent); }
+.btn-active-squad iconify-icon{ font-size:14px; }
+#active-squad-inline{ display:flex;flex-direction:column;gap:3px;margin-top:8px; }
+.sq-player-row{
+  display:flex;align-items:center;gap:8px;padding:5px 8px;
+  background:var(--bg);border:1px solid var(--border);border-radius:5px;
+  font-size:11px;color:var(--text);
+}
+.sq-player-row.sq-dead{ opacity:.45; }
+.sq-player-name{ flex:1;font-weight:600; }
+.sq-player-role{ font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase; }
+.sq-player-kills{ font-family:var(--font-mono);font-size:10px;font-weight:700;color:var(--accent); }
+.sq-empty-note{ font-family:var(--font-mono);font-size:9px;color:var(--muted);padding:6px 0;letter-spacing:.04em; }
+
+/* ══ TOOLBAR ACTION BUTTONS ══ */
+.btn-tool-action{
+  height:32px;padding:0 10px;display:flex;align-items:center;gap:5px;
+  background:var(--bg-card);border:1px solid var(--border-mid);border-radius:5px;
+  color:var(--text);cursor:pointer;font-family:var(--font-mono);font-size:10px;
+  font-weight:500;letter-spacing:.05em;text-transform:uppercase;
+  transition:all .15s;flex-shrink:0;white-space:nowrap;
+}
+.btn-tool-action:hover{ border-color:var(--accent);color:var(--accent);background:var(--bg); }
+.btn-tool-action iconify-icon{ font-size:14px;pointer-events:none; }
+.btn-tool-action.vod:hover{ border-color:var(--orange);color:var(--orange); }
 </style>
 </head>
 <body>
@@ -1120,11 +1148,6 @@ canvas.path-mode{ cursor:cell; }
         <button class="btn-del" onclick="deleteSelected('match')" title="Delete match">✕</button>
       </div>
       <button class="btn-add-inline" onclick="addMatch()">+ ADD MATCH</button>
-      <div class="match-status-chip hidden" id="match-status-chip">
-        <div class="msc-dot"></div>
-        <span class="msc-label" id="msc-label">—</span>
-        <span class="msc-vod hidden" id="msc-vod">VOD ✓</span>
-      </div>
     </div>
 
     <!-- MAP -->
@@ -1132,17 +1155,16 @@ canvas.path-mode{ cursor:cell; }
       <span class="sb-label">Map</span>
       <!-- Pre-match: dropdown to pick map -->
       <select class="mz-select" id="sel-map" onchange="selectMapFromDropdown(this.value)">
-        <option value="erangel">🌿 Erangel</option>
-        <option value="miramar">🏜️ Miramar</option>
-        <option value="rondo">🌅 Rondo</option>
-        <option value="sanhok">🌴 Sanhok</option>
-        <option value="custom">📂 Custom...</option>
+        <option value="erangel">Erangel</option>
+        <option value="miramar">Miramar</option>
+        <option value="rondo">Rondo</option>
+        <option value="sanhok">Sanhok</option>
+        <option value="custom">Custom...</option>
       </select>
       <!-- Post-match: read-only name + delete -->
       <div class="map-display-row" id="map-display-row" style="display:none;">
-        <span class="map-display-icon" id="map-display-icon">🌿</span>
         <span class="map-display-name" id="map-display-name">Erangel</span>
-        <button class="btn-map-del" title="Clear map" onclick="showDeleteWarning('map','Clear map?','This will remove the map from this match. The match data is kept.', clearMatchMap)">🗑</button>
+        <button class="btn-map-del" title="Clear map" onclick="showDeleteWarning('map','Clear map?','This will remove the map from this match. The match data is kept.', clearMatchMap)"><iconify-icon icon="lucide:trash-2"></iconify-icon></button>
       </div>
       <input type="file" id="file-map" accept="image/*" style="display:none">
     </div>
@@ -1198,13 +1220,6 @@ canvas.path-mode{ cursor:cell; }
       </div>
     </div>
 
-    <!-- ACTIONS -->
-    <div class="sb-section">
-      <span class="sb-label">Actions</span>
-      <button class="btn-action" onclick="downloadSnapshot()">Screenshot</button>
-      <button class="btn-action" onclick="clearTeam()">Clear This Team</button>
-    </div>
-
     <!-- hidden compat IDs -->
     <span id="zoom-label" style="display:none"></span>
     <div id="status-bar" style="display:none"><span id="status-text2"></span></div>
@@ -1232,6 +1247,12 @@ canvas.path-mode{ cursor:cell; }
           <button class="btn-mode"        data-mode="pin"      onclick="setMode('pin')"><iconify-icon icon="lucide:map-pin"></iconify-icon>PIN</button>
           <button class="btn-mode"        data-mode="erase"    onclick="setMode('erase')"><iconify-icon icon="lucide:eraser"></iconify-icon>ERASE</button>
         </div>
+        <div class="toolbar-divider"></div>
+        <button class="btn-tool-action" onclick="document.getElementById('editor-map-modal').classList.add('show')" title="Change map"><iconify-icon icon="lucide:map"></iconify-icon>MAP</button>
+        <button class="btn-tool-action vod" onclick="openInVOD()" title="Open this match in VOD Review"><iconify-icon icon="lucide:play-circle"></iconify-icon>OPEN IN VOD</button>
+        <div class="toolbar-divider"></div>
+        <button class="btn-tool-action" onclick="downloadSnapshot()" title="Screenshot"><iconify-icon icon="lucide:camera"></iconify-icon>SCREENSHOT</button>
+        <button class="btn-tool-action" onclick="clearTeam()" title="Clear all shapes for active team"><iconify-icon icon="lucide:x-circle"></iconify-icon>CLEAR TEAM</button>
       </div>
       <div class="toolbar-right">
         <button class="btn-save idle" id="btn-save" onclick="manualSave()"><iconify-icon icon="lucide:save" style="font-size:14px;pointer-events:none"></iconify-icon></button>
@@ -1249,7 +1270,6 @@ canvas.path-mode{ cursor:cell; }
       <!-- Death/Wipe position pin prompt overlay -->
       <div id="pin-prompt-overlay">
         <div id="pin-prompt-banner">
-          <span class="ppb-icon">📍</span>
           <span class="ppb-text"><span id="ppb-label">TAP LOCATION ON MAP</span> to pin death position</span>
           <button id="pin-prompt-skip" onclick="skipPinPrompt()">SKIP</button>
         </div>
@@ -1271,7 +1291,7 @@ canvas.path-mode{ cursor:cell; }
           <div class="pp-sep">— VS —</div>
           <select class="pp-select" id="pp-b-sel"></select>
         </div>
-        <button class="pp-btn pin-style" id="pp-btn" onclick="confirmPin()">📍 PLACE</button>
+        <button class="pp-btn pin-style" id="pp-btn" onclick="confirmPin()">PLACE</button>
       </div>
 
       <!-- Color picker -->
@@ -1308,13 +1328,13 @@ canvas.path-mode{ cursor:cell; }
 
       <div class="timeline-actions">
         <div class="timeline-actions-row">
-          <button class="btn-timeline self-elim" onclick="markSelfElim()" title="Your team got a kill">⚡ SELF ELIM</button>
-          <button class="btn-timeline self-loss" onclick="markSelfLoss()" title="One of your players died">💀 SELF LOSS</button>
+          <button class="btn-timeline self-elim" onclick="markSelfElim()" title="Your team got a kill">SELF ELIM</button>
+          <button class="btn-timeline self-loss" onclick="markSelfLoss()" title="One of your players died">SELF LOSS</button>
         </div>
         <div class="timeline-actions-row">
-          <button class="btn-timeline self-wipe" onclick="markSelfWipe()" title="Your team was eliminated">☠ SELF WIPE</button>
-          <button class="btn-timeline enemy-wipe" onclick="markEnemyWipe()" title="An enemy team was eliminated">⚑ ENEMY WIPE</button>
-          <button class="btn-timeline match-end" onclick="markMatchEnd()" title="End the match and record results">⏹ MATCH END</button>
+          <button class="btn-timeline self-wipe" onclick="markSelfWipe()" title="Your team was eliminated">SELF WIPE</button>
+          <button class="btn-timeline enemy-wipe" onclick="markEnemyWipe()" title="An enemy team was eliminated">ENEMY WIPE</button>
+          <button class="btn-timeline match-end" onclick="markMatchEnd()" title="End the match and record results">MATCH END</button>
         </div>
       </div>
     </div>
@@ -1323,33 +1343,33 @@ canvas.path-mode{ cursor:cell; }
   <!-- ══ RIGHT PANEL ════════════════════════════════ -->
   <div id="right-panel">
 
-    <!-- Match Metadata -->
+    <!-- Match Metadata (collapsible) -->
     <div class="rp-section">
-      <span class="rp-label">Match Metadata</span>
-      <div class="rp-field">
-        <span class="rp-field-label">Tournament</span>
-        <div class="rp-field-value" id="match-meta-tournament">—</div>
-      </div>
-      <div class="rp-row">
-        <div class="rp-field">
-          <span class="rp-field-label">Map</span>
-          <div class="rp-field-value" id="match-meta-map">—</div>
-        </div>
-        <div class="rp-field">
-          <span class="rp-field-label">Duration</span>
-          <div class="rp-field-value" id="match-meta-duration" style="font-family:var(--font-mono);color:var(--accent)">—</div>
-        </div>
-      </div>
-      <div class="rp-field">
-        <span class="rp-field-label">Competing Factions</span>
-        <div class="factions-wrap" id="competing-factions"></div>
-      </div>
-      <button onclick="if(state.matchId)openActivePlayersModal(state.matchId);else toast('Select a match first','warn');"
-        style="margin-top:10px;width:100%;padding:8px;background:none;border:1px solid var(--border);border-radius:6px;font-family:var(--font-mono);font-size:10px;color:var(--muted);cursor:pointer;letter-spacing:.08em;text-transform:uppercase;transition:all .15s;"
-        onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
-        onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
-        👥 ACTIVE SQUAD
+      <button class="rp-collapse-header" id="meta-collapse-btn" onclick="toggleMetaCollapse()">
+        <span class="rp-label">Match Metadata</span>
+        <iconify-icon icon="lucide:chevron-down" id="meta-collapse-icon"></iconify-icon>
       </button>
+      <div class="rp-collapse-body" id="meta-collapse-body" style="display:none">
+        <div class="rp-field">
+          <span class="rp-field-label">Tournament</span>
+          <div class="rp-field-value" id="match-meta-tournament">—</div>
+        </div>
+        <div class="rp-row">
+          <div class="rp-field">
+            <span class="rp-field-label">Map</span>
+            <div class="rp-field-value" id="match-meta-map">—</div>
+          </div>
+          <div class="rp-field">
+            <span class="rp-field-label">Duration</span>
+            <div class="rp-field-value" id="match-meta-duration" style="font-family:var(--font-mono);color:var(--accent)">—</div>
+          </div>
+        </div>
+      </div>
+      <button class="btn-active-squad" style="margin-top:10px" onclick="if(state.matchId)openActivePlayersModal(state.matchId);else toast('Select a match first','warn');">
+        <span><iconify-icon icon="lucide:users" style="vertical-align:middle;margin-right:5px"></iconify-icon>ACTIVE SQUAD</span>
+        <iconify-icon icon="lucide:pencil" style="font-size:11px;opacity:.6"></iconify-icon>
+      </button>
+      <div id="active-squad-inline"></div>
     </div>
 
     <!-- Multi-Track [E9] -->
@@ -1397,7 +1417,7 @@ canvas.path-mode{ cursor:cell; }
 <!-- ══ ENEMY WIPE MODAL ════════════════════════ -->
 <div id="enemy-wipe-modal">
   <div class="ewm-box">
-    <div class="ewm-title">⚑ Enemy Team Eliminated</div>
+    <div class="ewm-title">Enemy Team Eliminated</div>
     <div class="ewm-sub">SELECT TEAM AT <span id="ewm-time" style="color:var(--accent)">00:00</span></div>
     <select class="mz-select" id="ewm-team-select"></select>
     <div class="ewm-actions">
@@ -1424,7 +1444,7 @@ canvas.path-mode{ cursor:cell; }
 
 <div id="self-loss-modal">
   <div class="slm-box">
-    <div class="slm-title">💀 Player Loss at <span id="slm-time" style="color:var(--yellow);font-family:var(--font-mono)">00:00</span></div>
+    <div class="slm-title">Player Loss at <span id="slm-time" style="color:var(--yellow);font-family:var(--font-mono)">00:00</span></div>
     <div class="slm-sub">Which player did we lose?</div>
     <div class="slm-players" id="slm-players"></div>
     <div class="slm-section-label" style="margin-top:2px;">Killed by (optional)</div>
@@ -1441,7 +1461,7 @@ canvas.path-mode{ cursor:cell; }
 <!-- ══ SELF ELIM MODAL ████████████████████ -->
 <div id="self-elim-modal">
   <div class="sem-box">
-    <div class="sem-title">⚡ Self Elim — <span id="sem-time" style="color:var(--accent);font-family:var(--font-mono)">00:00</span></div>
+    <div class="sem-title">Self Elim — <span id="sem-time" style="color:var(--accent);font-family:var(--font-mono)">00:00</span></div>
     <div class="sem-sub">WHICH PLAYER SECURED THE KILL?</div>
     <div class="sem-players" id="sem-player-select"></div>
     <div class="sem-finish-row">
@@ -1472,7 +1492,7 @@ canvas.path-mode{ cursor:cell; }
 <!-- ══ WIPE MODAL (C8) ████████████████████ -->
 <div id="wipe-modal">
   <div class="wm-box">
-    <div class="wm-title" id="wm-title">⚑ Team Eliminated</div>
+    <div class="wm-title" id="wm-title">Team Eliminated</div>
     <div class="wm-sub" id="wm-sub">Confirm wipe and set placement position.</div>
     <div class="wm-pos-row">
       <span class="wm-pos-label">Placement position</span>
@@ -1488,21 +1508,13 @@ canvas.path-mode{ cursor:cell; }
 <!-- ══ EDITOR MAP PICKER MODAL ████████████████████ -->
 <div id="editor-map-modal">
   <div class="emm-box">
-    <div class="emm-title">🗺 Select Map</div>
+    <div class="emm-title">Select Map</div>
     <div class="emm-sub">Choose the map for this match</div>
     <div class="emm-maps">
-      <button class="emm-map-btn sel" data-map="erangel" onclick="selectEditorMap('erangel')">
-        <span class="emm-map-icon">🌿</span>Erangel
-      </button>
-      <button class="emm-map-btn" data-map="miramar" onclick="selectEditorMap('miramar')">
-        <span class="emm-map-icon">🏜️</span>Miramar
-      </button>
-      <button class="emm-map-btn" data-map="rondo" onclick="selectEditorMap('rondo')">
-        <span class="emm-map-icon">🌅</span>Rondo
-      </button>
-      <button class="emm-map-btn" data-map="sanhok" onclick="selectEditorMap('sanhok')">
-        <span class="emm-map-icon">🌴</span>Sanhok
-      </button>
+      <button class="emm-map-btn sel" data-map="erangel" onclick="selectEditorMap('erangel')">Erangel</button>
+      <button class="emm-map-btn" data-map="miramar" onclick="selectEditorMap('miramar')">Miramar</button>
+      <button class="emm-map-btn" data-map="rondo" onclick="selectEditorMap('rondo')">Rondo</button>
+      <button class="emm-map-btn" data-map="sanhok" onclick="selectEditorMap('sanhok')">Sanhok</button>
     </div>
     <div class="emm-actions">
       <button class="btn-emm-cancel" onclick="cancelEditorMapModal()">CANCEL</button>
@@ -1514,7 +1526,7 @@ canvas.path-mode{ cursor:cell; }
 <!-- ══ ACTIVE PLAYERS MODAL ████████████████████ -->
 <div id="active-players-modal">
   <div class="apm-box">
-    <div class="apm-title">👥 Active Squad</div>
+    <div class="apm-title">Active Squad</div>
     <div class="apm-sub" id="apm-sub">Select 4–6 players who are active in this match. They will be tracked for kills, losses and wipes.</div>
     <div class="apm-count" id="apm-count">0 / 6 SELECTED</div>
     <div class="apm-players" id="apm-players"></div>
@@ -1528,7 +1540,7 @@ canvas.path-mode{ cursor:cell; }
 <!-- ══ DELETE WARNING MODAL ████████████████████ -->
 <div id="delete-warning-modal">
   <div class="dwm-box">
-    <div class="dwm-icon" id="dwm-icon">⚠️</div>
+    <div class="dwm-icon" id="dwm-icon"><iconify-icon icon="lucide:alert-triangle" style="font-size:28px"></iconify-icon></div>
     <div class="dwm-title" id="dwm-title">Are you sure?</div>
     <div class="dwm-body" id="dwm-body">This action cannot be undone.</div>
     <div class="dwm-actions">
@@ -2074,6 +2086,7 @@ async function confirmActivePlayers() {
 
     // Reload from DB so matchPlayers is fresh
     await loadMatchPlayers(mid);
+    renderActiveSquadInline();
     toast(`Active squad: ${matchPlayers.length} player${matchPlayers.length!==1?'s':''}`, 'ok');
   } catch(e) {
     console.error('[ACTIVE_SQUAD] save failed:', e);
@@ -2241,7 +2254,6 @@ function loadMapKey(key) {
   const dispEl = document.getElementById('map-display-row');
   if(dispEl && dispEl.style.display!=='none') {
     document.getElementById('map-display-name').textContent = key.charAt(0).toUpperCase()+key.slice(1);
-    document.getElementById('map-display-icon').textContent = (MAP_ICONS||{})[key]||'🗺️';
   }
 
   // Check if multi-res files exist — if not, fall back to original
@@ -2292,7 +2304,6 @@ async function updateMatchMap(key) {
 }
 
 // ── Map display mode toggle ──────────────────
-const MAP_ICONS = { erangel:'🌿', miramar:'🏜️', rondo:'🌅', sanhok:'🌴', custom:'📂' };
 function setMapDisplayMode(hasMatch) {
   const selEl  = document.getElementById('sel-map');
   const dispEl = document.getElementById('map-display-row');
@@ -2302,7 +2313,6 @@ function setMapDisplayMode(hasMatch) {
     const key = state.mapKey || 'erangel';
     const name = key.charAt(0).toUpperCase() + key.slice(1);
     document.getElementById('map-display-name').textContent = name;
-    document.getElementById('map-display-icon').textContent = MAP_ICONS[key] || '🗺️';
   } else {
     selEl.style.display  = '';
     dispEl.style.display = 'none';
@@ -2838,7 +2848,7 @@ function showPinPopup(sx,sy,isFight) {
   if(isFight) populateFightSelects();
   const btn=document.getElementById('pp-btn');
   btn.className='pp-btn '+(isFight?'fight-style':'pin-style');
-  btn.textContent=isFight?'● PLACE FIGHT':'📍 PLACE PIN';
+  btn.textContent=isFight?'PLACE FIGHT':'PLACE PIN';
   el.classList.toggle('fight',isFight);
   const wW=wrap.clientWidth, wH=wrap.clientHeight;
   let l=sx+14, t=sy-20;
@@ -3284,7 +3294,6 @@ async function _activateMatch(match, statusMsg) {
 
   setStatus(statusMsg, true);
   setTimeout(() => setStatus('READY', true), 2000);
-  updateMatchStatusChip();
 }
 
 function refreshDropdowns() {
@@ -3297,41 +3306,10 @@ function refreshDropdowns() {
   days.filter(d=>d.tournament_id===state.tournamentId).forEach(d=>{ const o=new Option(d.name,d.id); if(d.id===state.dayId) o.selected=true; dSel.add(o); });
   mSel.innerHTML='<option value="">— select —</option>';
   matches.filter(m=>m.day_id===state.dayId).forEach(m=>{
-    const st = _matchStatusLevel(m, teams.filter(t=>t.match_id===m.id));
-    const icon = st==='complete'?'✓ ':st==='partial'?'◐ ':'';
-    const o=new Option(icon+m.name,m.id);
+    const o=new Option(m.name,m.id);
     if(m.id===state.matchId) o.selected=true;
     mSel.add(o);
   });
-  updateMatchStatusChip();
-}
-
-function _matchStatusLevel(match, matchTeams) {
-  if (!match) return 'empty';
-  const hasTeams = matchTeams && matchTeams.length > 0;
-  const hasWipes = matchTeams && matchTeams.some(t=>t.time_of_wipe!=null);
-  const hasDuration = match.duration_seconds != null;
-  if (hasDuration && hasWipes) return 'complete';
-  if (hasTeams) return 'partial';
-  return 'empty';
-}
-
-function updateMatchStatusChip() {
-  const chip = document.getElementById('match-status-chip');
-  const label = document.getElementById('msc-label');
-  const vodBadge = document.getElementById('msc-vod');
-  if (!chip) return;
-  if (!state.matchId) { chip.classList.add('hidden'); return; }
-  const m = matches.find(x=>x.id===state.matchId);
-  if (!m) { chip.classList.add('hidden'); return; }
-  const matchTeams = teams.filter(t=>t.match_id===state.matchId);
-  const level = _matchStatusLevel(m, matchTeams);
-  const labels = { empty:'NO DATA YET', partial:'IN PROGRESS', complete:'DATA COMPLETE' };
-  chip.classList.remove('hidden');
-  chip.dataset.level = level;
-  label.textContent = labels[level];
-  if (m.vod_start_offset != null) { vodBadge.classList.remove('hidden'); }
-  else { vodBadge.classList.add('hidden'); }
 }
 
 document.getElementById('sel-tournament').onchange=async function(){
@@ -3381,7 +3359,6 @@ document.getElementById('sel-match').onchange=async function(){
   renderTeamList(); draw(); updateRightPanel();
   renderAnnotationLog();
   renderTimelineTicks();
-  updateMatchStatusChip();
 };
 
 document.getElementById('in-team').onkeydown=e=>{
@@ -3810,7 +3787,7 @@ async function confirmSelfElim() {
     id: 'local_elim_'+Date.now(),
   });
   renderAnnotationLog({scrollToTop:true});
-  toast(`⚡ ${player.name} — ${finishes} finish${finishes!==1?'es':''} @ ${fmtTime(state.time)}`,'ok');
+  toast(`${player.name} — ${finishes} finish${finishes!==1?'es':''} @ ${fmtTime(state.time)}`,'ok');
 }
 
 function closeSelfElimModal() {
@@ -3834,7 +3811,7 @@ function openWipeModal(teamId, isSelf) {
   _wipeIsSelf = isSelf;
   const team = teams.find(t=>t.id===teamId);
   const pos = _calcWipePosition();
-  document.getElementById('wm-title').textContent = isSelf ? '☠ SELF WIPED' : `⚑ ${team?.name||'Team'} Eliminated`;
+  document.getElementById('wm-title').textContent = isSelf ? 'SELF WIPED' : `${team?.name||'Team'} Eliminated`;
   document.getElementById('wm-sub').textContent = `At ${fmtTime(state.time)} — confirm placement position (auto-calculated, editable).`;
   document.getElementById('wm-position').value = pos;
   document.getElementById('wipe-modal').classList.add('show');
@@ -3860,7 +3837,7 @@ async function confirmWipe() {
     await sb.from('teams').update(upd).eq('id', team.id);
   }
   const posLabel = pos ? ` — #${pos}` : '';
-  toast(`${_wipeIsSelf?'☠ SELF':'⚑ '+team.name} wiped at ${fmtTime(state.time)}${posLabel}`, 'ok');
+  toast(`${_wipeIsSelf?'SELF':team.name} wiped at ${fmtTime(state.time)}${posLabel}`, 'ok');
   renderTimelineTicks(); renderAnnotationLog({scrollToTop:true}); updateSelfButtonState();
 
   // ── PIN PROMPT: ask user to tap wipe location on map ──
@@ -3869,7 +3846,7 @@ async function confirmWipe() {
     openPinPrompt(label, true, async (wx, wy) => {
       try {
         await sb.from('teams').update({ wipe_x: wx, wipe_y: wy }).eq('id', team.id);
-        toast(`📍 ${_wipeIsSelf ? 'Self' : team.name} wipe pinned`, 'ok');
+        toast(`${_wipeIsSelf ? 'Self' : team.name} wipe pinned`, 'ok');
       } catch(e) { console.warn('[PLAYER_ANALYTICS] wipe pin save failed:', e); }
     });
   }
@@ -3954,7 +3931,7 @@ function markSelfWipe() {
     if(sb&&!String(selfTeam.id).startsWith('local_')){
       sb.from('teams').update({time_of_wipe:null,confirmed_position:null}).eq('id',selfTeam.id);
     }
-    toast('☠ Self wipe removed','ok');
+    toast('Self wipe removed','ok');
     renderTimelineTicks(); renderAnnotationLog(); updateSelfButtonState(); return;
   }
   openWipeModal(selfTeam.id, true);
@@ -3988,7 +3965,7 @@ async function confirmEnemyWipe() {
     if(sb&&!String(teamId).startsWith('local_')){
       await sb.from('teams').update({time_of_wipe:null,confirmed_position:null}).eq('id',teamId);
     }
-    toast(`⚑ ${team.name} wipe removed`,'ok');
+    toast(`${team.name} wipe removed`,'ok');
     renderTimelineTicks(); renderAnnotationLog({scrollToTop:true}); return;
   }
   // New wipe — open position modal
@@ -4087,14 +4064,14 @@ async function confirmSelfLoss() {
   });
   renderAnnotationLog({scrollToTop:true});
   const killedByTeam = killedByTeamId ? teams.find(t=>t.id===killedByTeamId) : null;
-  toast(`💀 ${player.name} down${killedByTeam ? ` — killed by ${killedByTeam.name}` : ''}`, 'ok');
+  toast(`${player.name} down${killedByTeam ? ` — killed by ${killedByTeam.name}` : ''}`, 'ok');
 
   // ── PIN PROMPT: ask user to tap death location on map ──
   if(sb && !String(player.id).startsWith('local_')) {
     openPinPrompt(`${player.name} death`, false, async (wx, wy) => {
       try {
         await sb.from('match_players').update({ death_x: wx, death_y: wy }).eq('id', player.id);
-        toast(`📍 ${player.name} death pinned`, 'ok');
+        toast(`${player.name} death pinned`, 'ok');
       } catch(e) { console.warn('[PLAYER_ANALYTICS] death pin save failed:', e); }
     });
   }
@@ -4102,7 +4079,7 @@ async function confirmSelfLoss() {
   // If last alive player → auto-trigger Self Wipe
   const stillAlive = matchPlayers.filter(p => p.time_of_loss == null || p.time_of_loss > state.time);
   if(stillAlive.length === 0) {
-    toast('☠ Last player down — triggering Self Wipe','warn');
+    toast('Last player down — triggering Self Wipe','warn');
     setTimeout(markSelfWipe, 300);
   }
 }
@@ -4188,7 +4165,7 @@ async function markMatchEnd() {
     if(m) m.duration_seconds=null;
     document.getElementById('match-meta-duration').textContent='—';
     annotations=annotations.filter(a=>!a.id?.startsWith('local_matchend_'));
-    renderAnnotationLog(); toast('⏹ Match end removed','ok'); return;
+    renderAnnotationLog(); toast('Match end removed','ok'); return;
   }
   if(sb&&!String(state.matchId).startsWith('local_')){
     await sb.from('matches').update({duration_seconds:dur}).eq('id',state.matchId);
@@ -4197,7 +4174,7 @@ async function markMatchEnd() {
   document.getElementById('match-meta-duration').textContent=fmtTime(dur);
   annotations.push({ time_seconds:dur, title:`Match ended`, _ephemeral:true, id:'local_matchend_'+Date.now() });
   renderAnnotationLog({scrollToTop:true});
-  toast(`⏹ Match ended at ${fmtTime(dur)} — press again to undo`,'ok');
+  toast(`Match ended at ${fmtTime(dur)} — press again to undo`,'ok');
   await showResultsPanel();
 }
 
@@ -4231,7 +4208,7 @@ async function showResultsPanel() {
     const row=document.createElement('div'); row.className='results-team-row';
     const dot=document.createElement('div'); dot.className='results-team-dot'; dot.style.background=team.color;
     const name=document.createElement('div'); name.className='results-team-name';
-    name.textContent=team.is_self ? '⚡ SELF' : team.name;
+    name.textContent=team.is_self ? 'SELF' : team.name;
 
     // Pre-fill placement from confirmed_position (C8) if available, else existing placement
     const prefillPlace = team.confirmed_position || team.placement || '';
@@ -4322,7 +4299,7 @@ async function undoLogEvent(ev) {
     }
     annotations = annotations.filter(a=>a.id!==ev.annId);
     renderAnnotationLog({scrollToTop:true});
-    toast('💀 Loss undone','ok');
+    toast('Loss undone','ok');
 
   } else if(ev.type === 'elim' && ev.annId) {
     const ann = annotations.find(a=>a.id===ev.annId);
@@ -4342,7 +4319,7 @@ async function undoLogEvent(ev) {
     }
     annotations = annotations.filter(a=>a.id!==ev.annId);
     renderAnnotationLog({scrollToTop:true});
-    toast('⚡ Elim undone','ok');
+    toast('Elim undone','ok');
 
   } else if(ev.type === 'matchend') {
     annotations = annotations.filter(a=>a.id!==ev.annId);
@@ -4354,7 +4331,7 @@ async function undoLogEvent(ev) {
     }
     document.getElementById('match-meta-duration').textContent='—';
     renderAnnotationLog({scrollToTop:true});
-    toast('⏹ Match end undone','ok');
+    toast('Match end undone','ok');
   }
 }
 
@@ -4390,32 +4367,32 @@ function renderAnnotationLog(opts) {
   // ── Real annotations / notes (not team-filtered) ──
   annotations.forEach(a=>{
     if(a._ephemeral) return;
-    events.push({ time:a.time_seconds, type:'note', title:a.title, body:a.body, icon:'📝', iconClass:'note', teamId:null });
+    events.push({ time:a.time_seconds, type:'note', title:a.title, body:a.body, icon:'<iconify-icon icon="lucide:sticky-note"></iconify-icon>', iconClass:'note', teamId:null });
   });
 
   // ── Self Loss events ──
   annotations.filter(a=>a._ephemeral && a.id?.startsWith('local_loss_')).forEach(a=>{
     const name = a.title.replace(/ lost @ .+$/,'');
-    events.push({ time:a.time_seconds, type:'loss', title:`💀 Lost — ${name}`, icon:'💀', iconClass:'wipe', teamId:null, annId:a.id, undoable:true });
+    events.push({ time:a.time_seconds, type:'loss', title:`Lost — ${name}`, icon:'<iconify-icon icon="lucide:skull"></iconify-icon>', iconClass:'wipe', teamId:null, annId:a.id, undoable:true });
   });
 
   // ── Self Elim events ──
   annotations.filter(a=>a._ephemeral && a.id?.startsWith('local_elim_')).forEach(a=>{
     const name = a.title.replace(/ secured elim @ .+$/,'');
     const finishes = a._finishes || 1;
-    events.push({ time:a.time_seconds, type:'elim', title:`⚡ ${name} — ${finishes} finish${finishes!==1?'es':''}`, icon:'⚡', iconClass:'fight', teamId:null, annId:a.id, undoable:true, _ann:a });
+    events.push({ time:a.time_seconds, type:'elim', title:`${name} — ${finishes} finish${finishes!==1?'es':''}`, icon:'<iconify-icon icon="lucide:zap"></iconify-icon>', iconClass:'fight', teamId:null, annId:a.id, undoable:true, _ann:a });
   });
 
   // ── Match End event ──
   annotations.filter(a=>a._ephemeral && a.id?.startsWith('local_matchend_')).forEach(a=>{
-    events.push({ time:a.time_seconds, type:'matchend', title:`⏹ Match ended`, icon:'⏹', iconClass:'zone', teamId:null, annId:a.id, undoable:true });
+    events.push({ time:a.time_seconds, type:'matchend', title:`Match ended`, icon:'<iconify-icon icon="lucide:square"></iconify-icon>', iconClass:'zone', teamId:null, annId:a.id, undoable:true });
   });
   // Also show if saved to DB (duration_seconds set)
   const curMatch = matches.find(m=>m.id===state.matchId);
   const hasEnd = curMatch?.duration_seconds!=null;
   const hasEndAnn = annotations.some(a=>a.id?.startsWith('local_matchend_'));
   if(hasEnd && !hasEndAnn) {
-    events.push({ time:curMatch.duration_seconds, type:'matchend', title:`⏹ Match ended`, icon:'⏹', iconClass:'zone', teamId:null, undoable:true, isDbMatchEnd:true });
+    events.push({ time:curMatch.duration_seconds, type:'matchend', title:`Match ended`, icon:'<iconify-icon icon="lucide:square"></iconify-icon>', iconClass:'zone', teamId:null, undoable:true, isDbMatchEnd:true });
   }
 
   // ── Determine which teams to show in log ──
@@ -4426,7 +4403,7 @@ function renderAnnotationLog(opts) {
 
   // ── Zone circles — match-level, always shown ──
   (zonesCache[state.matchId]||[]).forEach(s=>{
-    events.push({ time:s.time||0, type:'circle', title:`Zone ${s.zone_phase||''}`, icon:'⭕', iconClass:'zone', teamId:null });
+    events.push({ time:s.time||0, type:'circle', title:`Zone ${s.zone_phase||''}`, icon:'<iconify-icon icon="lucide:circle"></iconify-icon>', iconClass:'zone', teamId:null });
   });
 
   // ── Pre-compute wipe positions (sorted by time → highest position = wiped latest) ──
@@ -4447,9 +4424,9 @@ function renderAnnotationLog(opts) {
     const pos = wipePositions[team.id];
     const posLabel = pos ? ` — #${pos}` : '';
     if(team.is_self){
-      events.push({ time:team.time_of_wipe, type:'wipe', title:`SELF wiped${posLabel}`, icon:'☠', iconClass:'wipe', teamId:team.id, teamColor:team.color, isWipe:true, isSelfWipe:true });
+      events.push({ time:team.time_of_wipe, type:'wipe', title:`SELF wiped${posLabel}`, icon:'<iconify-icon icon="lucide:skull"></iconify-icon>', iconClass:'wipe', teamId:team.id, teamColor:team.color, isWipe:true, isSelfWipe:true });
     } else {
-      events.push({ time:team.time_of_wipe, type:'wipe', title:`${team.name} wiped${posLabel}`, icon:'⚑', iconClass:'wipe', teamId:team.id, teamColor:team.color, isWipe:true, isSelfWipe:false });
+      events.push({ time:team.time_of_wipe, type:'wipe', title:`${team.name} wiped${posLabel}`, icon:'<iconify-icon icon="lucide:flag"></iconify-icon>', iconClass:'wipe', teamId:team.id, teamColor:team.color, isWipe:true, isSelfWipe:false });
     }
   });
 
@@ -4466,14 +4443,14 @@ function renderAnnotationLog(opts) {
 
       if(s.type==='line' && s.tag==='rotation'){
         const n = s.rotation_index || ++rotIdx;
-        icon='→'; iconClass='zone'; title=`${team.name} — Rotation ${n}`;
+        icon='<iconify-icon icon="lucide:arrow-right"></iconify-icon>'; iconClass='zone'; title=`${team.name} — Rotation ${n}`;
       } else if(s.type==='path' && s.tag==='rotation'){
         const n = s.rotation_index || ++rotIdx;
-        icon='↝'; iconClass='zone'; title=`${team.name} — Rotation ${n}`;
+        icon='<iconify-icon icon="lucide:spline"></iconify-icon>'; iconClass='zone'; title=`${team.name} — Rotation ${n}`;
       } else if(s.type==='fight'){
-        icon='⚔'; iconClass='fight'; title=`${team.name} — Fight: ${s.teamA||'?'} vs ${s.teamB||'?'}`;
+        icon='<iconify-icon icon="lucide:crosshair"></iconify-icon>'; iconClass='fight'; title=`${team.name} — Fight: ${s.teamA||'?'} vs ${s.teamB||'?'}`;
       } else if(s.type==='pin'){
-        icon='📍'; iconClass='pin'; title=`${team.name} — Pin: ${s.label||'—'}`;
+        icon='<iconify-icon icon="lucide:map-pin"></iconify-icon>'; iconClass='pin'; title=`${team.name} — Pin: ${s.label||'—'}`;
       } else {
         return;
       }
@@ -4505,7 +4482,7 @@ function renderAnnotationLog(opts) {
           const h=document.createElement('div');
           h.className='wipe-undo-hint';
           h.style.cssText='font-family:var(--font-mono);font-size:9px;color:var(--orange);letter-spacing:1px;margin-top:3px;text-transform:uppercase;';
-          h.textContent=ev.isSelfWipe ? '↩ Press ☠ SELF WIPE to undo' : '↩ Press ⚑ ENEMY WIPE again to undo';
+          h.textContent=ev.isSelfWipe ? '↩ Press SELF WIPE to undo' : '↩ Press ENEMY WIPE again to undo';
           entry.appendChild(h);
           setTimeout(()=>h.remove(), 3000);
         }
@@ -4528,7 +4505,7 @@ function renderAnnotationLog(opts) {
     } else {
       entry.onclick=()=>jumpToTime(ev.time);
     }
-    const iconEl=document.createElement('div'); iconEl.className='annotation-icon '+ev.iconClass; iconEl.textContent=ev.icon;
+    const iconEl=document.createElement('div'); iconEl.className='annotation-icon '+ev.iconClass; iconEl.innerHTML=ev.icon;
     const bodyEl=document.createElement('div'); bodyEl.className='annotation-body';
     const titleEl=document.createElement('div'); titleEl.className='annotation-title'; titleEl.textContent=ev.title;
     const timeEl=document.createElement('div'); timeEl.className='annotation-time'; timeEl.textContent=fmtTime(ev.time);
@@ -4558,23 +4535,45 @@ function updateRightPanel() {
   const m=matches.find(x=>x.id===state.matchId);
   document.getElementById('match-meta-map').textContent=m?.map_key?m.map_key.charAt(0).toUpperCase()+m.map_key.slice(1):'—';
   document.getElementById('match-meta-duration').textContent=m?.duration_seconds?fmtTime(m.duration_seconds):'—';
-  updateFactionBadges();
+  renderActiveSquadInline();
 }
 
-function updateFactionBadges() {
-  const container=document.getElementById('competing-factions');
-  container.innerHTML='';
-  const matchTeams=teams.filter(t=>t.match_id===state.matchId);
-  if(!matchTeams.length){ container.innerHTML='<span style="font-family:var(--font-mono);font-size:10px;color:var(--muted);">No teams yet</span>'; return; }
-  matchTeams.slice(0,8).forEach(t=>{
-    const badge=document.createElement('span');
-    badge.className='faction-badge'+(t.is_self?' self-badge':'');
-    badge.textContent=t.name.toUpperCase();
-    container.appendChild(badge);
-  });
-  if(matchTeams.length>8){
-    const more=document.createElement('span'); more.style.cssText='font-family:var(--font-mono);font-size:9px;color:var(--muted);align-self:center;'; more.textContent=`+${matchTeams.length-8} more`; container.appendChild(more);
+function renderActiveSquadInline() {
+  const container = document.getElementById('active-squad-inline');
+  if (!container) return;
+  if (!matchPlayers.length) {
+    container.innerHTML = '<div class="sq-empty-note">No squad registered — click ACTIVE SQUAD to set.</div>';
+    return;
   }
+  container.innerHTML = '';
+  matchPlayers.forEach(p => {
+    const isDead = p.time_of_loss != null;
+    const row = document.createElement('div');
+    row.className = 'sq-player-row' + (isDead ? ' sq-dead' : '');
+    row.innerHTML = `
+      <span class="sq-player-name">${esc(p.name)}</span>
+      ${p.role ? `<span class="sq-player-role">${esc(p.role)}</span>` : ''}
+      ${(p.kills||0) > 0 ? `<span class="sq-player-kills">${p.kills}K</span>` : ''}
+    `;
+    container.appendChild(row);
+  });
+}
+
+function toggleMetaCollapse() {
+  const body = document.getElementById('meta-collapse-body');
+  const btn  = document.getElementById('meta-collapse-btn');
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : '';
+  btn.classList.toggle('open', !isOpen);
+}
+
+function openInVOD() {
+  if (!state.matchId) { toast('Select a match first', 'warn'); return; }
+  const params = new URLSearchParams();
+  if (state.tournamentId) params.set('tournament', state.tournamentId);
+  if (state.dayId) params.set('day', state.dayId);
+  params.set('match', state.matchId);
+  window.location.href = 'vod.html?' + params.toString();
 }
 
 // ══════════════════════════════════════════════════════
@@ -4672,10 +4671,10 @@ function renderMultiTrackStats() {
     row.innerHTML = `
       <div class="mt-stat-dot" style="background:${team.color}"></div>
       <div class="mt-stat-name">${team.name}${wiped ? ' <span style="color:var(--red);font-size:9px;">WIPED</span>' : ''}</div>
-      <span class="mt-stat-pill" title="Zones">⭕${zones}</span>
+      <span class="mt-stat-pill" title="Zones"><iconify-icon icon="lucide:circle" style="font-size:10px;vertical-align:middle"></iconify-icon>${zones}</span>
       <span class="mt-stat-pill" title="Rotations">→${rots}</span>
-      <span class="mt-stat-pill" title="Fights">⚔${fights}</span>
-      <span class="mt-stat-pill" title="Pins">📍${pins}</span>
+      <span class="mt-stat-pill" title="Fights"><iconify-icon icon="lucide:crosshair" style="font-size:10px;vertical-align:middle"></iconify-icon>${fights}</span>
+      <span class="mt-stat-pill" title="Pins"><iconify-icon icon="lucide:map-pin" style="font-size:10px;vertical-align:middle"></iconify-icon>${pins}</span>
     `;
     statsEl.appendChild(row);
   });
