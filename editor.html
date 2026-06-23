@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>METAZONE — Tactical Reconstruction Editor</title>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Lexend+Deca:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
 <style>
 
 :root {
@@ -84,54 +85,31 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
    HEADER
 ══════════════════════════════════════════ */
 #app-header{
-  height:56px;min-height:56px;
-  background:var(--forest);border-bottom:1px solid rgba(0,0,0,.2);
+  height:52px;min-height:52px;
+  background:var(--forest);border-bottom:3px solid var(--forest);
   display:flex;align-items:center;justify-content:space-between;
-  padding:0 16px;z-index:50;flex-shrink:0;
+  padding:0 20px;z-index:50;flex-shrink:0;
 }
-.header-left{ display:flex;align-items:center;gap:20px; }
-.logo-mark{
-  display:flex;align-items:center;gap:8px;
-}
-.logo-icon{
-  width:28px;height:28px;background:var(--orange);border-radius:4px;
-  transform:rotate(45deg);display:flex;align-items:center;justify-content:center;flex-shrink:0;
-}
-.logo-icon-inner{ transform:rotate(-45deg);font-size:13px;color:var(--bg); }
-.logo-text{
-  font-family:var(--font-display);font-size:20px;font-weight:700;
-  color:#fff;letter-spacing:.5px;
-}
-.header-nav{ display:flex;gap:2px; }
+.header-left{display:flex;align-items:center;gap:36px;}
+.logo-mark{display:flex;align-items:center;gap:10px;}
+.logo-icon{width:28px;height:28px;background:var(--orange);display:flex;align-items:center;justify-content:center;border-radius:2px;flex-shrink:0;}
+.logo-icon-inner{color:#fff;font-size:15px;display:flex;}
+.logo-text{font-family:var(--font-display);font-size:19px;font-weight:600;letter-spacing:2px;color:#fff;text-transform:uppercase;}
+.header-nav{display:flex;align-items:center;gap:2px;height:52px;}
 .nav-link{
-  padding:6px 12px;font-family:var(--font-mono);font-size:11px;font-weight:500;
-  color:rgba(255,255,255,.6);text-decoration:none;border-radius:6px;letter-spacing:.05em;
-  transition:all .15s;text-transform:uppercase;
+  font-family:var(--font-mono);font-size:10px;font-weight:500;
+  color:rgba(255,255,255,.6);
+  text-decoration:none;letter-spacing:1px;text-transform:uppercase;
+  padding:0 13px;height:100%;display:flex;align-items:center;
+  border-bottom:3px solid transparent;margin-bottom:-3px;
+  transition:all .15s;
 }
-.nav-link:hover{ color:#fff;background:rgba(255,255,255,.1); }
-.nav-link.active{ color:var(--orange); }
-.header-right{ display:flex;align-items:center;gap:10px; }
-.sync-badge{
-  display:flex;align-items:center;gap:6px;padding:5px 10px;
-  background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:6px;
-}
-.sync-dot{
-  width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.4);
-  transition:background .3s;flex-shrink:0;
-}
-.sync-dot.syncing{ background:var(--yellow);animation:pulse 1s infinite; }
-.sync-dot.saved{ background:#7EBF6A; }
-.sync-dot.error{ background:var(--red); }
+.nav-link:hover{color:rgba(255,255,255,.9);}
+.nav-link.active{color:#fff;border-bottom-color:var(--orange);}
+.header-right{display:flex;align-items:center;gap:10px;}
 @keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:.4} }
-.sync-label{ font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.7);letter-spacing:.08em;text-transform:uppercase; }
-#status-text.ok{ color:#7EBF6A; }
-#status-text.err{ color:#E05A4F; }
-.btn-logout{
-  padding:6px 12px;background:none;border:1px solid rgba(255,255,255,.3);color:rgba(255,255,255,.7);
-  border-radius:6px;font-family:var(--font-mono);font-size:10px;cursor:pointer;
-  transition:all .15s;letter-spacing:.05em;
-}
-.btn-logout:hover{ border-color:#E05A4F;color:#E05A4F; }
+.btn-logout{font-family:var(--font-mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:5px 11px;background:none;border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.6);border-radius:3px;cursor:pointer;transition:all .15s;}
+.btn-logout:hover{border-color:rgba(255,255,255,.5);color:#fff;}
 
 /* ══════════════════════════════════════════
    MAIN LAYOUT
@@ -356,6 +334,13 @@ input[type="range"]{ flex:1;accent-color:var(--accent);height:3px;cursor:pointer
 .btn-save.idle::after{ content:'SAVE'; }
 .btn-save.saving::after{ content:'SAVING...'; }
 .btn-save.saved::after{ content:'✓ SAVED'; }
+
+/* ── Toolbar draw mode buttons ── */
+.toolbar-draw{ display:flex;gap:3px; }
+.toolbar-draw .btn-mode{
+  padding:5px 9px;font-size:9px;letter-spacing:.06em;font-weight:500;
+  font-family:var(--font-mono);
+}
 
 /* ── Canvas wrap ── */
 #canvas-wrap{
@@ -1055,23 +1040,6 @@ canvas.path-mode{ cursor:cell; }
 #zoom-label{ display:none; }
 #sl-width,#sl-opacity{ margin:0; }
 
-/* ══ MATCH CONTEXT BAR (editor) ══ */
-#match-context-bar{
-  height:28px;min-height:28px;flex-shrink:0;
-  background:var(--bg-panel);border-bottom:1px solid var(--border);
-  display:flex;align-items:center;gap:0;padding:0 14px;overflow:hidden;
-  /* inserted between header and app-body */
-}
-#match-context-bar.hidden{ display:none; }
-.mcb-crumb{ font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-.mcb-sep{ font-size:10px;color:var(--muted2);padding:0 6px;flex-shrink:0; }
-.mcb-match{ color:var(--text);font-weight:700; }
-.mcb-map{ margin-left:10px;padding:1px 7px;border:1px solid var(--border);border-radius:4px;font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;background:var(--bg-card);white-space:nowrap;flex-shrink:0; }
-.mcb-status{ margin-left:8px;display:flex;align-items:center;gap:4px;padding:1px 7px;border-radius:4px;border:1px solid var(--border);background:var(--bg-card);font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;flex-shrink:0; }
-.mcb-status-dot{ width:5px;height:5px;border-radius:50%;flex-shrink:0; }
-.mcb-spacer{ flex:1; }
-.mcb-open-vod{ height:20px;padding:0 8px;background:none;border:1px solid var(--border);color:var(--muted);border-radius:4px;font-family:var(--font-mono);font-size:9px;cursor:pointer;transition:all .15s;white-space:nowrap;letter-spacing:.05em;text-decoration:none;display:flex;align-items:center;flex-shrink:0; }
-.mcb-open-vod:hover{ border-color:var(--orange);color:var(--orange); }
 
 /* ══ MATCH STATUS CHIP ══ */
 .match-status-chip{
@@ -1106,7 +1074,7 @@ canvas.path-mode{ cursor:cell; }
 <header id="app-header">
   <div class="header-left">
     <div class="logo-mark">
-      <div class="logo-icon"><span class="logo-icon-inner">✦</span></div>
+      <div class="logo-icon"><span class="logo-icon-inner"><iconify-icon icon="lucide:layers"></iconify-icon></span></div>
       <span class="logo-text">METAZONE</span>
     </div>
     <nav class="header-nav">
@@ -1121,31 +1089,11 @@ canvas.path-mode{ cursor:cell; }
     </nav>
   </div>
   <div class="header-right">
-    <div class="sync-badge">
-      <div class="sync-dot" id="sync-dot"></div>
-      <span class="sync-label" id="status-text">READY</span>
-    </div>
     <button class="btn-logout" onclick="signOut()">SIGN OUT</button>
   </div>
 </header>
 
 <!-- ══ MAIN BODY ══════════════════════════════════ -->
-
-<!-- ══ MATCH CONTEXT BAR ══ -->
-<div id="match-context-bar" class="hidden">
-  <span class="mcb-crumb" id="mcb-tournament">—</span>
-  <span class="mcb-sep">›</span>
-  <span class="mcb-crumb" id="mcb-day">—</span>
-  <span class="mcb-sep">›</span>
-  <span class="mcb-crumb mcb-match" id="mcb-match">—</span>
-  <span class="mcb-map" id="mcb-map" style="display:none"></span>
-  <div class="mcb-status" id="mcb-status" style="display:none">
-    <div class="mcb-status-dot" id="mcb-status-dot"></div>
-    <span id="mcb-status-label">—</span>
-  </div>
-  <div class="mcb-spacer"></div>
-  <a class="mcb-open-vod" id="mcb-open-vod" href="vod.html" title="Open this match in VOD Review">▶ OPEN IN VOD</a>
-</div>
 
 <div id="app-body">
 
@@ -1206,41 +1154,14 @@ canvas.path-mode{ cursor:cell; }
       <input type="file" id="file-map" accept="image/*" style="display:none">
     </div>
 
-    <!-- TEAMS -->
+    <!-- VISIBILITY -->
     <div class="sb-section">
-      <span class="sb-label">Teams</span>
-      <div class="team-editing-badge">
-        <div class="ted-dot" id="ted-dot" style="background:#A89880"></div>
-        <span class="ted-name" id="ted-name">No match</span>
-        <span class="ted-lbl">EDITING</span>
-      </div>
-      <div class="team-list" id="team-list"></div>
-      <div class="add-team-row" style="position:relative;">
-        <input class="mz-input" type="text" id="in-team" placeholder="Team name..." autocomplete="off">
-        <button class="btn-add" onclick="addTeam()">+</button>
-        <div id="team-suggestions" style="display:none;position:absolute;top:100%;left:0;right:32px;background:var(--bg-panel);border:1px solid var(--border);border-radius:0 0 6px 6px;z-index:200;max-height:140px;overflow-y:auto;margin-top:1px;"></div>
-      </div>
-    </div>
-
-    <!-- DRAW MODE -->
-    <div class="sb-section">
-      <span class="sb-label">Draw Mode</span>
-      <div class="mode-grid">
-        <button class="btn-mode active" data-mode="zone"     onclick="setMode('zone')">⬤ Zone</button>
-        <button class="btn-mode"        data-mode="fight"    onclick="setMode('fight')">● Fight</button>
-        <button class="btn-mode"        data-mode="rotation" onclick="setMode('rotation')">→ Arrow</button>
-        <button class="btn-mode"        data-mode="path"     onclick="setMode('path')">↝ Path</button>
-        <button class="btn-mode"        data-mode="pin"      onclick="setMode('pin')">📍 Pin</button>
-        <button class="btn-mode"        data-mode="erase"    onclick="setMode('erase')" style="grid-column:span 2">⌫ Erase Last</button>
-      </div>
-    </div>
-
-    <!-- COLOR MODE -->
-    <div class="sb-section">
-      <span class="sb-label">Shape Colors</span>
-      <div class="color-mode-row">
-        <button class="btn-cm active" id="cm-type" onclick="setColorMode('type')">BY TYPE<br><span style="font-size:9px;opacity:.7">zone/fight/rot</span></button>
-        <button class="btn-cm"        id="cm-team" onclick="setColorMode('team')">BY TEAM<br><span style="font-size:9px;opacity:.7">team color</span></button>
+      <span class="sb-label">Visibility</span>
+      <div class="filter-row">
+        <button class="btn-filter on" data-filter="zone"     onclick="toggleFilter('zone')">ZONE</button>
+        <button class="btn-filter on" data-filter="fight"    onclick="toggleFilter('fight')">FIGHT</button>
+        <button class="btn-filter on" data-filter="rotation" onclick="toggleFilter('rotation')">ROT</button>
+        <button class="btn-filter on" data-filter="pin"      onclick="toggleFilter('pin')">PIN</button>
       </div>
     </div>
 
@@ -1259,22 +1180,36 @@ canvas.path-mode{ cursor:cell; }
       </div>
     </div>
 
-    <!-- VISIBILITY -->
+    <!-- COLOR MODE -->
     <div class="sb-section">
-      <span class="sb-label">Visibility</span>
-      <div class="filter-row">
-        <button class="btn-filter on" data-filter="zone"     onclick="toggleFilter('zone')">ZONE</button>
-        <button class="btn-filter on" data-filter="fight"    onclick="toggleFilter('fight')">FIGHT</button>
-        <button class="btn-filter on" data-filter="rotation" onclick="toggleFilter('rotation')">ROT</button>
-        <button class="btn-filter on" data-filter="pin"      onclick="toggleFilter('pin')">PIN</button>
+      <span class="sb-label">Shape Colors</span>
+      <div class="color-mode-row">
+        <button class="btn-cm active" id="cm-type" onclick="setColorMode('type')">BY TYPE<br><span style="font-size:9px;opacity:.7">zone/fight/rot</span></button>
+        <button class="btn-cm"        id="cm-team" onclick="setColorMode('team')">BY TEAM<br><span style="font-size:9px;opacity:.7">team color</span></button>
+      </div>
+    </div>
+
+    <!-- TEAMS -->
+    <div class="sb-section">
+      <span class="sb-label">Teams</span>
+      <div class="team-editing-badge">
+        <div class="ted-dot" id="ted-dot" style="background:#A89880"></div>
+        <span class="ted-name" id="ted-name">No match</span>
+        <span class="ted-lbl">EDITING</span>
+      </div>
+      <div class="team-list" id="team-list"></div>
+      <div class="add-team-row" style="position:relative;">
+        <input class="mz-input" type="text" id="in-team" placeholder="Team name..." autocomplete="off">
+        <button class="btn-add" onclick="addTeam()">+</button>
+        <div id="team-suggestions" style="display:none;position:absolute;top:100%;left:0;right:32px;background:var(--bg-panel);border:1px solid var(--border);border-radius:0 0 6px 6px;z-index:200;max-height:140px;overflow-y:auto;margin-top:1px;"></div>
       </div>
     </div>
 
     <!-- ACTIONS -->
     <div class="sb-section">
       <span class="sb-label">Actions</span>
-      <button class="btn-action" onclick="downloadSnapshot()">⬇ Screenshot</button>
-      <button class="btn-action" onclick="clearTeam()">🗑 Clear This Team</button>
+      <button class="btn-action" onclick="downloadSnapshot()">Screenshot</button>
+      <button class="btn-action" onclick="clearTeam()">Clear This Team</button>
     </div>
 
     <!-- hidden compat IDs -->
@@ -1289,15 +1224,23 @@ canvas.path-mode{ cursor:cell; }
     <div id="editor-toolbar">
       <div class="toolbar-left">
         <div class="mode-toggle">
-          <button class="btn-editmode active" id="btn-edit-mode" onclick="toggleAnnotationMode(true)">✏ ANNOTATE</button>
-          <button class="btn-editmode" id="btn-preview-mode" onclick="toggleAnnotationMode(false)">👁 PREVIEW</button>
+          <button class="btn-editmode active" id="btn-edit-mode" onclick="toggleAnnotationMode(true)">ANNOTATE</button>
+          <button class="btn-editmode" id="btn-preview-mode" onclick="toggleAnnotationMode(false)">PREVIEW</button>
         </div>
         <div class="toolbar-divider"></div>
         <button class="btn-tool" id="btn-undo" onclick="undo()" title="Undo (Ctrl+Z)">↩</button>
         <button class="btn-tool" id="btn-redo" onclick="redo()" title="Redo" style="opacity:.4;cursor:not-allowed">↪</button>
+        <div class="toolbar-divider"></div>
+        <div class="toolbar-draw">
+          <button class="btn-mode active" data-mode="zone"     onclick="setMode('zone')">ZONE</button>
+          <button class="btn-mode"        data-mode="fight"    onclick="setMode('fight')">FIGHT</button>
+          <button class="btn-mode"        data-mode="rotation" onclick="setMode('rotation')">ARROW</button>
+          <button class="btn-mode"        data-mode="path"     onclick="setMode('path')">PATH</button>
+          <button class="btn-mode"        data-mode="pin"      onclick="setMode('pin')">PIN</button>
+          <button class="btn-mode"        data-mode="erase"    onclick="setMode('erase')">ERASE</button>
+        </div>
       </div>
       <div class="toolbar-right">
-        <button class="btn-export" id="btn-export-json" onclick="exportJSON()">EXPORT JSON</button>
         <button class="btn-save idle" id="btn-save" onclick="manualSave()"></button>
       </div>
     </div>
@@ -3384,9 +3327,9 @@ function updateMatchStatusChip() {
   const label = document.getElementById('msc-label');
   const vodBadge = document.getElementById('msc-vod');
   if (!chip) return;
-  if (!state.matchId) { chip.classList.add('hidden'); updateMatchContextBar(); return; }
+  if (!state.matchId) { chip.classList.add('hidden'); return; }
   const m = matches.find(x=>x.id===state.matchId);
-  if (!m) { chip.classList.add('hidden'); updateMatchContextBar(); return; }
+  if (!m) { chip.classList.add('hidden'); return; }
   const matchTeams = teams.filter(t=>t.match_id===state.matchId);
   const level = _matchStatusLevel(m, matchTeams);
   const labels = { empty:'NO DATA YET', partial:'IN PROGRESS', complete:'DATA COMPLETE' };
@@ -3395,44 +3338,6 @@ function updateMatchStatusChip() {
   label.textContent = labels[level];
   if (m.vod_start_offset != null) { vodBadge.classList.remove('hidden'); }
   else { vodBadge.classList.add('hidden'); }
-  updateMatchContextBar();
-}
-
-function updateMatchContextBar() {
-  const bar = document.getElementById('match-context-bar');
-  if (!bar) return;
-  if (!state.matchId) { bar.classList.add('hidden'); return; }
-  const m = matches.find(x=>x.id===state.matchId);
-  const d = days.find(x=>x.id===state.dayId);
-  const t = tournaments.find(x=>x.id===state.tournamentId);
-  if (!m) { bar.classList.add('hidden'); return; }
-  bar.classList.remove('hidden');
-  document.getElementById('mcb-tournament').textContent = t?.name || '—';
-  document.getElementById('mcb-day').textContent        = d?.name || '—';
-  document.getElementById('mcb-match').textContent      = m.name  || '—';
-  const mapEl = document.getElementById('mcb-map');
-  if (m.map_key) { mapEl.textContent = m.map_key.toUpperCase(); mapEl.style.display=''; }
-  else { mapEl.style.display='none'; }
-  const matchTeams = teams.filter(tt=>tt.match_id===state.matchId);
-  const hasWipes   = matchTeams.some(tt=>tt.time_of_wipe!=null);
-  const hasDur     = m.duration_seconds!=null;
-  const hasTeams   = matchTeams.length > 0;
-  const statusEl   = document.getElementById('mcb-status');
-  const dotEl      = document.getElementById('mcb-status-dot');
-  const lblEl      = document.getElementById('mcb-status-label');
-  statusEl.style.display = '';
-  if (hasDur && hasWipes)   { dotEl.style.background='var(--green)';  lblEl.textContent='COMPLETE'; }
-  else if (hasTeams)        { dotEl.style.background='var(--yellow)'; lblEl.textContent='IN PROGRESS'; }
-  else                      { dotEl.style.background='var(--muted2)'; lblEl.textContent='NO DATA'; }
-  // Open in VOD link
-  const vodLink = document.getElementById('mcb-open-vod');
-  if (vodLink) {
-    const p = new URLSearchParams();
-    if (state.tournamentId) p.set('tournamentId', state.tournamentId);
-    if (state.dayId)        p.set('dayId', state.dayId);
-    if (state.matchId)      p.set('matchId', state.matchId);
-    vodLink.href = 'vod.html?' + p.toString();
-  }
 }
 
 document.getElementById('sel-tournament').onchange=async function(){
