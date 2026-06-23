@@ -1,5 +1,5 @@
 # METAZONE — Project Handoff & Continuity Document
-**Version:** v26 — Session 26. Git connected. index.html sidebar + grid QoL pass. Editor bug audit complete (fixes pending).
+**Version:** v27 — Session 27. editor.html full UI overhaul: emoji purge, sidebar refactor, right panel redesign, CSS shimmer loading, map zoom bug fixed.
 **Purpose:** Single source of truth across all chat sessions. Read this first in every new chat.
 
 ---
@@ -21,7 +21,7 @@
 | File | Version | Last changed | Notes |
 |------|---------|--------------|-------|
 | index.html | v9.5 | Session 26 | All sidebar + grid bugs fixed. Skeleton loader added. Card reveal animation. |
-| editor.html | v5.7 | Session 25 | Match status chip, status icons in dropdown, updateMatchStatusChip() |
+| editor.html | v6.0 | Session 27 | Full UI overhaul — see Section 8 Session 27 changelog |
 | tournament-create.html | v4.1 | Session 25 | VOD REVIEW nav link added |
 | tournament-editor.html | v1.4 | Session 25 | VOD REVIEW nav link added |
 | analytics.html | v2.3 | Session 25 | VOD REVIEW nav link added, active link fixed |
@@ -211,12 +211,14 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | `boot()` | Auth + data load entry point |
 | `loadAllData()` | Fetches all tournaments/days/matches/teams/players |
 | `_activateMatch(match, statusMsg)` | Loads shapes, matchPlayers, renders everything for selected match |
-| `refreshDropdowns()` | Populates all selectors + status icons in match dropdown |
-| `_matchStatusLevel(match, matchTeams)` | Returns `'empty'`\|`'partial'`\|`'complete'` |
-| `updateMatchStatusChip()` | Updates the status chip below match selector |
+| `refreshDropdowns()` | Populates all selectors (no status icons — chip removed) |
 | `renderTeamList()` | Redraws sidebar team list |
 | `draw()` | Main canvas render loop |
-| `loadMapKey(key)` | Loads map at correct resolution |
+| `loadMapKey(key)` | Loads map at correct resolution — called inside `initCanvas()` after `resizeCanvas()` |
+| `initCanvas()` | Sizes canvas, then calls `loadMapKey()` — order matters (fixes zoom bug) |
+| `renderActiveSquadInline()` | Renders match_players inline below ACTIVE SQUAD button in right panel |
+| `toggleMetaCollapse()` | Toggles Match Metadata accordion in right panel |
+| `openInVOD()` | Navigates to vod.html with current tournament/day/match as URL params |
 | `applyUrlParams()` | Deep-link + auto-load most recent match |
 | `mzCtxWrite(extra)` | Writes tournamentId/dayId/matchId to sessionStorage |
 | `mzCtxRead()` | Reads context from sessionStorage |
@@ -283,7 +285,7 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | Page | Status | Notes |
 |------|--------|-------|
 | index.html | ✅ Complete | v9.5 — all sidebar/grid bugs fixed, skeleton loader, card reveal animation |
-| editor.html | ✅ Complete | v5.7 — status chip added |
+| editor.html | ✅ Complete | v6.0 — full UI overhaul, emoji purge, sidebar/right panel refactor, map zoom fix |
 | tournament-create.html | ✅ Complete | Nav updated |
 | tournament-editor.html | ✅ Complete | Nav updated |
 | analytics.html | ✅ Complete | Nav updated, active link fixed |
@@ -331,6 +333,17 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | 26 | **index.html: skeleton loader** — warm parchment shimmer animation. Left button slot is green-tinted (matching EDITOR button). Add Match card always present during loading. |
 | 26 | **index.html: card reveal animation** — staggered `cardReveal` fade+slide-up (0.28s, 60ms stagger) triggered only after load, not on selectMatch re-renders. |
 | 26 | **editor.html bug audit** — all 10 bugs from BUGSTOFIX verified in code. None fixed yet. See Section 9 for fix order. |
+| 27 | **editor.html emoji purge** — all emoji removed across entire file (HTML, JS strings, toast messages, modal titles, annotation log event data, multi-track stats). Annotation log icons converted from `textContent` emoji to `innerHTML` Iconify SVG strings. |
+| 27 | **editor.html left sidebar refactor** — Screenshot + Clear Team buttons moved from sidebar to top toolbar as `.btn-tool-action` buttons. MAP button removed from toolbar. OPEN IN VOD button added to sidebar below Map section (`.btn-open-vod` style, orange border, navigates via `openInVOD()`). |
+| 27 | **editor.html match status chip removed** — `#match-status-chip` HTML, its CSS, `updateMatchStatusChip()`, and `_matchStatusLevel()` all deleted. Status symbols (`✓`, `◐`) removed from match dropdown labels in `refreshDropdowns()`. |
+| 27 | **editor.html right panel: Competing Factions removed** — `#competing-factions` section HTML and `updateFactionBadges()` + its call site in `updateRightPanel()` all deleted. |
+| 27 | **editor.html right panel: Match Metadata collapsible** — section wrapped in `.rp-collapse-header` button + `.rp-collapse-body` (hidden by default). `toggleMetaCollapse()` toggles body + rotates chevron icon. |
+| 27 | **editor.html right panel: Active squad inline** — `#active-squad-inline` div renders player rows below ACTIVE SQUAD button via `renderActiveSquadInline()`. Shows `.sq-dead` opacity for players with `time_of_loss`. Empty note when no players registered. |
+| 27 | **editor.html right panel: Add Note button prominent** — `.btn-add-annotation` now `background:var(--orange)`, full-width, uppercase mono. |
+| 27 | **editor.html visibility filter buttons** — `.btn-filter.on` states updated: solid background fill per filter type (accent/red/green/orange) replacing the border-only style. |
+| 27 | **editor.html loading states removed** — all overlay HTML/CSS/JS deleted: `#map-loading-overlay`, `#canvas-empty-state`, `#match-loading-bar`, `#sidebar-loading`, `showMapLoading()`, `hideMapLoading()`, `setMatchLoading()`, `setCanvasEmptyState()`, `setSidebarLoading()`. All call sites scrubbed from loadAllData, loadShapesForMatch, resetLocalState, _activateMatch, and all 3 dropdown onchange handlers. |
+| 27 | **editor.html CSS shimmer** — `#canvas-wrap` now shows animated dark shimmer gradient background while map loads. `canvas` starts at `opacity:0`, gains `map-ready` class in image `onload` to fade in via `transition:opacity .4s`. No text, no spinner, no overlay. |
+| 27 | **editor.html map zoom bug fixed** — `loadMapKey()` was called inline in script body before `DOMContentLoaded`. On warm cache the image fired `onload` with `canvas.width=300` (HTML default), then `initCanvas()` resized canvas → double `resetView()` → map appeared to zoom in on reload. Fix: moved `loadMapKey(state.mapKey\|\|'erangel')` call to start of `initCanvas()` after `resizeCanvas()`. Removed inline call entirely. |
 
 ---
 
@@ -347,13 +360,13 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | 🔴 HIGH | V1+E5 | `confirmWipe` Scenarios A+B set `winner.time_of_wipe` — remove those lines |
 | 🔴 HIGH | E1 | `manualSave` only saves active team's shapes — iterate all `shapesCache` keys |
 | 🔴 HIGH | E9 | `deleteSelected` (match/day/tournament) never deletes `match_players` rows before deleting teams/matches. Also affects index.html delete functions. |
-| 🟡 MED | E4 | `confirmWipe` Scenario A assigns `selfTeam.confirmed_position=2` with no collision check |
 | 🔴 HIGH | E2 | `confirmWipe` all 3 scenarios fire `setTimeout(markMatchEnd,600)` while pin prompt is still active |
+| 🔴 HIGH | X1 | `mzCtxWrite()` defined but never called — add one call at end of `_activateMatch()` |
+| 🟡 MED | E4 | `confirmWipe` Scenario A assigns `selfTeam.confirmed_position=2` with no collision check |
 | 🟡 MED | E8 | `confirmSelfLoss` fires `setTimeout(markSelfWipe,300)` while death pin prompt is active |
 | 🟡 MED | E6 | `startRename` — Escape calls `input.blur()` → `finish()` → saves. Should restore original name |
-| 🟢 LOW | E7 | `markSelfLoss` killed-by dropdown uses `!t.time_of_wipe` (static) — needs `t.time_of_wipe > state.time` |
-| 🔴 HIGH | X1 | `mzCtxWrite()` defined but never called — add one call at end of `_activateMatch()` |
 | 🟡 MED | X3 | Auto-load sorts by `created_at` not `updated_at` — blocked on DB migration (add `updated_at` column + trigger to `matches`) |
+| 🟢 LOW | E7 | `markSelfLoss` killed-by dropdown uses `!t.time_of_wipe` (static) — needs `t.time_of_wipe > state.time` |
 
 ### Other
 | Priority | Item |
