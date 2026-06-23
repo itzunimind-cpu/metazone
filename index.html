@@ -461,6 +461,22 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text-body);he
 
 @keyframes spin{to{transform:rotate(360deg);}}
 
+/* ── SKELETON LOADER ── */
+@keyframes shimmer{
+  0%{background-position:-800px 0}
+  100%{background-position:800px 0}
+}
+.skel{
+  background:linear-gradient(90deg,#DDD5C4 25%,#EDE7DC 50%,#DDD5C4 75%);
+  background-size:1600px 100%;
+  animation:shimmer 1.6s infinite linear;
+}
+.skel-card{background:var(--bg-card);border:1px solid var(--border);border-radius:3px;overflow:hidden;pointer-events:none;}
+.skel-img{height:188px;}
+.skel-foot{display:flex;border-top:1px solid var(--border);}
+.skel-btn{flex:1;height:40px;}
+.skel-btn+.skel-btn{border-left:1px solid var(--border);}
+
 /* ── KILLS vs TIME CHART ── */
 .rp-chart-wrap{padding:12px 16px 16px;border-bottom:1px solid var(--border);}
 .rp-chart-label{font-family:var(--font-mono);font-size:9px;color:var(--text-label);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;font-weight:600;}
@@ -745,11 +761,12 @@ async function loadMatchesForDay(dayId){
       }
     }
     matches=mData.map(m=>({...m,teams:teams.filter(t=>t.match_id===m.id),_elims:elimsByMatch[m.id]||[]}));
+    _matchesLoading=false;
     setStatus('READY');
     renderGrid();
     const mc=matches.length;
     document.getElementById('main-sub').textContent=`${mc} match${mc===1?'':'es'}`;
-  }catch(e){console.error(e);toast('Failed to load matches: '+e.message,'err');setStatus('ERROR');}
+  }catch(e){_matchesLoading=false;console.error(e);toast('Failed to load matches: '+e.message,'err');setStatus('ERROR');}
 }
 
 // ── SIDEBAR TREE ──
@@ -984,6 +1001,8 @@ async function selectDay(tournamentId,dayId){
   matches=[];
   const d=t.days.find(x=>x.id===dayId);
   const mc=d?.match_count||0;
+  _loadingCardCount=mc;
+  _matchesLoading=mc>0;
   document.getElementById('main-eyebrow').textContent=esc(t.name);
   document.getElementById('main-title').textContent=esc(d?.name||'Day');
   document.getElementById('main-sub').textContent=`${mc} match${mc===1?'':'es'}`;
@@ -1025,6 +1044,19 @@ function addMatchCard(){
   </div>`;
 }
 
+let _matchesLoading=false;
+let _loadingCardCount=0;
+
+function skeletonCard(){
+  return`<div class="skel-card">
+    <div class="skel-img skel"></div>
+    <div class="skel-foot">
+      <div class="skel-btn skel"></div>
+      <div class="skel-btn skel"></div>
+    </div>
+  </div>`;
+}
+
 function renderGrid(){
   const el=document.getElementById('match-grid');
   const t=tournaments.find(x=>x.id===activeTournamentId);
@@ -1039,6 +1071,10 @@ function renderGrid(){
     } else {
       el.innerHTML=`<div class="empty-state"><div class="es-icon"><iconify-icon icon="lucide:calendar"></iconify-icon></div><div class="es-title">Select a Day</div><div class="es-sub">Pick a day from the tabs above to view its matches</div></div>`;
     }
+    return;
+  }
+  if(_matchesLoading&&_loadingCardCount>0){
+    el.innerHTML=`<div class="match-grid">${Array.from({length:_loadingCardCount},()=>skeletonCard()).join('')}</div>`;
     return;
   }
   if(!matches.length){
