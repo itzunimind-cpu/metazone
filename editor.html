@@ -199,14 +199,14 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 /* ── Filter buttons ── */
 .filter-row{ display:flex;gap:4px;margin-bottom:4px; }
 .btn-filter{
-  flex:1;padding:5px 2px;background:var(--bg-card);color:var(--text);border:1px solid var(--border-mid);
+  flex:1;padding:5px 2px;background:var(--bg);color:var(--muted);border:1px solid var(--border);
   border-radius:6px;font-size:9px;font-weight:600;cursor:pointer;text-align:center;
   transition:all .15s;font-family:var(--font-mono);letter-spacing:.06em;
 }
-.btn-filter.on[data-filter="zone"]    { color:var(--accent);border-color:var(--accent); }
-.btn-filter.on[data-filter="fight"]   { color:var(--red);border-color:var(--red); }
-.btn-filter.on[data-filter="rotation"]{ color:var(--green);border-color:var(--green); }
-.btn-filter.on[data-filter="pin"]     { color:var(--orange);border-color:var(--orange); }
+.btn-filter.on[data-filter="zone"]    { background:var(--accent);color:var(--bg);border-color:var(--accent); }
+.btn-filter.on[data-filter="fight"]   { background:var(--red);color:#fff;border-color:var(--red); }
+.btn-filter.on[data-filter="rotation"]{ background:var(--green);color:#fff;border-color:var(--green); }
+.btn-filter.on[data-filter="pin"]     { background:var(--orange);color:#fff;border-color:var(--orange); }
 
 /* ── Style sliders ── */
 .slider-row{ display:flex;align-items:center;gap:8px;margin-bottom:4px; }
@@ -281,6 +281,15 @@ input[type="range"]{ flex:1;accent-color:var(--accent);height:3px;cursor:pointer
   margin-bottom:3px;transition:all .15s;letter-spacing:.06em;text-transform:uppercase;
 }
 .btn-action:hover{ border-color:var(--accent);color:var(--accent); }
+.btn-open-vod{
+  width:100%;margin-top:7px;padding:7px;
+  background:none;border:1px solid var(--orange);border-radius:6px;
+  color:var(--orange);font-family:var(--font-mono);font-size:10px;font-weight:600;
+  cursor:pointer;letter-spacing:.06em;text-transform:uppercase;transition:all .15s;
+  display:flex;align-items:center;justify-content:center;gap:5px;
+}
+.btn-open-vod:hover{ background:var(--orange);color:#fff; }
+.btn-open-vod iconify-icon{ font-size:13px; }
 
 /* ══════════════════════════════════════════
    CENTER — EDITOR AREA
@@ -1167,6 +1176,9 @@ canvas.path-mode{ cursor:cell; }
         <button class="btn-map-del" title="Clear map" onclick="showDeleteWarning('map','Clear map?','This will remove the map from this match. The match data is kept.', clearMatchMap)"><iconify-icon icon="lucide:trash-2"></iconify-icon></button>
       </div>
       <input type="file" id="file-map" accept="image/*" style="display:none">
+      <button class="btn-open-vod" onclick="openInVOD()" title="Open this match in VOD Review">
+        <iconify-icon icon="lucide:play-circle"></iconify-icon>OPEN IN VOD
+      </button>
     </div>
 
     <!-- VISIBILITY -->
@@ -1247,9 +1259,6 @@ canvas.path-mode{ cursor:cell; }
           <button class="btn-mode"        data-mode="pin"      onclick="setMode('pin')"><iconify-icon icon="lucide:map-pin"></iconify-icon>PIN</button>
           <button class="btn-mode"        data-mode="erase"    onclick="setMode('erase')"><iconify-icon icon="lucide:eraser"></iconify-icon>ERASE</button>
         </div>
-        <div class="toolbar-divider"></div>
-        <button class="btn-tool-action" onclick="document.getElementById('editor-map-modal').classList.add('show')" title="Change map"><iconify-icon icon="lucide:map"></iconify-icon>MAP</button>
-        <button class="btn-tool-action vod" onclick="openInVOD()" title="Open this match in VOD Review"><iconify-icon icon="lucide:play-circle"></iconify-icon>OPEN IN VOD</button>
         <div class="toolbar-divider"></div>
         <button class="btn-tool-action" onclick="downloadSnapshot()" title="Screenshot"><iconify-icon icon="lucide:camera"></iconify-icon>SCREENSHOT</button>
         <button class="btn-tool-action" onclick="clearTeam()" title="Clear all shapes for active team"><iconify-icon icon="lucide:x-circle"></iconify-icon>CLEAR TEAM</button>
