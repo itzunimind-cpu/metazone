@@ -462,6 +462,10 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text-body);he
 @keyframes spin{to{transform:rotate(360deg);}}
 
 /* ── SKELETON LOADER ── */
+@keyframes cardReveal{
+  from{opacity:0;transform:translateY(10px);}
+  to{opacity:1;transform:translateY(0);}
+}
 @keyframes shimmer{
   0%{background-position:-800px 0}
   100%{background-position:800px 0}
@@ -769,6 +773,9 @@ async function loadMatchesForDay(dayId){
     _matchesLoading=false;
     setStatus('READY');
     renderGrid();
+    document.querySelectorAll('#match-grid .match-card').forEach((card,i)=>{
+      card.style.animation=`cardReveal .28s ease-out ${i*0.06}s both`;
+    });
     const mc=matches.length;
     document.getElementById('main-sub').textContent=`${mc} match${mc===1?'':'es'}`;
   }catch(e){_matchesLoading=false;console.error(e);toast('Failed to load matches: '+e.message,'err');setStatus('ERROR');}
