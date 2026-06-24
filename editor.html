@@ -2437,6 +2437,14 @@ function resetView() {
 
 function adjustZoom(delta) { zoomAt(canvas.width/2, canvas.height/2, delta); }
 
+function zoomToWorld(wx, wy) {
+  const minZoom=Math.min(canvas.width/WORLD_W, canvas.height/WORLD_H);
+  zoom=minZoom*4;
+  panX=canvas.width/2 - wx*zoom;
+  panY=canvas.height/2 - wy*zoom;
+  clampPan(); updateZoomHud(); draw();
+}
+
 function clampPan() {
   const W=canvas.width, H=canvas.height;
   const mw=WORLD_W*zoom, mh=WORLD_H*zoom;
@@ -4748,7 +4756,7 @@ function renderAnnotationLog(opts) {
 
   // ── Zone circles — match-level, always shown ──
   (zonesCache[state.matchId]||[]).forEach(s=>{
-    events.push({ time:s.time||0, type:'circle', title:`Zone ${s.zone_phase||''}`, icon:'<iconify-icon icon="lucide:circle"></iconify-icon>', iconClass:'zone', teamId:null });
+    events.push({ time:s.time||0, type:'circle', title:`Zone ${s.zone_phase||''}`, icon:'<iconify-icon icon="lucide:circle"></iconify-icon>', iconClass:'zone', teamId:null, wx:s.cx, wy:s.cy });
   });
 
   // ── Pre-compute wipe positions (sorted by time → highest position = wiped latest) ──
@@ -4786,20 +4794,25 @@ function renderAnnotationLog(opts) {
       if(s.type==='circle') return; // handled via zonesCache
       let icon,iconClass,title;
 
+      let wx,wy;
       if(s.type==='line' && s.tag==='rotation'){
         const n = s.rotation_index || ++rotIdx;
         icon='<iconify-icon icon="lucide:arrow-right"></iconify-icon>'; iconClass='zone'; title=`${team.name} — Rotation ${n}`;
+        wx=(s.x1+s.x2)/2; wy=(s.y1+s.y2)/2;
       } else if(s.type==='path' && s.tag==='rotation'){
         const n = s.rotation_index || ++rotIdx;
         icon='<iconify-icon icon="lucide:spline"></iconify-icon>'; iconClass='zone'; title=`${team.name} — Rotation ${n}`;
+        const mid=s.points?.[Math.floor((s.points.length-1)/2)]; wx=mid?.x; wy=mid?.y;
       } else if(s.type==='fight'){
         icon='<iconify-icon icon="lucide:crosshair"></iconify-icon>'; iconClass='fight'; title=`${team.name} — Fight: ${s.teamA||'?'} vs ${s.teamB||'?'}`;
+        wx=s.x; wy=s.y;
       } else if(s.type==='pin'){
         icon='<iconify-icon icon="lucide:map-pin"></iconify-icon>'; iconClass='pin'; title=`${team.name} — Pin: ${s.label||'—'}`;
+        wx=s.x; wy=s.y;
       } else {
         return;
       }
-      events.push({ time:s.time||0, type:s.type, title, icon, iconClass, teamId:team.id, teamColor:team.color });
+      events.push({ time:s.time||0, type:s.type, title, icon, iconClass, teamId:team.id, teamColor:team.color, wx, wy });
     });
   });
 
@@ -4850,7 +4863,7 @@ function renderAnnotationLog(opts) {
     } else if(ev.undoable && ev.isDbMatchEnd) {
       entry.onclick=()=>{ jumpToTime(ev.time); markMatchEnd(); };
     } else {
-      entry.onclick=()=>jumpToTime(ev.time);
+      entry.onclick=()=>{ jumpToTime(ev.time); if(ev.wx!=null) zoomToWorld(ev.wx, ev.wy); };
     }
     const iconEl=document.createElement('div'); iconEl.className='annotation-icon '+ev.iconClass; iconEl.innerHTML=ev.icon;
     // Team color on icon background (multi-track), no dot in title
