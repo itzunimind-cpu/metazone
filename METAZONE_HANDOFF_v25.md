@@ -1,5 +1,5 @@
 # METAZONE — Project Handoff & Continuity Document
-**Version:** v31 — Session 31. editor.html: multi-track panel animation, event log header stability, coordinated load reveal, event log fully lit on open, dropdown pill slide animation.
+**Version:** v32 — Session 32. editor.html: all 5 high-priority bugs fixed (E1 manualSave, E2 pin/matchEnd race, E9 match_players delete, V1+E5 winner wipe, X1 mzCtxWrite).
 **Purpose:** Single source of truth across all chat sessions. Read this first in every new chat.
 
 ---
@@ -21,7 +21,7 @@
 | File | Version | Last changed | Notes |
 |------|---------|--------------|-------|
 | index.html | v9.5 | Session 26 | All sidebar + grid bugs fixed. Skeleton loader added. Card reveal animation. |
-| editor.html | v6.4 | Session 31 | Multi-track panel animation, coordinated load reveal, event log lit fix, dropdown pill slide |
+| editor.html | v6.5 | Session 32 | All 5 high-priority bugs fixed — E1, E2, E9, V1+E5, X1 |
 | tournament-create.html | v4.1 | Session 25 | VOD REVIEW nav link added |
 | tournament-editor.html | v1.4 | Session 25 | VOD REVIEW nav link added |
 | analytics.html | v2.3 | Session 25 | VOD REVIEW nav link added, active link fixed |
@@ -380,6 +380,11 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | 31 | **editor.html coordinated load reveal** — `_activateMatch()` now runs map image load + all DB fetches (`loadShapesForMatch`, `loadAnnotations`, `loadMatchPlayers`, `preloadKnownTeams`) in a single `Promise.all()`. Everything is ready at the same moment. `initCanvas()` runs right after and sees `mapImg` already loaded → adds `map-ready` immediately. Teams, event log, dropdowns, scrubber, and canvas all appear in the same frame burst. |
 | 31 | **editor.html event log fully lit on match open** — root cause: `state.time` was being set inside the scrubber block which ran AFTER `renderAnnotationLog()`. All events appeared dimmed (`.future`) because `state.time` was still 0. Fix: split scrubber into two parts — (1) state setup (`state.time`, `slider.max`, `slider.value`, time display) runs BEFORE `renderAnnotationLog()`, (2) visual fill/thumb sweep animation runs after. Event log now builds with all entries lit when opening a finished match. |
 | 31 | **editor.html dropdown pill slide animation** — `sel-pop` keyframe upgraded from `opacity:0.6→1` (subtle fade) to `opacity:0,translateY(5px)→opacity:1,transform:none` — matching `team-row-in` style. Tournament, Day, Match selects animate in via `_flashSelect()` in `refreshDropdowns()`. Map select gets `_flashSelect()` explicitly in `_activateMatch()` after data loads. Sidebar itself stays visible throughout (no hiding). |
+| 32 | **[E1] manualSave saves all teams** — was only saving `shapesCache[state.activeTeamId]`. Fixed to iterate `Object.keys(shapesCache)` and flush unsaved shapes for every team. Zones (team_id=null) path unchanged. |
+| 32 | **[E9] deleteSelected cleans up match_players** — tournament/day/match delete branches all now `await sb.from('match_players').delete().in('match_id', mIds)` (or `.eq` for single match) before deleting shapes/teams/matches. No more orphaned player rows after any delete. |
+| 32 | **[V1+E5] confirmWipe winner no longer gets time_of_wipe** — Scenarios A and B were incorrectly setting `winner.time_of_wipe = state.time` on the surviving enemy (the match winner). Removed from both JS local state and DB update in both scenarios. Only `confirmed_position:1` is now written for the winner. |
+| 32 | **[E2] markMatchEnd deferred past pin prompt** — all three scenarios (A/B/C) in `confirmWipe` were firing `setTimeout(markMatchEnd, 600)` while the wipe-location pin prompt overlay was still open. Added `_pinPromptOnClose` hook (null by default). `skipPinPrompt()` fires it 300ms after the overlay closes (click or SKIP). Scenarios now set `_pinPromptOnClose = markMatchEnd` when `_pinPromptActive` is true, fall back to the 600ms setTimeout only when no pin prompt was opened (local team path). |
+| 32 | **[X1] mzCtxWrite() called on match activate** — function was defined but never called. Added `mzCtxWrite()` at the end of `_activateMatch()` so tournament/day/match IDs are written to sessionStorage on every match load, enabling deep-link context restore when navigating back to the editor. |
 
 ---
 
@@ -390,14 +395,9 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 |----------|------|
 | 🔴 HIGH | Run Session 21 SQL: `ALTER TABLE matches ADD COLUMN IF NOT EXISTS vod_url text; ALTER TABLE matches ADD COLUMN IF NOT EXISTS vod_start_offset int;` |
 
-### editor.html — Bug Fixes (in order)
+### editor.html — Bug Fixes (remaining)
 | Priority | Bug ID | Item |
 |----------|--------|------|
-| 🔴 HIGH | V1+E5 | `confirmWipe` Scenarios A+B set `winner.time_of_wipe` — remove those lines |
-| 🔴 HIGH | E1 | `manualSave` only saves active team's shapes — iterate all `shapesCache` keys |
-| 🔴 HIGH | E9 | `deleteSelected` (match/day/tournament) never deletes `match_players` rows before deleting teams/matches. Also affects index.html delete functions. |
-| 🔴 HIGH | E2 | `confirmWipe` all 3 scenarios fire `setTimeout(markMatchEnd,600)` while pin prompt is still active |
-| 🔴 HIGH | X1 | `mzCtxWrite()` defined but never called — add one call at end of `_activateMatch()` |
 | 🟡 MED | E4 | `confirmWipe` Scenario A assigns `selfTeam.confirmed_position=2` with no collision check |
 | 🟡 MED | E8 | `confirmSelfLoss` fires `setTimeout(markSelfWipe,300)` while death pin prompt is active |
 | 🟡 MED | E6 | `startRename` — Escape calls `input.blur()` → `finish()` → saves. Should restore original name |
