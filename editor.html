@@ -358,7 +358,8 @@ input[type="range"]{ flex:1;accent-color:var(--accent);height:3px;cursor:pointer
 #canvas-wrap{
   flex:1;position:relative;overflow:hidden;background:#050a10;
 }
-canvas{ display:block;touch-action:none;position:absolute;top:0;left:0;cursor:crosshair; }
+canvas{ display:block;touch-action:none;position:absolute;top:0;left:0;cursor:crosshair;opacity:0;transition:opacity .4s ease; }
+canvas.map-ready{ opacity:1; }
 canvas.panning{ cursor:grab; }
 canvas.panning-active{ cursor:grabbing; }
 canvas.path-mode{ cursor:cell; }
@@ -2281,7 +2282,7 @@ function loadMapKey(key) {
     // Unknown map key — load directly
     const src = key+'.png';
     const img = new Image(); img.crossOrigin='anonymous'; img.src=src;
-    img.onload=()=>{ mapImg=img; WORLD_W=img.naturalWidth||2048; WORLD_H=img.naturalHeight||2048; resetView(); draw(); };
+    img.onload=()=>{ mapImg=img; WORLD_W=img.naturalWidth||2048; WORLD_H=img.naturalHeight||2048; resetView(); draw(); canvas.classList.add('map-ready'); };
     img.onerror=()=>{ toast('MAP NOT FOUND: '+src,'warn'); };
     return;
   }
@@ -2292,6 +2293,7 @@ function loadMapKey(key) {
     WORLD_W = img.naturalWidth || 2048;
     WORLD_H = img.naturalHeight || 2048;
     resetView(); draw();
+    canvas.classList.add('map-ready');
   });
   // Pre-load mid + hi in background so they're ready when zooming in
   _loadMapRes(key, 'mid');
@@ -2366,8 +2368,6 @@ function _dwmConfirm() {
   closeDeleteWarning();
   if(typeof _dwmCallback === 'function') _dwmCallback();
 }
-
-loadMapKey('erangel');
 
 // ══════════════════════════════════════════════════════
 // ZOOM / PAN
@@ -2446,6 +2446,8 @@ function getTouchMid(t1,t2,rect,scaleX,scaleY){
 // ══════════════════════════════════════════════════════
 function initCanvas() {
   resizeCanvas();
+  canvas.classList.remove('map-ready');
+  loadMapKey(state.mapKey || 'erangel');
   window.addEventListener('resize', resizeCanvas);
   wrap.addEventListener('wheel', onWheel, {passive:false});
   canvas.addEventListener('mousedown',  onPointerDown);
