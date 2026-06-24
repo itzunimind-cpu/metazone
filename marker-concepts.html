@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>METAZONE — Marker System Concepts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Manrope:wght@400;600&family=Lexend+Deca:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:      #F2EDE4;
+  --panel:   #E8E1D5;
+  --card:    #EDE7DC;
+  --forest:  #2C4A2E;
+  --olive:   #4E7C2F;
+  --orange:  #C85E0A;
+  --text:    #1C1A14;
+  --muted:   #6B6048;
+  --border:  #C9BFA8;
+  --mid:     #A89880;
+  --fd: 'Oswald', sans-serif;
+  --fb: 'Manrope', sans-serif;
+  --fm: 'Lexend Deca', monospace;
+}
+*{ box-sizing:border-box; margin:0; padding:0; }
+body{ background:var(--bg); color:var(--text); font-family:var(--fb); }
+
+/* PAGE HEADER */
+.page-header{
+  background:var(--forest); color:#fff;
+  padding:28px 52px;
+  display:flex; align-items:flex-end; justify-content:space-between;
+}
+.page-title{ font-family:var(--fd); font-size:22px; letter-spacing:.08em; text-transform:uppercase; }
+.page-sub{ font-family:var(--fm); font-size:9px; letter-spacing:.14em; text-transform:uppercase; color:rgba(255,255,255,.5); margin-top:5px; }
+.page-note{ font-family:var(--fm); font-size:9px; letter-spacing:.06em; color:rgba(255,255,255,.4); text-align:right; line-height:1.7; }
+
+/* COLOR LEGEND */
+.legend{
+  display:flex; gap:0; border-bottom:1px solid var(--border);
+  background:var(--card);
+}
+.legend-item{
+  display:flex; align-items:center; gap:8px;
+  padding:11px 20px; border-right:1px solid var(--border);
+  font-family:var(--fm); font-size:8px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted);
+}
+.swatch{ width:14px; height:14px; border-radius:3px; border:1px solid rgba(0,0,0,.12); flex-shrink:0; }
+.legend-role{ color:var(--text); font-weight:500; }
+
+/* CONTENT */
+.content{ padding:40px 52px; display:flex; flex-direction:column; gap:36px; }
+
+/* CURRENT SYSTEM NOTE */
+.current-note{
+  background:var(--card); border:1px solid var(--border); border-radius:8px;
+  padding:16px 22px; display:flex; align-items:center; gap:14px;
+}
+.current-dot{ width:10px; height:10px; background:#22d3ee; border-radius:50%; flex-shrink:0; }
+.current-text{ font-family:var(--fm); font-size:9px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); line-height:1.7; }
+.current-text strong{ color:var(--text); }
+
+/* SYSTEM CARD */
+.sys-card{
+  background:var(--panel); border:1px solid var(--border); border-radius:8px; overflow:hidden;
+}
+.sys-head{
+  display:flex; align-items:center; gap:20px;
+  padding:20px 26px; border-bottom:1px solid var(--border);
+  background:var(--card);
+}
+.sys-letter{
+  font-family:var(--fd); font-size:36px; font-weight:600; line-height:1;
+  color:var(--orange); min-width:32px;
+}
+.sys-meta{ flex:1; }
+.sys-name{ font-family:var(--fm); font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--forest); }
+.sys-desc{ font-family:var(--fb); font-size:11px; color:var(--muted); margin-top:4px; line-height:1.5; }
+.sys-tags{ display:flex; flex-direction:column; align-items:flex-end; gap:4px; }
+.tag{
+  font-family:var(--fm); font-size:8px; letter-spacing:.08em; text-transform:uppercase;
+  background:var(--panel); border:1px solid var(--border); border-radius:3px;
+  padding:2px 7px; color:var(--muted);
+}
+
+/* BODY */
+.sys-body{ padding:26px 26px 28px; }
+
+.section-label{
+  font-family:var(--fm); font-size:8px; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--muted); margin-bottom:14px; display:flex; align-items:center; gap:8px;
+}
+.section-label::after{ content:''; flex:1; height:1px; background:var(--border); }
+
+.marker-row{ display:flex; gap:14px; flex-wrap:wrap; margin-bottom:24px; }
+.marker-cell{ display:flex; flex-direction:column; align-items:center; gap:7px; }
+.marker-canvas{
+  border-radius:6px; display:block;
+  box-shadow:0 1px 4px rgba(0,0,0,.18), inset 0 0 0 1px rgba(0,0,0,.12);
+}
+.marker-label{
+  font-family:var(--fm); font-size:7.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--muted); text-align:center;
+}
+
+/* TWO-COLUMN LAYOUT for map markers vs CTA */
+.sys-columns{ display:grid; grid-template-columns:1fr auto; gap:28px; }
+.cta-col{ border-left:1px solid var(--border); padding-left:26px; }
+</style>
+</head>
+<body>
+
+<!-- ═══ PAGE HEADER ═══════════════════════════════════════ -->
+<div class="page-header">
+  <div>
+    <div class="page-title">Marker System Concepts</div>
+    <div class="page-sub">Four visual directions — each following the parchment colour hierarchy</div>
+  </div>
+  <div class="page-note">
+    marker types: zone · rotation · path · fight · loss · wipe<br>
+    cta pins: fight drop · death drop · wipe drop
+  </div>
+</div>
+
+<!-- ═══ COLOUR LEGEND ══════════════════════════════════════ -->
+<div class="legend">
+  <div class="legend-item"><div class="swatch" style="background:#2C4A2E"></div><span class="legend-role">FOREST</span>&nbsp;— zones, wipes, authority</div>
+  <div class="legend-item"><div class="swatch" style="background:#C85E0A"></div><span class="legend-role">ORANGE</span>&nbsp;— self events (fight, loss)</div>
+  <div class="legend-item"><div class="swatch" style="background:#6B6048"></div><span class="legend-role">MUTED</span>&nbsp;— notes, annotations</div>
+  <div class="legend-item"><div class="swatch" style="background:#8B2020"></div><span class="legend-role">RED</span>&nbsp;— danger / red zone</div>
+  <div class="legend-item"><div class="swatch" style="background:#3A6B9A"></div><span class="legend-role">TEAM</span>&nbsp;— enemy team colour (example)</div>
+  <div class="legend-item"><div class="swatch" style="background:#22d3ee; opacity:.7"></div><span>Current (replaced)</span></div>
+</div>
+
+<!-- ═══ SYSTEMS ════════════════════════════════════════════ -->
+<div class="content">
+
+<!-- ─── CURRENT NOTE ────────────────────────────────────── -->
+<div class="current-note">
+  <div class="current-dot"></div>
+  <div class="current-text">
+    <strong>CURRENT STATE —</strong> All zone circles use hardcoded cyan <code>#22d3ee</code>. Pins are plain filled circles. Arrows use open (two-line) arrowhead. Font is JetBrains Mono. No colour hierarchy — team colours are arbitrary saturated hues. All four systems below replace this entirely.
+  </div>
+</div>
+
+<!-- ─── SYSTEM A ─────────────────────────────────────────── -->
+<div class="sys-card">
+  <div class="sys-head">
+    <div class="sys-letter">A</div>
+    <div class="sys-meta">
+      <div class="sys-name">Ink Draft</div>
+      <div class="sys-desc">Thin outlines, minimal fills — like a field analyst pencilling notes onto a physical map. Terrain always reads through. Nothing shouts.</div>
+    </div>
+    <div class="sys-tags">
+      <span class="tag">1.5 px stroke</span>
+      <span class="tag">8–12% fill</span>
+      <span class="tag">Dashed zones</span>
+      <span class="tag">Open arrowheads</span>
+    </div>
+  </div>
+  <div class="sys-body">
+    <div class="sys-columns">
+      <div>
+        <div class="section-label">Map Markers</div>
+        <div class="marker-row" id="A-map"></div>
+      </div>
+      <div class="cta-col">
+        <div class="section-label">CTA Drop Pins</div>
+        <div class="marker-row" id="A-cta"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── SYSTEM B ─────────────────────────────────────────── -->
+<div class="sys-card">
+  <div class="sys-head">
+    <div class="sys-letter">B</div>
+    <div class="sys-meta">
+      <div class="sys-name">Tactical</div>
+      <div class="sys-desc">Bold filled shapes, high contrast. Reads clearly under fatigue and at small sizes. Military precision — you can identify a marker in one glance.</div>
+    </div>
+    <div class="sys-tags">
+      <span class="tag">2.5–3 px stroke</span>
+      <span class="tag">30–40% fill</span>
+      <span class="tag">Solid lines</span>
+      <span class="tag">Filled arrowheads</span>
+    </div>
+  </div>
+  <div class="sys-body">
+    <div class="sys-columns">
+      <div>
+        <div class="section-label">Map Markers</div>
+        <div class="marker-row" id="B-map"></div>
+      </div>
+      <div class="cta-col">
+        <div class="section-label">CTA Drop Pins</div>
+        <div class="marker-row" id="B-cta"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── SYSTEM C ─────────────────────────────────────────── -->
+<div class="sys-card">
+  <div class="sys-head">
+    <div class="sys-letter">C</div>
+    <div class="sys-meta">
+      <div class="sys-name">Cartographic</div>
+      <div class="sys-desc">Classic topographic and military map conventions. Each marker type has a universally distinct shape — zones get tick marks, objectives get triangles, dangers get the X-in-circle.</div>
+    </div>
+    <div class="sys-tags">
+      <span class="tag">Traditional symbols</span>
+      <span class="tag">Shape-first identity</span>
+      <span class="tag">Dash-dot paths</span>
+      <span class="tag">Hollow arrowheads</span>
+    </div>
+  </div>
+  <div class="sys-body">
+    <div class="sys-columns">
+      <div>
+        <div class="section-label">Map Markers</div>
+        <div class="marker-row" id="C-map"></div>
+      </div>
+      <div class="cta-col">
+        <div class="section-label">CTA Drop Pins</div>
+        <div class="marker-row" id="C-cta"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── SYSTEM D ─────────────────────────────────────────── -->
+<div class="sys-card">
+  <div class="sys-head">
+    <div class="sys-letter">D</div>
+    <div class="sys-meta">
+      <div class="sys-name">Stamp</div>
+      <div class="sys-desc">Flat solid fills, no strokes. Like rubber-stamp impressions on the map — decisive, graphic, zero visual noise from outlines. High colour weight, simple geometry.</div>
+    </div>
+    <div class="sys-tags">
+      <span class="tag">No stroke</span>
+      <span class="tag">55–70% fill</span>
+      <span class="tag">Pure geometry</span>
+      <span class="tag">Dot paths</span>
+    </div>
+  </div>
+  <div class="sys-body">
+    <div class="sys-columns">
+      <div>
+        <div class="section-label">Map Markers</div>
+        <div class="marker-row" id="D-map"></div>
+      </div>
+      <div class="cta-col">
+        <div class="section-label">CTA Drop Pins</div>
+        <div class="marker-row" id="D-cta"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /content -->
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════════
+const F = '#2C4A2E'; // forest
+const O = '#C85E0A'; // orange
+const M = '#6B6048'; // muted
+const R = '#8B2020'; // red
+const T = '#3A6B9A'; // team (enemy example)
+const N = '#1C1A14'; // near-black
+const P = '#F2EDE4'; // parchment
+
+const W = 90, H = 90;         // map marker canvas
+const CW = 90, CH = 110;      // CTA pin canvas (taller for stem)
+
+// ═══════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════
+function rgba(hex, a) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+function mapBg(ctx, w, h) {
+  ctx.save();
+  const g = ctx.createRadialGradient(w/2,h/2,0, w/2,h/2,w*.7);
+  g.addColorStop(0, '#474038');
+  g.addColorStop(1, '#2E2B27');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = 'rgba(255,255,255,0.055)';
+  ctx.lineWidth = 0.5;
+  ctx.setLineDash([]);
+  for (let x=0; x<=w; x+=18){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+  for (let y=0; y<=h; y+=18){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+  ctx.restore();
+}
+
+function filledArrow(ctx, x1, y1, x2, y2, size, color) {
+  const a = Math.atan2(y2-y1, x2-x1);
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - size*Math.cos(a-0.42), y2 - size*Math.sin(a-0.42));
+  ctx.lineTo(x2 - size*Math.cos(a+0.42), y2 - size*Math.sin(a+0.42));
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+function openArrow(ctx, x2, y2, angle, size, color, lw) {
+  ctx.beginPath();
+  ctx.moveTo(x2 - size*Math.cos(angle-0.45), y2 - size*Math.sin(angle-0.45));
+  ctx.lineTo(x2, y2);
+  ctx.lineTo(x2 - size*Math.cos(angle+0.45), y2 - size*Math.sin(angle+0.45));
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lw;
+  ctx.stroke();
+}
+
+function makeCanvas(w, h, cssClass) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  c.className = 'marker-canvas' + (cssClass ? ' '+cssClass : '');
+  return c;
+}
+
+function cell(canvas, label) {
+  const d = document.createElement('div');
+  d.className = 'marker-cell';
+  d.appendChild(canvas);
+  const l = document.createElement('div');
+  l.className = 'marker-label';
+  l.textContent = label;
+  d.appendChild(l);
+  return d;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SYSTEM A — INK DRAFT
+// ═══════════════════════════════════════════════════════════════
+
+function A_Zone() {
+  const cv = makeCanvas(W,H); const c = cv.getContext('2d');
+  mapBg(c,W,H);
+  const cx=W/2, cy=H/2, r=28;
+  c.beginPath(); c.arc(cx,cy,r,0,Math.PI*2);
+  c.fillStyle = rgba(F,.1); c.fill();
+  c.beginPath(); c.arc(cx,cy,r,0,Math.PI*2);
+  c.strokeStyle=F; c.lineWidth=1.5; c.setLineDash([7,3.5]); c.stroke();
+  c.setLineDash([]);
+  c.fillStyle=F; c.font='500 10px "Lexend Deca",monospace';
+  c.textAlign='center'; c.textBaseline='middle'; c.fillText('Z 2',cx,cy);
+  return cell(cv,'Zone Circle');
+}
+
+function A_Arrow() {
+  const cv = makeCanvas(W,H); const c = cv.getContext('2d');
+  mapBg(c,W,H);
+  // Curved arc rotation
+  c.beginPath(); c.arc(45,58,24,-Math.PI*.88,-Math.PI*.08);
+  c.strokeStyle=T; c.lineWidth=1.5; c.setLineDash([]); c.lineCap='round'; c.stroke();
+  // Open arrowhead at end of arc
+  const ea = -Math.PI*.08;
+  const ex = 45+24*Math.cos(ea), ey = 58+24*Math.sin(ea);
+  openArrow(c, ex, ey, ea + Math.PI/2, 9, T, 1.5);
+  // Start dot
+  const sa = -Math.PI*.88;
+  c.beginPath(); c.arc(45+24*Math.cos(sa), 58+24*Math.sin(sa), 2.5, 0, Math.PI*2);
+  c.fillStyle=T; c.fill();
+  return cell(cv,'Rotation');
+}
+
+function A_Path() {
+  const cv = makeCanvas(W,H); const c = cv.getContext('2d');
+  mapBg(c,W,H);
+  const pts = [[14,72],[28,54],[48,40],[72,22]];
+  // Faint dashed connector
+  c.beginPath(); c.moveTo(pts[0][0],pts[0][1]);
+  pts.slice(1).forEach(([x,y])=>c.lineTo(x,y));
+  c.strokeStyle=rgba(O,.45); c.lineWidth=1; c.setLineDash([3,3]); c.stroke(); c.setLineDash([]);
+  // Waypoint dots
+  pts.forEach(([x,y],i)=>{
+    c.beginPath(); c.arc(x,y,i===0||i===pts.length-1?4:2.5,0,Math.PI*2);
+    c.fillStyle=O; c.fill();
+  });
+  // Arrow tip
+  const n=pts.length;
+  filledArrow(c,pts[n-2][0],pts[n-2][1],pts[n-1][0],pts[n-1][1],8,O);
+  return cell(cv,'Movement');
+}
+
+function A_Fight() {
+  const cv = makeCanvas(W,H); const c = cv.getContext('2d');
+  mapBg(c,W,H);
+  const cx=W/2,cy=H/2,r=16;
+  // Circle
+  c.beginPath(); c.arc(cx,cy,r,0,Math.PI*2);
+  c.strokeStyle=O; c.lineWidth=1.5; c.stroke();
+  c.fillStyle=rgba(O,.08); c.fill();
+  // X inside
+  const d=9;
+  c.beginPath(); c.moveTo(cx-d,cy-d); c.lineTo(cx+d,cy+d);
+  c.moveTo(cx+d,cy-d); c.lineTo(cx-d,cy+d);
+  c.strokeStyle=O; c.lineWidth=1.5; c.lineCap='round'; c.stroke();
+  return cell(cv,'Fight');
+}
+
+function A_Loss() {
+  const cv = makeCanvas(W,H); const c = cv.getContext('2d');
+  mapBg(c,W,H);
+  const cx=W/2;
+  // Double downward chevron
+  [[36,10],[48,10]].forEach(([y,h])=>{
+    c.beginPath(); c.moveTo(cx-13,y); c.lineTo(cx,y+h); c.lineTo(cx+13,y);
+    c.strokeStyle=O; c.lineWidth=1.5; c.lineJoin='round'; c.lineCap='round'; c.stroke();
+  });
+  // Player dot above
+  c.beginPath(); c.arc(cx,28,4,0,Math.PI*2); c.fillStyle=rgba(O,.6); c.fill();
+  return cell(cv,'Loss');
+}
+
+function A_Wipe() {
+  const cv = makeCanvas(W,H); const c = cv.getContext('2d');
+  mapBg(c,W,H);
+  // Stick
+  c.beginPath(); c.moveTo(32,18); c.lineTo(32,68);
+  c.strokeStyle=F; c.lineWidth=1.5; c.setLineDash([]); c.stroke();
+  // Pennant flag
+  c.beginPath(); c.moveTo(32,18); c.lineTo(58,28); c.lineTo(32,36); c.closePath();
+  c.strokeStyle=F; c.lineWidth=1.5; c.stroke();
+  c.fillStyle=rgba(F,.12); c.fill();
+  // Ground
+  c.beginPath(); c.arc(32,68,3.5,0,Math.PI*2); c.fillStyle=rgba(F,.5); c.fill();
+  return cell(cv,'Wipe');
+}
+
+// A CTA Pins
+function A_ctaFight() {
+  const cv=makeCanvas(CW,CH); const c=cv.getContext('2d');
+  mapBg(c,CW,CH);
+  const cx=CW/2,cy=38,r=18;
+  c.beginPath(); c.arc(cx,cy,r,0,Math.PI*2);
+  c.strokeStyle=O; c.lineWidth=1.5; c.stroke();
+  c.fillStyle=rgba(O,.1); c.fill();
+  const d=10;
+  c.beginPath(); c.moveTo(cx-d,cy-d); c.lineTo(cx+d,cy+d);
+  c.moveTo(cx+d,cy-d); c.lineTo(cx-d,cy+d);
+  c.strokeStyle=O; c.lineWidth=1.5; c.lineCap='round'; c.stroke();
+  c.beginPath(); c.moveTo(cx,cy+r); c.lineTo(cx,cy+r+22);
+  c.strokeStyle=O; c.lineWidth=1.5; c.stroke();
+  c.beginPath(); c.arc(cx,cy+r+22,3,0,Math.PI*2); c.fillStyle=rgba(O,.4); c.fill();
+  return cell(cv,'Fight Pin');
+}
+
+function A_ctaDeath() {
+  const cv=makeCanvas(CW,CH); const c=cv.getContext('2d');
+  mapBg(c,CW,CH);
+  const cx=CW/2, ty=16, r=18;
+  // Teardrop inverted (tip at bottom)
+  c.beginPath();
+  c.arc(cx, ty+r, r, Math.PI, 0);
+  c.bezierCurveTo(cx+r, ty+r+8, cx+6, ty+r+28, cx, ty+r+34);
+  c.bezierCurveTo(cx-6, ty+r+28, cx-r, ty+r+8, cx-r, ty+r);
+  c.closePath();
+  c.strokeStyle=O; c.lineWidth=1.5; c.stroke();
+  c.fillStyle=rgba(O,.1); c.fill();
+  // Cross inside head
+  const hcy=ty+r;
+  c.beginPath(); c.moveTo(cx-7,hcy-7); c.lineTo(cx+7,hcy+7);
+  c.moveTo(cx+7,hcy-7); c.lineTo(cx-7,hcy+7);
+  c.strokeStyle=rgba(O,.7); c.lineWidth=1.2; c.lineCap='round'; c.stroke();
+  return cell(cv,'Death Pin');
+}
+
+function A_ctaWipe() {
+  const cv=makeCanvas(CW,CH); const c=cv.getContext('2d');
+  mapBg(c,CW,CH);
+  const cx=CW/2-4, sy=14;
+  // Stick
+  c.beginPath(); c.moveTo(cx,sy); c.lineTo(cx,sy+72);
+  c.strokeStyle=F; c.lineWidth=1.5; c.stroke();
+  // Flag
+  c.beginPath(); c.moveTo(cx,sy); c.lineTo(cx+26,sy+11); c.lineTo(cx,sy+22); c.closePath();
+  c.strokeStyle=F; c.lineWidth=1.5; c.stroke(); c.fillStyle=rgba(F,.12); c.fill();
+  // Ground
+  c.beginPath(); c.arc(cx,sy+72,4,0,Math.PI*2); c.fillStyle=rgba(F,.45); c.fill();
+  return cell(cv,'Wipe Pin');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SYSTEM B — TACTICAL
+// ═══════════════════════════════════════════════════════════════
+
+function B_Zone() {
+  const cv=makeCanvas(W,H); const c=cv.getContext('2d');
+  mapBg(c,W,H);
+  const cx=W/2,cy=H/2,r=27;
+  c.beginPath(); c.arc(cx,cy,r,0,Math.PI*2);
+  c.fillStyle=rgba(F,.30); c.fill();
+  c.strokeStyle=F; c.lineWidth=3; c.setLineDash([]); c.stroke();
+  c.fillStyle='rgba(255,255,255,.85)';
+  c.font='600 18px "Oswald",sans-serif';
+  c.textAlign='center'; c.textBaseline='middle'; c.fillText('2',cx,cy+1);
+  return cell(cv,'Zone Circle');
+}
+
+function B_Arrow() {
+  const cv=makeCanvas(W,H); const c=cv.getContext('2d');
+  mapBg(c,W,H);
+  c.beginPath(); c.arc(45,58,24,-Math.PI*.88,-Math.PI*.08);
+  c.strokeStyle=T; c.lineWidth=3; c.lineCap='round'; c.setLineDash([]); c.stroke();
+  // Filled arrowhead
+  const ea=-Math.PI*.08;
+  const ex=45+24*Math.cos(ea), ey=58+24*Math.sin(ea);
+  const ta=ea+Math.PI/2;
+  c.beginPath();
+  c.moveTo(ex,ey);
+  c.lineTo(ex-12*Math.cos(ta-0.42), ey-12*Math.sin(ta-0.42));
+  c.lineTo(ex-12*Math.cos(ta+0.42), ey-12*Math.sin(ta+0.42));
+  c.closePath(); c.fillStyle=T; c.fill();
+  // Team label
+  c.fillStyle=rgba(T,.6); c.font='500 7px "Lexend Deca",monospace';
+  c.textAlign='left'; c.textBaseline='top'; c.fillText('TEAM 3',10,10);
+  return cell(cv,'Rotation');
+}
+
+function B_Path() {
+  const cv=makeCanvas(W,H); const c=cv.getContext('2d');
+  mapBg(c,W,H);
+  const pts=[[14,72],[28,54],[48,40],[72,22]];
+  // Shadow/outline
+  c.beginPath(); c.moveTo(pts[0][0],pts[0][1]); pts.slice(1).forEach(([x,y])=>c.lineTo(x,y));
+  c.strokeStyle=rgba(N,.35); c.lineWidth=5.5; c.lineCap='round'; c.lineJoin='round'; c.setLineDash([10,5]); c.stroke();
+  // Main
+  c.beginPath(); c.moveTo(pts[0][0],pts[0][1]); pts.slice(1).forEach(([x,y])=>c.lineTo(x,y));
+  c.strokeStyle=O; c.lineWidth=3; c.setLineDash([10,5]); c.stroke(); c.setLineDash([]);
+  filledArrow(c,pts[2][0],pts[2][1],pts[3][0],pts[3][1],11,O);
+  // Endpoint caps
+  [pts[0],pts[pts.length-1]].forEach(([x,y])=>{
+    c.beginPath(); c.arc(x,y,5,0,Math.PI*2); c.fillStyle=O; c.fill();
+  });
+  return cell(cv,'Movement');
+}
+
+function B_Fight() {
+  const cv=makeCanvas(W,H); const c=cv.getContext('2d');
+  mapBg(c,W,H);
+  const cx=W/2,cy=H/2,r=18;
+  // Hexagon
+  c.beginPath();
+  for(let i=0;i<6;i++){
+    const a=Math.PI/3*i-Math.PI/6;
+    i===0 ? c.moveTo(cx+r*Math.cos(a),cy+r*Math.sin(a)) : c.lineTo(cx+r*Math.cos(a),cy+r*Math.sin(a));
+  }
+  c.closePath();
+  c.fillStyle=rgba(O,.35); c.fill();
+  c.strokeStyle=O; c.lineWidth=2.5; c.stroke();
+  const d=9;
+  c.beginPath(); c.moveTo(cx-d,cy-d); c.lineTo(cx+d,cy+d);
+  c.moveTo(cx+d,cy-d); c.lineTo(cx-d,cy+d);
+  c.strokeStyle='rgba(255,255,255,.8)'; c.lineWidth=2; c.lineCap='round'; c.stroke();
+  return cell(cv,'Fight');
+}
+
+function B_Loss() {
+  const cv=makeCanvas(W,H); const c=cv.getContext('2d');
+  mapBg(c,W,H);
+  const cx=W/2, ty=18;
+  // Inverted teardrop
+  c.beginPath();
+  c.arc(cx,ty+16,16,Math.PI,0);
+  c.bezierCurveTo(cx+16,ty+24,cx+8,ty+42,cx,ty+48);
+  c.bezierCurveTo(cx-8,ty+42,cx-16,ty+24,cx-16,ty+16);
+  c.closePath();
+  c.fillStyle=rgba(O,.38); c.fill();
+  c.strokeStyle=O; c.lineWidth=2.5; c.stroke();
+  // Eyes (downed indicator)
+  [cx-6,cx+6].forEach(ex=>{
+    c.beginPath(); c.arc(ex,ty+14,3.5,0,Math.PI*2); c.fillStyle='rgba(255,255,255,.7)'; c.fill();
+  });
+  return cell(cv,'Loss');
+}
+
+function B_Wipe() {
+  const cv=makeCanvas(W,H); const c=cv.getContext('2d');
+  mapBg(c,W,H);
+  const cx=W/2, top=12;
+  // Shield
+  c.beginPath();
+  c.moveTo(cx-20,top); c.lineTo(cx+20,top); c.lineTo(cx+20,top+28);
+  c.quadraticCurveTo(cx+20,top+46,cx,top+52);
+  c.quadraticCurveTo(cx-20,top+46,cx-20,top+28);
+  c.closePath();
+  c.fillStyle=rgba(F,.35); c.fill();
+  c.strokeStyle=F; c.lineWidth=2.5; c.stroke();
+  // Flag inside
+  c.beginPath(); c.moveTo(cx-7,top+12); c.lineTo(cx-7,top+36);
+  c.moveTo(cx-7,top+12); c.lineTo(cx+12,top+21); c.lineTo(cx-7,top+28);
+  c.strokeStyle='rgba(255,255,255,.7)'; c.lineWidth=2; c.lineCap='round'; c.stroke();
+  return cell(cv,'Wipe');
+}
+
+// B CTA
+function B_ctaFight() {
+  const cv=makeCanvas(CW,CH); const c=cv.getContext('2d');
+  mapBg(c,CW,CH);
+  const cx=CW/2,cy=36,r=20;
+  // Hexagon pin head
+  c.beginPath();
+  for(let i=0;i<6;i++){
+    const a=Math.PI/3*i-Math.PI/6;
+    i===0 ? c.moveTo(cx+r*Math.cos(a),cy+r*Math.sin(a)) : c.lineTo(cx+r*Math.cos(a),cy+r*Math.sin(a));
+  }
+  c.closePath(); c.fillStyle=rgba(O,.65); c.fill(); c.strokeStyle=O; c.lineWidth=2; c.stroke();
+  const d=11;
+  c.beginPath(); c.moveTo(cx-d,cy-d); c.lineTo(cx+d,cy+d);
+  c.moveTo(cx+d,cy-d); c.lineTo(cx-d,cy+d);
+  c.strokeStyle='rgba(255,255,255,.9)'; c.lineWidth=2.5; c.lineCap='round'; c.stroke();
+  // Stem
+  c.beginPath(); c.moveTo(cx,cy+r); c.lineTo(cx,cy+r+24);
+  c.strokeStyle=O; c.lineWidth=2.5; c.stroke();
+  c.beginPath(); c.arc(cx,cy+r+24,4,0,Math.PI*2); c.fillStyle=O; c.fill();
+  return cell(cv,'Fight Pin');
+}
+
+function B_ctaDeath() {
+  const cv=makeCanvas(CW,CH); const c=cv.getContext('2d');
+  mapBg(c,CW,CH);
+  const cx=CW/2,ty=12,r=20;
+  c.beginPath();
+  c.arc(cx,ty+r,r,Math.PI,0);
+  c.bezierCurveTo(cx+r,ty+r+10,cx+7,ty+r+34,cx,ty+r+40);
+  c.bezierCurveTo(cx-7,ty+r+34,cx-r,ty+r+10,cx-r,ty+r);
+  c.closePath();
+  c.fillStyle=rgba(O,.62); c.fill(); c.strokeStyle=O; c.lineWidth=2; c.stroke();
+  [cx-7,cx+7].forEach(ex=>{
+    c.beginPath(); c.arc(ex,ty+r,4.5,0,Math.PI*2); c.fillStyle='rgba(255,255,255,.8)'; c.fill();
+  });
+  return cell(cv,'Death Pin');
+}
+
+function B_ctaWipe() {
+  const cv=makeCanvas(CW,CH); const c=cv.getContext('2d');
+  mapBg(c,CW,CH);
+  const cx=CW/2,top=10;
+  c.beginPath();
+  c.moveTo(cx-20,top); c.lineTo(cx+20,top); c.lineTo(cx+20,top+22);
+  c.quadraticCurveTo(cx+20,top+36,cx,top+40);
+  c.quadraticCurveTo(cx-20,top+36,cx-20,top+22);
+  c.closePath(); c.fillStyle=rgba(F,.62); c.fill(); c.strokeStyle=F; c.lineWidth=2; c.stroke();
+  // Inner flag
+  c.beginPath(); c.moveTo(cx-7,top+8); c.lineTo(cx-7,top+30);
+  c.moveTo(cx-7,top+8); c.lineTo(cx+10,top+16); c.lineTo(cx-7,top+22);
+  c.strokeStyle='rgba(255,255,255,.75)'; c.lineWidth=2; c.lineCap='round'; c.stroke();
+  // Stem
+  c.beginPath(); c.moveTo(cx,top+40); c.lineTo(cx,top+68);
+  c.strokeStyle=F; c.lineWidth=2.5; c.stroke();
+  c.beginPath(); c.arc(cx,top+68,4,0,Math.PI*2); c.fillStyle=F; c.fill();
+  return cell(cv,'Wipe Pin');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SYSTEM C — CARTOGRAPHIC
+// ═══════════════════════════════════════════════════════════════
+
+function C_Zone() {
+  const cv=makeCanvas(W,H); const c=cv.getContext('2d');
+  mapBg(c,W,H);
+  const cx=W/2,cy=H/2,r=24;
+  c.beginPath(); c.arc(cx,cy,r,0,Math.PI*2);
+  c.strokeStyle=F; c.lineWidth=1.5; c.setLineDash([]); c.stroke();
+  // Cardinal tick marks
+  [[0,-1],[1,0],[0,1],[-1,0]].forEach(([dx,dy])=>{
+    c.beginPath();
+    c.moveTo(cx+dx*(r-4),cy+dy*(r-4)); c.lineTo(cx+dx*(r+5),cy+dy*(r+5));
+    c.strokeStyle=F; c.lineWidth=1.5; c.stroke();
+  });
+  // Label above
+  c.fillStyle=F; c.font='400 8px "Lexend Deca",monospace';
+  c.textAlign='center'; c.textBaseline='bottom'; c.fillText('ZONE 2',cx,cy-r-5);
+  return cell(cv,'Zone Circle');
+}
+
+function C_Arrow() {
+  const cv=makeCanvas(W,H); const c=cv.getContext('2d');
+  mapBg(c,W,H);
+  // Straight dash-dotted rotation line
+  c.beginPath(); c.moveTo(14,62); c.lineTo(70,24);
+  c.strokeStyle=T; c.lineWidth=1.8; c.setLineDash([8,3]); c.stroke(); c.setLineDash([]);
+  // Hollow arrowhead at end
+  const a=Math.atan2(24-62,70-14);
+  c.beginPath();
+  c.moveTo(70,24);
+  c.lineTo(70-12*Math.cos(a-0.45),24-12*Math.sin(a-0.45));
+  c.moveTo(70,24);
+  c.lineTo(70-12*Math.cos(a+0.45),24-12*Math.sin(a+0.45));
+  c.strokeStyle=T; c.lineWidth=1.8; c.stroke();
+  return cell(cv,'Rotation');
+}
+
+function C_Path() {
+  const cv=makeCanvas(W,H); const c=cv.getContext('2d');
+  mapBg(c,W,H);
+  const pts=[[14,72],[28,54],[48,40],[72,22]];
+  // Military dash-dot-dot
+  c.beginPath(); c.moveTo(pts[0][0],pts[0][1]); pts.slice(1).forEach(([x,y])=>c.lineTo(x,y));
+  c.strokeStyle=O; c.lineWidth=1.5; c.setLineDash([8,3,2,3,2,3]); c.stroke(); c.setLineDash([]);
+  // Small square waypoints
+  pts.forEach(([x,y],i)=>{
+    if(i===0||i===pts.length-1){
+      c.beginPath(); c.arc(x,y,3.5,0,Math.PI*2); c.fillStyle=O; c.fill();
+    } else {
+      c.fillStyle=O; c.fillRect(x-2.5,y-2.5,5,5);
+    }
+  });
+  filledArrow(c,pts[2][0],pts[2][1],pts[3][0],pts[3][1],8,O);
+  return cell(cv,'Movement');
+}
+
+function C_Fight() {
+  const cv=makeCanvas(W,H); const c=cv.getContext('2d');
+  mapBg(c,W,H);
+  const cx=W/2,cy=H/2,r=16;
+  // Circle
+  c.beginPath(); c.arc(cx,cy,r,0,Math.PI*2); c.strokeStyle=O; c.lineWidth=1.8; c.stroke();
+  // Classic danger X
+  const d=10;
+  c.beginPath(); c.moveTo(cx-d,cy-d); c.lineTo(cx+d,cy+d); c.moveTo(cx+d,cy-d); c.lineTo(cx-d,cy+d);
+  c.strokeStyle=O; c.lineWidth=2.2; c.lineCap='square'; c.stroke();
+  return cell(cv,'Fight');
+}
+
+function C_Loss() {
+  const cv=makeCanvas(W,H); const c=cv.getContext('2d');
+  mapBg(c,W,H);
+  const cx=W/2,cy=H/2+4;
+  // Classic military casualty — downward triangle on a line
+  c.beginPath(); c.moveTo(cx-15,cy-16); c.lineTo(cx+15,cy-16); c.lineTo(cx,cy+10); c.closePath();
+  c.strokeStyle=O; c.lineWidth=1.8; c.stroke();
+  // Vertical line below
+  c.beginPath(); c.moveTo(cx,cy+10); c.lineTo(cx,cy+24);
+  c.strokeStyle=O; c.lineWidth=1.8; c.stroke();
+  return cell(cv,'Loss');
+}
+
+function C_Wipe() {
+  const cv=makeCanvas(W,H); const c=cv.getContext('2d');
+  mapBg(c,W,H);
+  const cx=W/2,cy=H/2+6;
+  // Classic military objective — filled upward triangle
+  c.beginPath(); c.moveTo(cx,cy-28); c.lineTo(cx+20,cy+8); c.lineTo(cx-20,cy+8); c.closePath();
+  c.fillStyle=rgba(F,.8); c.fill(); c.strokeStyle=F; c.lineWidth=1.5; c.stroke();
+  // Small circle below (taken objective marker)
+  c.beginPath(); c.arc(cx,cy+15,5,0,Math.PI*2); c.strokeStyle=F; c.lineWidth=1.5; c.stroke();
+  return cell(cv,'Wipe');
+}
+
+// C CTA
+function C_ctaFight() {
+  const cv=makeCanvas(CW,CH); const c=cv.getContext('2d');
+  mapBg(c,CW,CH);
+  const cx=CW/2,cy=34,r=18;
+  c.beginPath(); c.arc(cx,cy,r,0,Math.PI*2); c.strokeStyle=O; c.lineWidth=1.8; c.stroke();
+  const d=11;
+  c.beginPath(); c.moveTo(cx-d,cy-d); c.lineTo(cx+d,cy+d); c.moveTo(cx+d,cy-d); c.lineTo(cx-d,cy+d);
+  c.strokeStyle=O; c.lineWidth=2.2; c.lineCap='square'; c.stroke();
+  c.beginPath(); c.moveTo(cx,cy+r); c.lineTo(cx,cy+r+28);
+  c.strokeStyle=O; c.lineWidth=1.8; c.stroke();
+  c.beginPath(); c.arc(cx,cy+r+28,3.5,0,Math.PI*2); c.fillStyle=rgba(O,.5); c.fill();
+  return cell(cv,'Fight Pin');
+}
+
+function C_ctaDeath() {
+  const cv=makeCanvas(CW,CH); const c=cv.getContext('2d');
+  mapBg(c,CW,CH);
+  const cx=CW/2,ty=14;
+  // Inverted triangle + stem
+  c.beginPath(); c.moveTo(cx-16,ty); c.lineTo(cx+16,ty); c.lineTo(cx,ty+26); c.closePath();
+  c.strokeStyle=O; c.lineWidth=1.8; c.stroke(); c.fillStyle=rgba(O,.12); c.fill();
+  c.beginPath(); c.moveTo(cx,ty+26); c.lineTo(cx,ty+26+40);
+  c.strokeStyle=O; c.lineWidth=1.8; c.stroke();
+  c.beginPath(); c.arc(cx,ty+26+40,3.5,0,Math.PI*2); c.fillStyle=rgba(O,.5); c.fill();
+  return cell(cv,'Death Pin');
+}
+
+function C_ctaWipe() {
+  const cv=makeCanvas(CW,CH); const c=cv.getContext('2d');
+  mapBg(c,CW,CH);
+  const cx=CW/2,ty=12;
+  // Filled triangle
+  c.beginPath(); c.moveTo(cx,ty); c.lineTo(cx+22,ty+30); c.lineTo(cx-22,ty+30); c.closePath();
+  c.fillStyle=rgba(F,.8); c.fill(); c.strokeStyle=F; c.lineWidth=1.8; c.stroke();
+  c.beginPath(); c.moveTo(cx,ty+30); c.lineTo(cx,ty+30+42);
+  c.strokeStyle=F; c.lineWidth=1.8; c.stroke();
+  c.beginPath(); c.arc(cx,ty+30+42,3.5,0,Math.PI*2); c.fillStyle=rgba(F,.5); c.fill();
+  return cell(cv,'Wipe Pin');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SYSTEM D — STAMP
+// ═══════════════════════════════════════════════════════════════
+
+function D_Zone() {
+  const cv=makeCanvas(W,H); const c=cv.getContext('2d');
+  mapBg(c,W,H);
+  const cx=W/2,cy=H/2,r=27;
+  c.beginPath(); c.arc(cx,cy,r,0,Math.PI*2);
+  c.fillStyle=rgba(F,.58); c.fill();
+  c.fillStyle=P; c.font='600 20px "Oswald",sans-serif';
+  c.textAlign='center'; c.textBaseline='middle'; c.fillText('2',cx,cy+1);
+  return cell(cv,'Zone Circle');
+}
+
+function D_Arrow() {
+  const cv=makeCanvas(W,H); const c=cv.getContext('2d');
+  mapBg(c,W,H);
+  // Solid filled arrow body as one shape
+  const x1=14,y1=62,x2=68,y2=22;
+  const a=Math.atan2(y2-y1,x2-x1);
+  const w=5, hlen=16;
+  const perp=a+Math.PI/2;
+  // Arrow body rect
+  const bx2=x2-hlen*Math.cos(a), by2=y2-hlen*Math.sin(a);
+  c.beginPath();
+  c.moveTo(x1+w*Math.cos(perp),y1+w*Math.sin(perp));
+  c.lineTo(bx2+w*Math.cos(perp),by2+w*Math.sin(perp));
+  c.lineTo(bx2+(hlen*1.2)*Math.cos(perp),by2+(hlen*1.2)*Math.sin(perp));
+  c.lineTo(x2,y2);
+  c.lineTo(bx2-(hlen*1.2)*Math.cos(perp),by2-(hlen*1.2)*Math.sin(perp));
+  c.lineTo(bx2-w*Math.cos(perp),by2-w*Math.sin(perp));
+  c.lineTo(x1-w*Math.cos(perp),y1-w*Math.sin(perp));
+  c.closePath();
+  c.fillStyle=rgba(T,.6); c.fill();
+  return cell(cv,'Rotation');
+}
+
+function D_Path() {
+  const cv=makeCanvas(W,H); const c=cv.getContext('2d');
+  mapBg(c,W,H);
+  // Dots only, gradient opacity
+  const pts=[[14,72],[28,56],[42,44],[56,33],[70,22]];
+  pts.forEach(([x,y],i)=>{
+    const op=0.35+i*0.13;
+    c.beginPath(); c.arc(x,y,i===0||i===pts.length-1?5.5:4,0,Math.PI*2);
+    c.fillStyle=rgba(O,Math.min(op,0.9)); c.fill();
+  });
+  return cell(cv,'Movement');
+}
+
+function D_Fight() {
+  const cv=makeCanvas(W,H); const c=cv.getContext('2d');
+  mapBg(c,W,H);
+  const cx=W/2,cy=H/2,r=18;
+  // Diamond
+  c.beginPath();
+  c.moveTo(cx,cy-r); c.lineTo(cx+r,cy); c.lineTo(cx,cy+r); c.lineTo(cx-r,cy);
+  c.closePath(); c.fillStyle=rgba(O,.62); c.fill();
+  // White minus/dash to hint "fight"
+  c.beginPath(); c.moveTo(cx-8,cy-8); c.lineTo(cx+8,cy+8);
+  c.moveTo(cx+8,cy-8); c.lineTo(cx-8,cy+8);
+  c.strokeStyle=rgba(P,.9); c.lineWidth=2.5; c.lineCap='round'; c.stroke();
+  return cell(cv,'Fight');
+}
+
+function D_Loss() {
+  const cv=makeCanvas(W,H); const c=cv.getContext('2d');
+  mapBg(c,W,H);
+  const cx=W/2,cy=H/2+4;
+  // Downward triangle, flat fill
+  c.beginPath(); c.moveTo(cx-18,cy-18); c.lineTo(cx+18,cy-18); c.lineTo(cx,cy+14); c.closePath();
+  c.fillStyle=rgba(O,.62); c.fill();
+  // Dot above
+  c.beginPath(); c.arc(cx,cy-24,4,0,Math.PI*2); c.fillStyle=rgba(O,.4); c.fill();
+  return cell(cv,'Loss');
+}
+
+function D_Wipe() {
+  const cv=makeCanvas(W,H); const c=cv.getContext('2d');
+  mapBg(c,W,H);
+  // Flat flag - stick + filled rect
+  const sx=28,sy=18;
+  // Stick (thin rect)
+  c.fillStyle=rgba(F,.65); c.fillRect(sx-1.5,sy,3,52);
+  // Flag
+  c.beginPath(); c.moveTo(sx,sy); c.lineTo(sx+32,sy+12); c.lineTo(sx,sy+24); c.closePath();
+  c.fillStyle=rgba(F,.65); c.fill();
+  return cell(cv,'Wipe');
+}
+
+// D CTA
+function D_ctaFight() {
+  const cv=makeCanvas(CW,CH); const c=cv.getContext('2d');
+  mapBg(c,CW,CH);
+  const cx=CW/2,cy=36,r=20;
+  c.beginPath();
+  c.moveTo(cx,cy-r); c.lineTo(cx+r,cy); c.lineTo(cx,cy+r); c.lineTo(cx-r,cy);
+  c.closePath(); c.fillStyle=rgba(O,.72); c.fill();
+  const d=11;
+  c.beginPath(); c.moveTo(cx-d,cy-d); c.lineTo(cx+d,cy+d); c.moveTo(cx+d,cy-d); c.lineTo(cx-d,cy+d);
+  c.strokeStyle=rgba(P,.9); c.lineWidth=2.5; c.lineCap='round'; c.stroke();
+  c.fillStyle=rgba(O,.72); c.fillRect(cx-2,cy+r,4,26);
+  c.beginPath(); c.arc(cx,cy+r+26,4,0,Math.PI*2); c.fillStyle=rgba(O,.5); c.fill();
+  return cell(cv,'Fight Pin');
+}
+
+function D_ctaDeath() {
+  const cv=makeCanvas(CW,CH); const c=cv.getContext('2d');
+  mapBg(c,CW,CH);
+  // Flat inverted triangle pin
+  const cx=CW/2,ty=12;
+  c.beginPath(); c.moveTo(cx-20,ty); c.lineTo(cx+20,ty); c.lineTo(cx,ty+32); c.closePath();
+  c.fillStyle=rgba(O,.7); c.fill();
+  c.fillStyle=rgba(O,.7); c.fillRect(cx-2,ty+32,4,38);
+  c.beginPath(); c.arc(cx,ty+70,4,0,Math.PI*2); c.fillStyle=rgba(O,.5); c.fill();
+  return cell(cv,'Death Pin');
+}
+
+function D_ctaWipe() {
+  const cv=makeCanvas(CW,CH); const c=cv.getContext('2d');
+  mapBg(c,CW,CH);
+  const cx=CW/2,ty=10;
+  // Flat triangle
+  c.beginPath(); c.moveTo(cx,ty); c.lineTo(cx+24,ty+32); c.lineTo(cx-24,ty+32); c.closePath();
+  c.fillStyle=rgba(F,.72); c.fill();
+  c.fillStyle=rgba(F,.72); c.fillRect(cx-2,ty+32,4,42);
+  c.beginPath(); c.arc(cx,ty+74,4,0,Math.PI*2); c.fillStyle=rgba(F,.5); c.fill();
+  return cell(cv,'Wipe Pin');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+
+function appendAll(rowId, ...builders) {
+  const row = document.getElementById(rowId);
+  builders.forEach(fn => row.appendChild(fn()));
+}
+
+window.addEventListener('load', () => {
+  appendAll('A-map', A_Zone, A_Arrow, A_Path, A_Fight, A_Loss, A_Wipe);
+  appendAll('A-cta', A_ctaFight, A_ctaDeath, A_ctaWipe);
+
+  appendAll('B-map', B_Zone, B_Arrow, B_Path, B_Fight, B_Loss, B_Wipe);
+  appendAll('B-cta', B_ctaFight, B_ctaDeath, B_ctaWipe);
+
+  appendAll('C-map', C_Zone, C_Arrow, C_Path, C_Fight, C_Loss, C_Wipe);
+  appendAll('C-cta', C_ctaFight, C_ctaDeath, C_ctaWipe);
+
+  appendAll('D-map', D_Zone, D_Arrow, D_Path, D_Fight, D_Loss, D_Wipe);
+  appendAll('D-cta', D_ctaFight, D_ctaDeath, D_ctaWipe);
+});
+</script>
+</body>
+</html>

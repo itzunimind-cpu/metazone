@@ -1,5 +1,5 @@
 # METAZONE — Project Handoff & Continuity Document
-**Version:** v32 — Session 32. editor.html: all 5 high-priority bugs fixed (E1 manualSave, E2 pin/matchEnd race, E9 match_players delete, V1+E5 winner wipe, X1 mzCtxWrite).
+**Version:** v34 — Session 34. editor.html: full marker system rework — new parchment-palette canvas drawing functions for zone, rotation, movement, fight, loss, wipe, and death pins. Wipe/death CTA pins now render on canvas.
 **Purpose:** Single source of truth across all chat sessions. Read this first in every new chat.
 
 ---
@@ -21,7 +21,7 @@
 | File | Version | Last changed | Notes |
 |------|---------|--------------|-------|
 | index.html | v9.5 | Session 26 | All sidebar + grid bugs fixed. Skeleton loader added. Card reveal animation. |
-| editor.html | v6.5 | Session 32 | All 5 high-priority bugs fixed — E1, E2, E9, V1+E5, X1 |
+| editor.html | v6.7 | Session 34 | Full marker system rework — parchment palette, new diamond pin shapes, wipe/death CTA pins rendered on canvas |
 | tournament-create.html | v4.1 | Session 25 | VOD REVIEW nav link added |
 | tournament-editor.html | v1.4 | Session 25 | VOD REVIEW nav link added |
 | analytics.html | v2.3 | Session 25 | VOD REVIEW nav link added, active link fixed |
@@ -214,7 +214,14 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | `refreshDropdowns()` | Populates all selectors; calls `_flashSelect()` on each that gets a non-empty value |
 | `_flashSelect(el)` | Brief opacity fade-in on a `<select>` after populate — resets animation via reflow trick |
 | `renderTeamList()` | Redraws sidebar team list; stagger-animates rows (`.animate-in`) only when container was empty |
-| `draw()` | Main canvas render loop |
+| `draw()` | Main canvas render loop — also renders wipe pins (teams.wipe_x/y) and death pins (match_players.death_x/y) |
+| `drawZoneCircle(s, isPreview)` | Forest stroke-only zone ring — no fill, no label. Color hardcoded to `rgba(44,74,46,op)`. |
+| `drawArrow(x1,y1,x2,y2,stroke,lw)` | Solid line + hollow V-path arrowhead (`lineCap:'round'`). Used for rotation shapes. |
+| `drawPath(points,stroke,lw,isPreview)` | Solid line + `drawMiniArrow` at each segment midpoint — no endpoint dots, no trailing arrow. |
+| `drawMiniArrow(mx,my,angle,color)` | Zoom-aware filled triangle directional marker. Size `6/zoom`. Used by `drawPath`. |
+| `drawPinMarker(s,isPreview,teamColor,alphaMult)` | Diamond pin marker. Branches on `s.tag`: `'fight'` → orange diamond + white X; `'pin'` → orange diamond + white X + `>X<` inward chevrons (loss marker). Respects `colorMode` for diamond fill. |
+| `drawWipePin(x,y)` | Forest diamond + white circle (top) + white X (bottom) + stem + ground dot. Called from `draw()` for each `team.wipe_x/wipe_y`. |
+| `drawDeathPin(x,y)` | Orange diamond + white X + `>X<` chevrons + stem + ground dot. Called from `draw()` for each `matchPlayers[].death_x/death_y`. |
 | `loadMapKey(key)` | Loads map at correct resolution. **Never add `map-ready` class here** — gated on `_canvasReady` flag so canvas never reveals before `initCanvas()` sizes it |
 | `initCanvas()` | Sizes canvas, sets `_canvasReady=true`. If `mapImg` already loaded (from `_activateMatch` before init) → `resetView()+draw()+map-ready` immediately. Else calls `loadMapKey()`. |
 | `setMapDisplayMode(hasMatch)` | Syncs `#sel-map` value to `state.mapKey` only. Map section is always a `sel-del-row` — no visibility toggling. |
@@ -225,7 +232,9 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | `updateAnnotationLogColors()` | Loops over entries with `data-team-color`, sets/clears icon background to team color. Called by `toggleMultiTrack()` instead of `renderAnnotationLog()` — no DOM rebuild on toggle. |
 | `renderMultiTrackPanel()` | Builds multi-track team checklist with stagger animation; called when multi-track is activated |
 | `toggleMultiTrack()` | Toggles multi-track mode; calls `updateAnnotationLogColors()` (not `renderAnnotationLog`) for smooth icon fade |
-| `renderActiveSquadInline()` | Renders match_players inline below ACTIVE SQUAD button in right panel |
+| `renderActiveSquadInline()` | Renders match_players inline below ACTIVE SQUAD button in right panel. Each row has a hover-reveal `⇄` swap button. |
+| `openSqReplace(rowId)` | Toggles inline replacement picker for a squad row. Fetches tournament roster minus current squad, renders as inline dropdown. `_sqReplaceOpen` tracks the open row id; `_sqReplaceAvail` holds fetched candidates (null = loading). |
+| `doReplacePlayer(oldRowId, newPlayerId)` | UPDATEs `match_players` row in place (`player_id` only) — kills/damage/time_of_loss are preserved for the new player. Reloads `matchPlayers` and re-renders sidebar. |
 | `toggleMetaCollapse()` | Toggles Match Metadata accordion in right panel |
 | `openInVOD()` | Navigates to vod.html with current tournament/day/match as URL params |
 | `applyUrlParams()` | Deep-link + auto-load most recent match |
@@ -385,6 +394,17 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | 32 | **[V1+E5] confirmWipe winner no longer gets time_of_wipe** — Scenarios A and B were incorrectly setting `winner.time_of_wipe = state.time` on the surviving enemy (the match winner). Removed from both JS local state and DB update in both scenarios. Only `confirmed_position:1` is now written for the winner. |
 | 32 | **[E2] markMatchEnd deferred past pin prompt** — all three scenarios (A/B/C) in `confirmWipe` were firing `setTimeout(markMatchEnd, 600)` while the wipe-location pin prompt overlay was still open. Added `_pinPromptOnClose` hook (null by default). `skipPinPrompt()` fires it 300ms after the overlay closes (click or SKIP). Scenarios now set `_pinPromptOnClose = markMatchEnd` when `_pinPromptActive` is true, fall back to the 600ms setTimeout only when no pin prompt was opened (local team path). |
 | 32 | **[X1] mzCtxWrite() called on match activate** — function was defined but never called. Added `mzCtxWrite()` at the end of `_activateMatch()` so tournament/day/match IDs are written to sessionStorage on every match load, enabling deep-link context restore when navigating back to the editor. |
+| 33 | **Active squad never saved to DB** — root cause: `confirmActivePlayers()` called `closeActivePlayersModal()` before capturing `selectedIds`. `closeActivePlayersModal()` resets `_apmSelectedIds = new Set()`, so `selectedIds` was always `[]`. Zero inserts ever ran. Fix: capture `const selectedIds = [..._apmSelectedIds]` before calling `closeActivePlayersModal()`. |
+| 33 | **In-place player swap** — hover any squad row in the right sidebar to reveal a `⇄` icon. Click it → inline dropdown shows all tournament roster players not in the current squad. Selecting one does `UPDATE match_players SET player_id = newId WHERE id = rowId` — kills, damage, and time_of_loss all carry over to the new player. `_sqReplaceOpen` / `_sqReplaceAvail` module vars track picker state; reset in `loadMatchPlayers` on match switch. |
+| 33 | **`loadMatchPlayers` role field missing** — step 2 players lookup selects only `id, name` — `role` is never fetched, so `.sq-player-role` span never renders in the sidebar. Low-priority cosmetic fix: change select to `id, name, role` and update the `matchPlayers` map to store `role`. |
+| 34 | **Zone marker** — `drawZoneCircle` replaced: stroke-only forest ring (`#2C4A2E`), no fill, no label. `tagRgb('zone')` updated to `[44,74,46]`. |
+| 34 | **Rotation marker** — `drawArrow` updated: connected V-path arrowhead (single `beginPath` with two `lineTo` legs), `lineCap:'round'`. |
+| 34 | **Movement path** — `drawPath` replaced: solid line + `drawMiniArrow` filled triangle at each segment midpoint. Endpoint dots and trailing arrow removed. |
+| 34 | **Fight marker** — `drawPinMarker` (tag:'fight'): orange diamond fill + white X strokes. `tagRgb('fight')` updated to `[200,94,10]` (#C85E0A). |
+| 34 | **Loss marker** — `drawPinMarker` (tag:'pin'): orange diamond fill + white X + white `>X<` inward chevrons on all 4 sides. `tagRgb('pin')` updated to `[200,94,10]`. |
+| 34 | **Wipe CTA pin rendered on canvas** — `drawWipePin(x,y)` added. `draw()` now iterates match teams and draws forest diamond + white circle (top) + white X (bottom) + stem for any team with `wipe_x/wipe_y` set. |
+| 34 | **Death CTA pin rendered on canvas** — `drawDeathPin(x,y)` added. `loadMatchPlayers` now fetches `death_x, death_y` and maps them into `matchPlayers`. `draw()` renders orange diamond + `>X<` + stem for each player with `death_x/death_y` set. |
+| 34 | **`drawMiniArrow` helper** — zoom-aware filled triangle (`6/zoom`). Used by `drawPath` at segment midpoints. |
 
 ---
 
@@ -455,8 +475,9 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 ### Planned Features (not bugs)
 | ID | File | Priority | Description |
 |----|------|----------|-------------|
+| E10 | | `editor.html` | `loadMatchPlayers` step 2 | 🟢 | `role` never fetched — `.sq-player-role` tag in sidebar always invisible. Fix: change `.select('id, name')` to `.select('id, name, role')` and update `matchPlayers` map to include `role: nameById[p.player_id]?.role \|\| null` (requires `nameById` to store objects instead of plain strings). |
 | FEAT-1 | `editor.html` | 🟡 | **Self Elim fight-location pin** — SELF LOSS and Wipe both open a pin prompt after confirm; SELF ELIM has no pin. After `confirmSelfElim`, call `openPinPrompt` and push a `{type:'fight', x, y, tag:'fight', time}` shape into `shapesCache[state.activeTeamId]`. |
-| FEAT-2 | `editor.html` | 🟡 | **drawPath upgrade** — animate path point-by-point using `t` values as scrubber moves |
+| FEAT-2 | `editor.html` | 🟡 | **drawPath time-scrub animation** — show path points progressively as scrubber moves (using `t` values). Mini-arrow style is done (Session 34); the point-by-point reveal is still pending. |
 | FEAT-3 | all pages | 🟡 | **Welcome modal** — one-time modal on first visit per session (`sessionStorage mz_welcomed` flag). Agreed Session 20, not built. |
 | FEAT-4 | — | 🟢 | **history.html** — deferred until 2–3 tournaments of real data exist |
 | FEAT-5 | `vod.html` | 🟢 | **Paywall** — deferred |

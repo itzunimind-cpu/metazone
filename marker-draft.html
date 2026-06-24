@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>METAZONE — Marker Draft</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Manrope:wght@400;600&family=Lexend+Deca:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F2EDE4; --panel:#E8E1D5; --card:#EDE7DC;
+  --forest:#2C4A2E; --orange:#C85E0A;
+  --text:#1C1A14; --muted:#6B6048; --border:#C9BFA8;
+}
+*{ box-sizing:border-box; margin:0; padding:0; }
+body{ background:var(--bg); color:var(--text); font-family:'Manrope',sans-serif; }
+
+.header{
+  background:var(--forest); color:#fff;
+  padding:26px 48px; display:flex; align-items:flex-end; justify-content:space-between;
+}
+.title{ font-family:'Oswald',sans-serif; font-size:20px; letter-spacing:.08em; text-transform:uppercase; }
+.sub{ font-family:'Lexend Deca',monospace; font-size:9px; letter-spacing:.14em; text-transform:uppercase; color:rgba(255,255,255,.45); margin-top:5px; }
+.note{ font-family:'Lexend Deca',monospace; font-size:8.5px; letter-spacing:.06em; color:rgba(255,255,255,.38); text-align:right; line-height:1.8; }
+
+.content{ padding:44px 48px; display:flex; flex-direction:column; gap:36px; }
+
+.section-wrap{
+  background:var(--panel); border:1px solid var(--border); border-radius:8px; overflow:hidden;
+}
+.section-head{
+  background:var(--card); border-bottom:1px solid var(--border);
+  padding:14px 24px; display:flex; align-items:center; gap:10px;
+}
+.section-label{
+  font-family:'Lexend Deca',monospace; font-size:9px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted);
+}
+.section-label strong{ color:var(--text); }
+.section-body{ padding:26px 24px; }
+.marker-row{ display:flex; gap:16px; flex-wrap:wrap; }
+.marker-cell{ display:flex; flex-direction:column; align-items:center; gap:8px; }
+canvas{ border-radius:6px; display:block; box-shadow:0 1px 4px rgba(0,0,0,.2), inset 0 0 0 1px rgba(0,0,0,.1); }
+.mlabel{
+  font-family:'Lexend Deca',monospace; font-size:7.5px; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--muted); text-align:center;
+}
+
+.divider{
+  border:none; border-left:1px solid var(--border); height:auto; align-self:stretch; margin:0 8px;
+}
+
+/* side-by-side layout */
+.both-cols{ display:flex; gap:0; }
+.col-map{ flex:1; padding:26px 24px; }
+.col-cta{ border-left:1px solid var(--border); padding:26px 24px; }
+.col-title{
+  font-family:'Lexend Deca',monospace; font-size:8px; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--muted); margin-bottom:16px; display:flex; align-items:center; gap:8px;
+}
+.col-title::after{ content:''; flex:1; height:1px; background:var(--border); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="title">Marker Draft — Hybrid System</div>
+    <div class="sub">Your direction — open for final adjustments before implementation</div>
+  </div>
+  <div class="note">
+    orange → self events &nbsp;·&nbsp; forest → zones / wipes<br>
+    team blue → enemy rotations / paths
+  </div>
+</div>
+
+<div class="content">
+  <div class="section-wrap">
+    <div class="section-head">
+      <div class="section-label">
+        <strong>All markers</strong> — map markers left &nbsp;·&nbsp; CTA drop pins right
+      </div>
+    </div>
+    <div class="both-cols">
+      <div class="col-map">
+        <div class="col-title">Map Markers</div>
+        <div class="marker-row" id="map-row"></div>
+      </div>
+      <div class="col-cta">
+        <div class="col-title">CTA Drop Pins</div>
+        <div class="marker-row" id="cta-row"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Larger preview on dark map bg -->
+  <div class="section-wrap">
+    <div class="section-head">
+      <div class="section-label"><strong>Scale preview</strong> — all markers together on a single map canvas</div>
+    </div>
+    <div style="padding:24px;">
+      <canvas id="preview-canvas" width="760" height="320" style="border-radius:8px;display:block;width:100%;box-shadow:0 2px 8px rgba(0,0,0,.25);"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── COLOURS ──────────────────────────────────────────────────
+const F = '#2C4A2E';
+const O = '#C85E0A';
+const M = '#6B6048';
+const T = '#3A6B9A';
+const P = '#F2EDE4';
+
+function rgba(hex, a) {
+  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+// ─── MAP BACKGROUND ───────────────────────────────────────────
+function mapBg(ctx, w, h) {
+  const g = ctx.createRadialGradient(w/2,h/2,0, w/2,h/2,w*.75);
+  g.addColorStop(0,'#484038'); g.addColorStop(1,'#2D2A26');
+  ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+  ctx.strokeStyle='rgba(255,255,255,0.05)'; ctx.lineWidth=0.5; ctx.setLineDash([]);
+  for(let x=0;x<=w;x+=18){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+  for(let y=0;y<=h;y+=18){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+}
+
+// ─── HELPERS ──────────────────────────────────────────────────
+function cell(canvas, label) {
+  const d=document.createElement('div'); d.className='marker-cell';
+  d.appendChild(canvas);
+  const l=document.createElement('div'); l.className='mlabel'; l.textContent=label;
+  d.appendChild(l); return d;
+}
+function mk(w,h){ const c=document.createElement('canvas'); c.width=w; c.height=h; return c; }
+
+// Small directional chevron on a path at a midpoint
+function drawMiniArrow(ctx, mx, my, angle, color) {
+  const s=6;
+  ctx.save();
+  ctx.translate(mx,my); ctx.rotate(angle);
+  ctx.beginPath();
+  ctx.moveTo(s,0);
+  ctx.lineTo(-s*0.6,-s*0.55);
+  ctx.lineTo(-s*0.6, s*0.55);
+  ctx.closePath();
+  ctx.fillStyle=color; ctx.fill();
+  ctx.restore();
+}
+
+// Open hollow arrowhead
+function openArrow(ctx, x2, y2, angle, size, color, lw) {
+  ctx.beginPath();
+  ctx.moveTo(x2-size*Math.cos(angle-0.45), y2-size*Math.sin(angle-0.45));
+  ctx.lineTo(x2,y2);
+  ctx.lineTo(x2-size*Math.cos(angle+0.45), y2-size*Math.sin(angle+0.45));
+  ctx.strokeStyle=color; ctx.lineWidth=lw; ctx.stroke();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MAP MARKERS
+// ═══════════════════════════════════════════════════════════════
+
+// 1. ZONE — solid circle, stroke only, no fill, no label
+function draw_Zone() {
+  const cv=mk(90,90); const c=cv.getContext('2d');
+  mapBg(c,90,90);
+  c.beginPath(); c.arc(45,45,28,0,Math.PI*2);
+  c.strokeStyle=F; c.lineWidth=2; c.setLineDash([]); c.stroke();
+  return cell(cv,'Zone');
+}
+
+// 2. ROTATION — solid line + hollow arrowhead (C-style, no dots)
+function draw_Rotation() {
+  const cv=mk(90,90); const c=cv.getContext('2d');
+  mapBg(c,90,90);
+  const x1=16,y1=66,x2=72,y2=22;
+  c.beginPath(); c.moveTo(x1,y1); c.lineTo(x2,y2);
+  c.strokeStyle=T; c.lineWidth=2; c.setLineDash([]); c.lineCap='round'; c.stroke();
+  const angle=Math.atan2(y2-y1,x2-x1);
+  openArrow(c,x2,y2,angle,11,T,2);
+  return cell(cv,'Rotation');
+}
+
+// 3. MOVEMENT — solid line path, small direction arrows, no dots
+function draw_Movement() {
+  const cv=mk(90,90); const c=cv.getContext('2d');
+  mapBg(c,90,90);
+  const pts=[[14,72],[30,54],[50,38],[72,22]];
+  // Solid line
+  c.beginPath(); c.moveTo(pts[0][0],pts[0][1]);
+  pts.slice(1).forEach(([x,y])=>c.lineTo(x,y));
+  c.strokeStyle=O; c.lineWidth=1.8; c.setLineDash([]); c.lineCap='round'; c.lineJoin='round'; c.stroke();
+  // Mini directional arrows at each segment midpoint
+  for(let i=0;i<pts.length-1;i++){
+    const mx=(pts[i][0]+pts[i+1][0])/2;
+    const my=(pts[i][1]+pts[i+1][1])/2;
+    const angle=Math.atan2(pts[i+1][1]-pts[i][1], pts[i+1][0]-pts[i][0]);
+    drawMiniArrow(c,mx,my,angle,O);
+  }
+  return cell(cv,'Movement');
+}
+
+// 4. FIGHT — D diamond with X
+function draw_Fight() {
+  const cv=mk(90,90); const c=cv.getContext('2d');
+  mapBg(c,90,90);
+  const cx=45,cy=45,r=18;
+  c.beginPath();
+  c.moveTo(cx,cy-r); c.lineTo(cx+r,cy); c.lineTo(cx,cy+r); c.lineTo(cx-r,cy);
+  c.closePath(); c.fillStyle=rgba(O,.68); c.fill();
+  const d=9;
+  c.beginPath(); c.moveTo(cx-d,cy-d); c.lineTo(cx+d,cy+d); c.moveTo(cx+d,cy-d); c.lineTo(cx-d,cy+d);
+  c.strokeStyle=rgba(P,.92); c.lineWidth=2.2; c.lineCap='round'; c.stroke();
+  return cell(cv,'Fight');
+}
+
+// 5. LOSS — diamond + >X< (X with inward chevrons from all 4 sides)
+function draw_Loss() {
+  const cv=mk(90,90); const c=cv.getContext('2d');
+  mapBg(c,90,90);
+  const cx=45,cy=45,r=18;
+  // Diamond
+  c.beginPath();
+  c.moveTo(cx,cy-r); c.lineTo(cx+r,cy); c.lineTo(cx,cy+r); c.lineTo(cx-r,cy);
+  c.closePath(); c.fillStyle=rgba(O,.68); c.fill();
+  // X
+  const d=7;
+  c.beginPath(); c.moveTo(cx-d,cy-d); c.lineTo(cx+d,cy+d); c.moveTo(cx+d,cy-d); c.lineTo(cx-d,cy+d);
+  c.strokeStyle='rgba(255,255,255,0.9)'; c.lineWidth=2.2; c.lineCap='round'; c.stroke();
+  // Inward chevrons — > left, < right, ∧ top, ∨ bottom
+  const od=12, os=4;
+  c.lineWidth=1.8; c.lineJoin='round'; c.lineCap='round';
+  c.beginPath(); c.moveTo(cx-od,cy-os); c.lineTo(cx-od+os,cy); c.lineTo(cx-od,cy+os); c.stroke(); // >
+  c.beginPath(); c.moveTo(cx+od,cy-os); c.lineTo(cx+od-os,cy); c.lineTo(cx+od,cy+os); c.stroke(); // <
+  c.beginPath(); c.moveTo(cx-os,cy-od); c.lineTo(cx,cy-od+os); c.lineTo(cx+os,cy-od); c.stroke(); // ∧
+  c.beginPath(); c.moveTo(cx-os,cy+od); c.lineTo(cx,cy+od-os); c.lineTo(cx+os,cy+od); c.stroke(); // ∨
+  return cell(cv,'Loss');
+}
+
+// 6. WIPE — diamond (forest) + small circle (top) + X (below)
+function draw_Wipe() {
+  const cv=mk(90,90); const c=cv.getContext('2d');
+  mapBg(c,90,90);
+  const cx=45,cy=45,r=18;
+  // Diamond
+  c.beginPath();
+  c.moveTo(cx,cy-r); c.lineTo(cx+r,cy); c.lineTo(cx,cy+r); c.lineTo(cx-r,cy);
+  c.closePath(); c.fillStyle=rgba(F,.68); c.fill();
+  // Circle (top half — pushed up)
+  c.beginPath(); c.arc(cx,cy-7,4,0,Math.PI*2);
+  c.strokeStyle='rgba(255,255,255,0.9)'; c.lineWidth=2; c.stroke();
+  // X (bottom half — pushed down, gap from circle)
+  const d=5;
+  c.beginPath(); c.moveTo(cx-d,cy+5-d*.7); c.lineTo(cx+d,cy+5+d*.7); c.moveTo(cx+d,cy+5-d*.7); c.lineTo(cx-d,cy+5+d*.7);
+  c.strokeStyle='rgba(255,255,255,0.9)'; c.lineWidth=2; c.lineCap='round'; c.stroke();
+  return cell(cv,'Wipe');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CTA DROP PINS
+// ═══════════════════════════════════════════════════════════════
+
+// 7. FIGHT PIN — D diamond + stick
+function draw_ctaFight() {
+  const cv=mk(90,110); const c=cv.getContext('2d');
+  mapBg(c,90,110);
+  const cx=45,cy=36,r=20;
+  c.beginPath();
+  c.moveTo(cx,cy-r); c.lineTo(cx+r,cy); c.lineTo(cx,cy+r); c.lineTo(cx-r,cy);
+  c.closePath(); c.fillStyle=rgba(O,.72); c.fill();
+  const d=11;
+  c.beginPath(); c.moveTo(cx-d,cy-d); c.lineTo(cx+d,cy+d); c.moveTo(cx+d,cy-d); c.lineTo(cx-d,cy+d);
+  c.strokeStyle=rgba(P,.92); c.lineWidth=2.5; c.lineCap='round'; c.stroke();
+  // Stem
+  c.fillStyle=rgba(O,.6); c.fillRect(cx-1.5,cy+r,3,28);
+  c.beginPath(); c.arc(cx,cy+r+28,4,0,Math.PI*2); c.fillStyle=rgba(O,.45); c.fill();
+  return cell(cv,'Fight Pin');
+}
+
+// 8. DEATH PIN — diamond + >X< + stem (matches Loss marker)
+function draw_ctaDeath() {
+  const cv=mk(90,110); const c=cv.getContext('2d');
+  mapBg(c,90,110);
+  const cx=45,cy=35,r=18;
+  // Diamond
+  c.beginPath();
+  c.moveTo(cx,cy-r); c.lineTo(cx+r,cy); c.lineTo(cx,cy+r); c.lineTo(cx-r,cy);
+  c.closePath(); c.fillStyle=rgba(O,.7); c.fill();
+  // X
+  const d=7;
+  c.beginPath(); c.moveTo(cx-d,cy-d); c.lineTo(cx+d,cy+d); c.moveTo(cx+d,cy-d); c.lineTo(cx-d,cy+d);
+  c.strokeStyle='rgba(255,255,255,0.9)'; c.lineWidth=2.2; c.lineCap='round'; c.stroke();
+  // Inward chevrons
+  const od=12, os=4;
+  c.lineWidth=1.8; c.lineJoin='round'; c.lineCap='round';
+  c.beginPath(); c.moveTo(cx-od,cy-os); c.lineTo(cx-od+os,cy); c.lineTo(cx-od,cy+os); c.stroke();
+  c.beginPath(); c.moveTo(cx+od,cy-os); c.lineTo(cx+od-os,cy); c.lineTo(cx+od,cy+os); c.stroke();
+  c.beginPath(); c.moveTo(cx-os,cy-od); c.lineTo(cx,cy-od+os); c.lineTo(cx+os,cy-od); c.stroke();
+  c.beginPath(); c.moveTo(cx-os,cy+od); c.lineTo(cx,cy+od-os); c.lineTo(cx+os,cy+od); c.stroke();
+  // Stem
+  c.fillStyle=rgba(O,.6); c.fillRect(cx-1.5,cy+r,3,28);
+  c.beginPath(); c.arc(cx,cy+r+28,4,0,Math.PI*2); c.fillStyle=rgba(O,.45); c.fill();
+  return cell(cv,'Death Pin');
+}
+
+// 9. WIPE PIN — diamond (forest) + circle+X + stem (matches Wipe marker)
+function draw_ctaWipe() {
+  const cv=mk(90,110); const c=cv.getContext('2d');
+  mapBg(c,90,110);
+  const cx=45,cy=35,r=18;
+  // Diamond
+  c.beginPath();
+  c.moveTo(cx,cy-r); c.lineTo(cx+r,cy); c.lineTo(cx,cy+r); c.lineTo(cx-r,cy);
+  c.closePath(); c.fillStyle=rgba(F,.7); c.fill();
+  // Circle (top half — pushed up)
+  c.beginPath(); c.arc(cx,cy-7,4,0,Math.PI*2);
+  c.strokeStyle='rgba(255,255,255,0.9)'; c.lineWidth=2; c.stroke();
+  // X (bottom half — pushed down, gap from circle)
+  const d=5;
+  c.beginPath(); c.moveTo(cx-d,cy+5-d*.7); c.lineTo(cx+d,cy+5+d*.7); c.moveTo(cx+d,cy+5-d*.7); c.lineTo(cx-d,cy+5+d*.7);
+  c.strokeStyle='rgba(255,255,255,0.9)'; c.lineWidth=2; c.lineCap='round'; c.stroke();
+  // Stem
+  c.fillStyle=rgba(F,.65); c.fillRect(cx-1.5,cy+r,3,28);
+  c.beginPath(); c.arc(cx,cy+r+28,4,0,Math.PI*2); c.fillStyle=rgba(F,.45); c.fill();
+  return cell(cv,'Wipe Pin');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PREVIEW CANVAS — all together on one map
+// ═══════════════════════════════════════════════════════════════
+function drawPreview() {
+  const cv = document.getElementById('preview-canvas');
+  const c = cv.getContext('2d');
+  const W=760, H=320;
+
+  // Map background
+  c.fillStyle='#3A3630'; c.fillRect(0,0,W,H);
+  c.strokeStyle='rgba(255,255,255,0.05)'; c.lineWidth=0.5; c.setLineDash([]);
+  for(let x=0;x<=W;x+=24){ c.beginPath(); c.moveTo(x,0); c.lineTo(x,H); c.stroke(); }
+  for(let y=0;y<=H;y+=24){ c.beginPath(); c.moveTo(0,y); c.lineTo(W,y); c.stroke(); }
+
+  // ── Zone circles ──────────────────────────────────────────
+  [[120,140,60],[420,80,44],[600,200,52]].forEach(([cx,cy,r],i)=>{
+    c.beginPath(); c.arc(cx,cy,r,0,Math.PI*2);
+    c.strokeStyle=F; c.lineWidth=2; c.setLineDash([]); c.stroke();
+    // Phase label outside top
+    c.fillStyle=rgba(F,.7); c.font='500 9px "Lexend Deca",monospace';
+    c.textAlign='center'; c.textBaseline='bottom'; c.fillText(`Z${i+1}`,cx,cy-r-4);
+  });
+
+  // ── Rotation lines ────────────────────────────────────────
+  const rotations=[[60,260,200,120],[340,200,480,80],[580,260,700,160]];
+  rotations.forEach(([x1,y1,x2,y2])=>{
+    c.beginPath(); c.moveTo(x1,y1); c.lineTo(x2,y2);
+    c.strokeStyle=T; c.lineWidth=2; c.setLineDash([]); c.lineCap='round'; c.stroke();
+    const angle=Math.atan2(y2-y1,x2-x1);
+    // Hollow arrowhead
+    c.beginPath();
+    c.moveTo(x2-12*Math.cos(angle-0.45),y2-12*Math.sin(angle-0.45));
+    c.lineTo(x2,y2);
+    c.lineTo(x2-12*Math.cos(angle+0.45),y2-12*Math.sin(angle+0.45));
+    c.strokeStyle=T; c.lineWidth=2; c.stroke();
+  });
+
+  // ── Movement path ─────────────────────────────────────────
+  const path=[[90,290],[140,240],[200,200],[260,170],[310,150]];
+  c.beginPath(); c.moveTo(path[0][0],path[0][1]);
+  path.slice(1).forEach(([x,y])=>c.lineTo(x,y));
+  c.strokeStyle=O; c.lineWidth=2; c.setLineDash([]); c.lineCap='round'; c.lineJoin='round'; c.stroke();
+  for(let i=0;i<path.length-1;i++){
+    const mx=(path[i][0]+path[i+1][0])/2, my=(path[i][1]+path[i+1][1])/2;
+    const angle=Math.atan2(path[i+1][1]-path[i][1],path[i+1][0]-path[i][0]);
+    drawMiniArrow(c,mx,my,angle,O);
+  }
+
+  // ── Wipe map markers (diamond + circle + X, forest) ──────
+  [[540,80],[680,120]].forEach(([cx,cy])=>{
+    const r=13;
+    c.beginPath(); c.moveTo(cx,cy-r); c.lineTo(cx+r,cy); c.lineTo(cx,cy+r); c.lineTo(cx-r,cy); c.closePath();
+    c.fillStyle=rgba(F,.68); c.fill();
+    c.beginPath(); c.arc(cx,cy-5,3.5,0,Math.PI*2);
+    c.strokeStyle=rgba(P,.9); c.lineWidth=1.8; c.stroke();
+    const d=4;
+    c.beginPath(); c.moveTo(cx-d,cy+4-d*.7); c.lineTo(cx+d,cy+4+d*.7); c.moveTo(cx+d,cy+4-d*.7); c.lineTo(cx-d,cy+4+d*.7);
+    c.strokeStyle=rgba(P,.9); c.lineWidth=1.8; c.lineCap='round'; c.stroke();
+  });
+
+  // ── Fight markers (diamond + X, orange) ──────────────────
+  [[350,180],[490,130]].forEach(([cx,cy])=>{
+    const r=14;
+    c.beginPath(); c.moveTo(cx,cy-r); c.lineTo(cx+r,cy); c.lineTo(cx,cy+r); c.lineTo(cx-r,cy); c.closePath();
+    c.fillStyle=rgba(O,.7); c.fill();
+    const d=8;
+    c.beginPath(); c.moveTo(cx-d,cy-d); c.lineTo(cx+d,cy+d); c.moveTo(cx+d,cy-d); c.lineTo(cx-d,cy+d);
+    c.strokeStyle=rgba(P,.9); c.lineWidth=2; c.lineCap='round'; c.stroke();
+  });
+
+  // ── Loss markers (diamond + >X<, orange) ─────────────────
+  [[220,130],[460,220]].forEach(([cx,cy])=>{
+    const r=13;
+    c.beginPath(); c.moveTo(cx,cy-r); c.lineTo(cx+r,cy); c.lineTo(cx,cy+r); c.lineTo(cx-r,cy); c.closePath();
+    c.fillStyle=rgba(O,.7); c.fill();
+    const d=6;
+    c.beginPath(); c.moveTo(cx-d,cy-d); c.lineTo(cx+d,cy+d); c.moveTo(cx+d,cy-d); c.lineTo(cx-d,cy+d);
+    c.strokeStyle=rgba(P,.9); c.lineWidth=2; c.lineCap='round'; c.stroke();
+    const od=10,os=3;
+    c.lineWidth=1.5; c.lineJoin='round'; c.lineCap='round';
+    c.beginPath(); c.moveTo(cx-od,cy-os); c.lineTo(cx-od+os,cy); c.lineTo(cx-od,cy+os); c.stroke();
+    c.beginPath(); c.moveTo(cx+od,cy-os); c.lineTo(cx+od-os,cy); c.lineTo(cx+od,cy+os); c.stroke();
+    c.beginPath(); c.moveTo(cx-os,cy-od); c.lineTo(cx,cy-od+os); c.lineTo(cx+os,cy-od); c.stroke();
+    c.beginPath(); c.moveTo(cx-os,cy+od); c.lineTo(cx,cy+od-os); c.lineTo(cx+os,cy+od); c.stroke();
+  });
+
+  // ── CTA drop pins ─────────────────────────────────────────
+  // Fight pin
+  const [fpx,fpy]=[640,260];
+  const fpr=16;
+  c.beginPath(); c.moveTo(fpx,fpy-fpr); c.lineTo(fpx+fpr,fpy); c.lineTo(fpx,fpy+fpr); c.lineTo(fpx-fpr,fpy); c.closePath();
+  c.fillStyle=rgba(O,.72); c.fill();
+  const d=9;
+  c.beginPath(); c.moveTo(fpx-d,fpy-d); c.lineTo(fpx+d,fpy+d); c.moveTo(fpx+d,fpy-d); c.lineTo(fpx-d,fpy+d);
+  c.strokeStyle=rgba(P,.9); c.lineWidth=2.2; c.lineCap='round'; c.stroke();
+  c.fillStyle=rgba(O,.6); c.fillRect(fpx-1.5,fpy+fpr,3,22);
+  c.beginPath(); c.arc(fpx,fpy+fpr+22,3.5,0,Math.PI*2); c.fillStyle=rgba(O,.45); c.fill();
+
+  // Death pin — diamond >X< + stem
+  const [dpx,dpy]=[700,225];
+  const dpr=14;
+  c.beginPath(); c.moveTo(dpx,dpy-dpr); c.lineTo(dpx+dpr,dpy); c.lineTo(dpx,dpy+dpr); c.lineTo(dpx-dpr,dpy); c.closePath();
+  c.fillStyle=rgba(O,.72); c.fill();
+  const dXd=6;
+  c.beginPath(); c.moveTo(dpx-dXd,dpy-dXd); c.lineTo(dpx+dXd,dpy+dXd); c.moveTo(dpx+dXd,dpy-dXd); c.lineTo(dpx-dXd,dpy+dXd);
+  c.strokeStyle=rgba(P,.9); c.lineWidth=1.8; c.lineCap='round'; c.stroke();
+  const dod=9,dos=3;
+  c.lineWidth=1.5; c.lineJoin='round'; c.lineCap='round';
+  c.beginPath(); c.moveTo(dpx-dod,dpy-dos); c.lineTo(dpx-dod+dos,dpy); c.lineTo(dpx-dod,dpy+dos); c.stroke();
+  c.beginPath(); c.moveTo(dpx+dod,dpy-dos); c.lineTo(dpx+dod-dos,dpy); c.lineTo(dpx+dod,dpy+dos); c.stroke();
+  c.beginPath(); c.moveTo(dpx-dos,dpy-dod); c.lineTo(dpx,dpy-dod+dos); c.lineTo(dpx+dos,dpy-dod); c.stroke();
+  c.beginPath(); c.moveTo(dpx-dos,dpy+dod); c.lineTo(dpx,dpy+dod-dos); c.lineTo(dpx+dos,dpy+dod); c.stroke();
+  c.fillStyle=rgba(O,.55); c.fillRect(dpx-1.5,dpy+dpr,3,20);
+  c.beginPath(); c.arc(dpx,dpy+dpr+20,3,0,Math.PI*2); c.fillStyle=rgba(O,.4); c.fill();
+
+  // Wipe pin — diamond circle+X + stem (forest)
+  const [wpx,wpy]=[740,205];
+  const wpr=14;
+  c.beginPath(); c.moveTo(wpx,wpy-wpr); c.lineTo(wpx+wpr,wpy); c.lineTo(wpx,wpy+wpr); c.lineTo(wpx-wpr,wpy); c.closePath();
+  c.fillStyle=rgba(F,.72); c.fill();
+  c.beginPath(); c.arc(wpx,wpy-6,3.5,0,Math.PI*2); c.strokeStyle=rgba(P,.9); c.lineWidth=1.8; c.stroke();
+  const wXd=4;
+  c.beginPath(); c.moveTo(wpx-wXd,wpy+4-wXd*.7); c.lineTo(wpx+wXd,wpy+4+wXd*.7); c.moveTo(wpx+wXd,wpy+4-wXd*.7); c.lineTo(wpx-wXd,wpy+4+wXd*.7);
+  c.strokeStyle=rgba(P,.9); c.lineWidth=1.8; c.lineCap='round'; c.stroke();
+  c.fillStyle=rgba(F,.6); c.fillRect(wpx-1.5,wpy+wpr,3,20);
+  c.beginPath(); c.arc(wpx,wpy+wpr+20,3,0,Math.PI*2); c.fillStyle=rgba(F,.4); c.fill();
+
+  c.textAlign='left'; c.textBaseline='alphabetic';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+window.addEventListener('load',()=>{
+  const mapRow = document.getElementById('map-row');
+  const ctaRow = document.getElementById('cta-row');
+
+  [draw_Zone, draw_Rotation, draw_Movement, draw_Fight, draw_Loss, draw_Wipe].forEach(fn=>{
+    mapRow.appendChild(fn());
+  });
+  [draw_ctaFight, draw_ctaDeath, draw_ctaWipe].forEach(fn=>{
+    ctaRow.appendChild(fn());
+  });
+
+  drawPreview();
+});
+</script>
+</body>
+</html>
