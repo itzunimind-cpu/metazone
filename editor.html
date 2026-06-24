@@ -319,7 +319,7 @@ input[type="range"]{ flex:1;accent-color:var(--accent);height:3px;cursor:pointer
   display:flex;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:3px;
 }
 .btn-editmode{
-  padding:5px 12px;font-family:var(--font-mono);font-size:10px;font-weight:500;
+  padding:5px 8px;font-family:var(--font-mono);font-size:10px;font-weight:500;
   letter-spacing:.06em;border:none;border-radius:4px;cursor:pointer;transition:all .15s;
   text-transform:uppercase;display:flex;align-items:center;gap:5px;
 }
@@ -351,6 +351,14 @@ input[type="range"]{ flex:1;accent-color:var(--accent);height:3px;cursor:pointer
 .btn-save.idle::after{ content:'SAVE'; }
 .btn-save.saving::after{ content:'SAVING...'; }
 .btn-save.saved::after{ content:'✓ SAVED'; }
+
+.btn-clear-map{
+  padding:7px 12px;border-radius:6px;font-family:var(--font-display);
+  font-size:11px;font-weight:700;cursor:pointer;transition:all .2s;border:1px solid;
+  display:flex;align-items:center;gap:5px;
+  background:rgba(155,28,17,.08);color:var(--red);border-color:rgba(155,28,17,.35);
+}
+.btn-clear-map:hover{ background:rgba(155,28,17,.18); }
 
 /* ── Toolbar draw mode buttons ── */
 .toolbar-draw{ display:flex;gap:3px; }
@@ -1300,12 +1308,12 @@ canvas.path-mode{ cursor:cell; }
     <div id="editor-toolbar">
       <div class="toolbar-left">
         <div class="mode-toggle">
-          <button class="btn-editmode active" id="btn-edit-mode" onclick="toggleAnnotationMode(true)"><iconify-icon icon="lucide:pen-line"></iconify-icon>ANNOTATE</button>
-          <button class="btn-editmode" id="btn-preview-mode" onclick="toggleAnnotationMode(false)"><iconify-icon icon="lucide:eye"></iconify-icon>PREVIEW</button>
+          <button class="btn-editmode active" id="btn-edit-mode" onclick="toggleAnnotationMode(true)" title="Annotate"><iconify-icon icon="lucide:pen-line"></iconify-icon></button>
+          <button class="btn-editmode" id="btn-preview-mode" onclick="toggleAnnotationMode(false)" title="Preview"><iconify-icon icon="lucide:eye"></iconify-icon></button>
         </div>
         <div class="toolbar-divider"></div>
         <button class="btn-tool" id="btn-undo" onclick="undo()" title="Undo (Ctrl+Z)"><iconify-icon icon="lucide:undo-2"></iconify-icon></button>
-        <button class="btn-tool" id="btn-redo" onclick="redo()" title="Redo" style="opacity:.4;cursor:not-allowed"><iconify-icon icon="lucide:redo-2"></iconify-icon></button>
+        <button class="btn-tool" id="btn-redo" onclick="redo()" title="Redo" style="opacity:.4;cursor:not-allowed" disabled><iconify-icon icon="lucide:redo-2"></iconify-icon></button>
         <div class="toolbar-divider"></div>
         <div class="toolbar-draw">
           <button class="btn-mode active" data-mode="zone"     onclick="setMode('zone')"><iconify-icon icon="lucide:circle"></iconify-icon>ZONE</button>
@@ -1322,6 +1330,7 @@ canvas.path-mode{ cursor:cell; }
       </div>
       <div class="toolbar-right">
         <button class="btn-save idle" id="btn-save" onclick="manualSave()"><iconify-icon icon="lucide:save" style="font-size:14px;pointer-events:none"></iconify-icon></button>
+        <button class="btn-clear-map" onclick="clearMap()" title="Clear all shapes, zones, and events for this match"><iconify-icon icon="lucide:trash-2" style="font-size:13px;pointer-events:none"></iconify-icon>CLEAR MAP</button>
       </div>
     </div>
 
@@ -2535,7 +2544,7 @@ function onPointerDown(e) {
   if(!isAnnotationMode) return;
   const shapes=getActiveShapes();
   if(!shapes){ toast('SELECT A MATCH FIRST','warn'); return; }
-  if(state.mode==='erase'){ if(shapes.length){ shapes.pop(); draw(); } return; }
+  if(state.mode==='erase'){ eraseAtPosition(wx, wy); return; }
   if(state.mode==='pin'||state.mode==='fight'){
     pendingPin={wx,wy}; showPinPopup(screenX,screenY,state.mode==='fight'); return;
   }
@@ -3847,7 +3856,7 @@ async function undo() {
   if(!redoStack[state.activeTeamId]) redoStack[state.activeTeamId]=[];
   redoStack[state.activeTeamId].push(removed);
   if(sb&&removed?.id&&!String(removed.id).startsWith('local_')) await sb.from('shapes').delete().eq('id',removed.id);
-  draw(); renderTimelineTicks();
+  draw(); renderTimelineTicks(); updateRedoBtn();
 }
 
 function redo() {
@@ -3857,7 +3866,66 @@ function redo() {
   const shape=stack.pop();
   const shapes=getActiveShapes(); if(!shapes) return;
   shape.id='local_'+Date.now(); // needs re-save
-  shapes.push(shape); queueForSave(shape); draw(); renderTimelineTicks();
+  shapes.push(shape); queueForSave(shape); draw(); renderTimelineTicks(); updateRedoBtn();
+}
+
+function updateRedoBtn() {
+  const btn=document.getElementById('btn-redo');
+  if(!btn) return;
+  const has=(redoStack[state.activeTeamId]||[]).length>0;
+  btn.disabled=!has;
+  btn.style.opacity=has?'1':'.4';
+  btn.style.cursor=has?'pointer':'not-allowed';
+}
+
+function eraseAtPosition(wx, wy) {
+  const shapes=getActiveShapes();
+  if(shapes) {
+    // pins and fight markers
+    for(let i=shapes.length-1;i>=0;i--){
+      const s=shapes[i]; if(s.time>state.time) continue;
+      if(s.type==='pin'||s.type==='fight'){
+        if(Math.sqrt((s.x-wx)**2+(s.y-wy)**2)<12/zoom){
+          const [rm]=shapes.splice(i,1);
+          if(sb&&rm.id&&!String(rm.id).startsWith('local_')) sb.from('shapes').delete().eq('id',rm.id);
+          draw(); renderTimelineTicks(); return;
+        }
+      }
+    }
+    // paths and lines
+    for(let i=shapes.length-1;i>=0;i--){
+      const s=shapes[i]; if(s.time>state.time) continue;
+      if(s.type==='path'&&s.points){
+        for(const pt of s.points){
+          if(Math.sqrt((pt.x-wx)**2+(pt.y-wy)**2)<10/zoom){
+            const [rm]=shapes.splice(i,1);
+            if(sb&&rm.id&&!String(rm.id).startsWith('local_')) sb.from('shapes').delete().eq('id',rm.id);
+            draw(); renderTimelineTicks(); return;
+          }
+        }
+      }
+      if(s.type==='line'){
+        const mx=(s.x1+s.x2)/2, my=(s.y1+s.y2)/2;
+        if(Math.sqrt((s.x1-wx)**2+(s.y1-wy)**2)<10/zoom||
+           Math.sqrt((s.x2-wx)**2+(s.y2-wy)**2)<10/zoom||
+           Math.sqrt((mx-wx)**2+(my-wy)**2)<10/zoom){
+          const [rm]=shapes.splice(i,1);
+          if(sb&&rm.id&&!String(rm.id).startsWith('local_')) sb.from('shapes').delete().eq('id',rm.id);
+          draw(); renderTimelineTicks(); return;
+        }
+      }
+    }
+  }
+  // zones (match-level)
+  const zones=zonesCache[state.matchId]||[];
+  for(let i=zones.length-1;i>=0;i--){
+    const s=zones[i]; if(s.time>state.time) continue;
+    if(Math.sqrt((s.cx-wx)**2+(s.cy-wy)**2)<s.r+8/zoom){
+      const [rm]=zones.splice(i,1);
+      if(sb&&rm.id&&!String(rm.id).startsWith('local_')) sb.from('shapes').delete().eq('id',rm.id);
+      draw(); renderAnnotationLog(); return;
+    }
+  }
 }
 
 async function clearTeam() {
@@ -3872,6 +3940,43 @@ async function clearTeam() {
       if(sb&&ids.length) await sb.from('shapes').delete().in('id',ids);
       draw(); renderTimelineTicks(); toast('Team cleared','ok');
     }, 'CLEAR');
+}
+
+async function clearMap() {
+  if(!state.matchId){ toast('SELECT A MATCH FIRST','warn'); return; }
+  showDeleteWarning('delete','Clear All Map Data?',
+    'Permanently deletes all shapes, zones, wipes, deaths, and match results for this match.',
+    async ()=>{
+      const matchTeams=teams.filter(t=>t.match_id===state.matchId);
+      for(const team of matchTeams){
+        const sh=shapesCache[team.id]||[];
+        const ids=sh.filter(s=>s.id&&!String(s.id).startsWith('local_')).map(s=>s.id);
+        sh.length=0;
+        if(sb&&ids.length) await sb.from('shapes').delete().in('id',ids);
+        team.time_of_wipe=null; team.wipe_x=null; team.wipe_y=null; team.confirmed_position=null;
+        if(sb&&!String(team.id).startsWith('local_'))
+          await sb.from('teams').update({time_of_wipe:null,wipe_x:null,wipe_y:null,confirmed_position:null}).eq('id',team.id);
+      }
+      const zones=zonesCache[state.matchId]||[];
+      const zids=zones.filter(z=>z.id&&!String(z.id).startsWith('local_')).map(z=>z.id);
+      zones.length=0;
+      if(sb&&zids.length) await sb.from('shapes').delete().in('id',zids);
+      for(const p of matchPlayers){
+        p.time_of_loss=null; p.death_x=null; p.death_y=null;
+        if(sb&&p.id&&!String(p.id).startsWith('local_'))
+          await sb.from('match_players').update({time_of_loss:null,death_x:null,death_y:null,killed_by_team_id:null}).eq('id',p.id);
+      }
+      const m=matches.find(x=>x.id===state.matchId);
+      if(m&&m.duration_seconds!=null){
+        m.duration_seconds=null;
+        if(sb&&!String(state.matchId).startsWith('local_'))
+          await sb.from('matches').update({duration_seconds:null}).eq('id',state.matchId);
+      }
+      Object.keys(redoStack).forEach(k=>{ redoStack[k]=[]; });
+      updateRedoBtn();
+      draw(); renderTimelineTicks(); renderAnnotationLog();
+      toast('Map cleared','ok');
+    },'CLEAR ALL');
 }
 
 function exportJSON() {
