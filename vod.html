@@ -4,32 +4,46 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>METAZONE — VOD Review</title>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Lexend+Deca:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
 <style>
-@import url('https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@800,700,500,400&f[]=satoshi@700,500,400&display=swap');
 
 :root {
-  --bg:         #020617;
-  --bg-panel:   #0b1221;
-  --bg-card:    #0f172a;
-  --border:     #1e293b;
-  --border-dim: #162032;
-  --accent:     #22d3ee;
-  --accent-dim: rgba(34,211,238,.12);
-  --green:      #4ade80;
-  --red:        #f87171;
-  --orange:     #fb923c;
-  --yellow:     #facc15;
-  --purple:     #a78bfa;
-  --text:       #f1f5f9;
-  --muted:      #475569;
-  --muted2:     #334155;
-  --font-display:'Cabinet Grotesk',sans-serif;
-  --font-body:  'Satoshi',sans-serif;
-  --font-mono:  'JetBrains Mono',monospace;
+  /* Core palette — parchment design system */
+  --bg:         #F2EDE4;
+  --bg-panel:   #E8E1D5;
+  --bg-card:    #EDE7DC;
+  --border:     #C9BFA8;
+  --border-dim: #C9BFA8;
+  --border-mid: #A89880;
+  --forest:     #2C4A2E;
+  --olive:      #4E7C2F;
+  --accent:     #2C4A2E;
+  --accent-dim: rgba(44,74,46,.1);
+  --green:      #4E7C2F;
+  --red:        #9B1C11;
+  --orange:     #C85E0A;
+  --yellow:     #7C5A00;
+  --purple:     #4A3870;
+  --text:       #1C1A14;
+  --text-hero:  #0C0A07;
+  --text-label: #2C4A2E;
+  --muted:      #6B6048;
+  --muted2:     #A89880;
+  /* Fonts */
+  --font-display: 'Oswald', sans-serif;
+  --font-body:    'Manrope', sans-serif;
+  --font-mono:    'Lexend Deca', sans-serif;
+  /* Legacy compat */
+  --sidebar:    var(--bg-panel);
+  --panel:      var(--bg-card);
+  --font-ui:    var(--font-body);
 }
+
 *{ box-sizing:border-box; margin:0; padding:0; }
 body{ font-family:var(--font-body); background:var(--bg); color:var(--text); height:100vh; overflow:hidden; display:flex; flex-direction:column; }
+
+/* ── SCROLLBAR ── */
 ::-webkit-scrollbar{ width:3px; height:3px; }
 ::-webkit-scrollbar-track{ background:transparent; }
 ::-webkit-scrollbar-thumb{ background:var(--border); border-radius:2px; }
@@ -38,37 +52,49 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 #auth-screen{ position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:1000;flex-direction:column;gap:16px; }
 #auth-screen.hidden{ display:none; }
 .auth-box{ background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:36px 32px;width:360px;display:flex;flex-direction:column;gap:14px; }
-.auth-logo{ font-family:var(--font-display);font-size:26px;font-weight:800;color:var(--accent);letter-spacing:-.5px;text-align:center;margin-bottom:4px; }
+.auth-logo{ font-family:var(--font-display);font-size:26px;font-weight:700;color:var(--forest);letter-spacing:.5px;text-align:center;margin-bottom:4px; }
 .auth-logo span{ display:block;color:var(--muted);font-family:var(--font-mono);font-size:10px;letter-spacing:3px;margin-top:4px;font-weight:400; }
 .auth-input{ width:100%;padding:11px 14px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:8px;font-family:var(--font-body);font-size:14px;outline:none;transition:border-color .2s; }
 .auth-input:focus{ border-color:var(--accent); }
-.auth-btn{ width:100%;padding:12px;background:var(--accent);color:var(--bg);border:none;border-radius:8px;font-family:var(--font-display);font-size:14px;font-weight:700;cursor:pointer;transition:opacity .15s; }
+.auth-btn{ width:100%;padding:12px;background:var(--accent);color:var(--bg);border:none;border-radius:8px;font-family:var(--font-display);font-size:14px;font-weight:700;cursor:pointer;letter-spacing:.5px;transition:opacity .15s; }
 .auth-btn:hover{ opacity:.88; }
 .auth-msg{ font-family:var(--font-mono);font-size:11px;color:var(--muted);text-align:center;min-height:16px; }
 .auth-msg.ok{ color:var(--green); }
 .auth-msg.err{ color:var(--red); }
 
 /* ── HEADER ── */
-#app-header{ height:56px;min-height:56px;background:rgba(11,18,33,.95);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:50;backdrop-filter:blur(12px);flex-shrink:0; }
-.header-left{ display:flex;align-items:center;gap:20px; }
-.logo-mark{ display:flex;align-items:center;gap:8px; }
-.logo-icon{ width:28px;height:28px;background:var(--accent);border-radius:4px;transform:rotate(45deg);display:flex;align-items:center;justify-content:center;flex-shrink:0; }
-.logo-icon-inner{ transform:rotate(-45deg);font-size:13px; }
-.logo-text{ font-family:var(--font-display);font-size:20px;font-weight:800;color:var(--text);letter-spacing:-.5px; }
-.header-nav{ display:flex;gap:2px; }
-.nav-link{ padding:6px 12px;font-family:var(--font-mono);font-size:11px;font-weight:500;color:var(--muted);text-decoration:none;border-radius:6px;letter-spacing:.05em;transition:all .15s;text-transform:uppercase; }
-.nav-link:hover{ color:var(--text);background:var(--border-dim); }
-.nav-link.active{ color:var(--accent); }
-.header-right{ display:flex;align-items:center;gap:10px; }
-.sync-badge{ display:flex;align-items:center;gap:6px;padding:5px 10px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px; }
-.sync-dot{ width:6px;height:6px;border-radius:50%;background:var(--muted);transition:background .3s;flex-shrink:0; }
+#app-header{
+  height:52px;min-height:52px;
+  background:var(--forest);border-bottom:3px solid var(--forest);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px;z-index:50;flex-shrink:0;
+}
+.header-left{display:flex;align-items:center;gap:36px;}
+.logo-mark{display:flex;align-items:center;gap:10px;}
+.logo-icon{width:28px;height:28px;background:var(--orange);display:flex;align-items:center;justify-content:center;border-radius:2px;flex-shrink:0;}
+.logo-icon-inner{color:#fff;font-size:15px;display:flex;}
+.logo-text{font-family:var(--font-display);font-size:19px;font-weight:600;letter-spacing:2px;color:#fff;text-transform:uppercase;}
+.header-nav{display:flex;align-items:center;gap:2px;height:52px;}
+.nav-link{
+  font-family:var(--font-mono);font-size:10px;font-weight:500;
+  color:rgba(255,255,255,.6);
+  text-decoration:none;letter-spacing:1px;text-transform:uppercase;
+  padding:0 13px;height:100%;display:flex;align-items:center;
+  border-bottom:3px solid transparent;margin-bottom:-3px;
+  transition:all .15s;
+}
+.nav-link:hover{color:rgba(255,255,255,.9);}
+.nav-link.active{color:#fff;border-bottom-color:var(--orange);}
+.header-right{display:flex;align-items:center;gap:10px;}
+.sync-badge{ display:flex;align-items:center;gap:6px;padding:5px 10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:6px; }
+.sync-dot{ width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.4);transition:background .3s;flex-shrink:0; }
 .sync-dot.syncing{ background:var(--yellow);animation:pulse 1s infinite; }
-.sync-dot.saved{ background:var(--green); }
-.sync-dot.error{ background:var(--red); }
+.sync-dot.saved{ background:#8FD18A; }
+.sync-dot.error{ background:#F08A80; }
 @keyframes pulse{ 0%,100%{opacity:1}50%{opacity:.4} }
-.sync-label{ font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase; }
-.btn-logout{ padding:6px 12px;background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;font-family:var(--font-mono);font-size:10px;cursor:pointer;transition:all .15s;letter-spacing:.05em; }
-.btn-logout:hover{ border-color:var(--red);color:var(--red); }
+.sync-label{ font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.6);letter-spacing:.08em;text-transform:uppercase; }
+.btn-logout{font-family:var(--font-mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:5px 11px;background:none;border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.6);border-radius:3px;cursor:pointer;transition:all .15s;}
+.btn-logout:hover{border-color:rgba(255,255,255,.5);color:#fff;}
 
 /* ── VOD TOOLBAR ── */
 #vod-toolbar{
@@ -97,7 +123,7 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 }
 .tb-btn:hover{ border-color:var(--muted2);color:var(--text); }
 .tb-btn.active{ border-color:var(--accent);color:var(--accent);background:var(--accent-dim); }
-.tb-btn.danger{ border-color:var(--red);color:var(--red);background:rgba(248,113,113,.08); }
+.tb-btn.danger{ border-color:var(--red);color:var(--red);background:rgba(155,28,17,.08); }
 .btn-start-match{
   height:30px;padding:0 16px;background:var(--accent);color:var(--bg);border:none;
   border-radius:6px;font-family:var(--font-display);font-size:12px;font-weight:800;cursor:pointer;
@@ -115,10 +141,10 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
   display:flex;align-items:center;gap:5px;letter-spacing:.04em;flex-shrink:0;
 }
 .tb-mode-pill:hover{ border-color:var(--muted2);color:var(--text); }
-.tb-mode-pill.active[data-mode="zone"]    { background:rgba(34,211,238,.1);color:var(--accent);border-color:var(--accent); }
-.tb-mode-pill.active[data-mode="path"]    { background:rgba(74,222,128,.1);color:var(--green);border-color:var(--green); }
-.tb-mode-pill.active[data-mode="pin"]     { background:rgba(251,146,60,.1);color:var(--orange);border-color:var(--orange); }
-.tb-mode-pill.active[data-mode="erase"]   { background:rgba(248,113,113,.08);color:var(--red);border-color:var(--red); }
+.tb-mode-pill.active[data-mode="zone"]    { background:rgba(44,74,46,.1);color:var(--accent);border-color:var(--accent); }
+.tb-mode-pill.active[data-mode="path"]    { background:rgba(78,124,47,.1);color:var(--green);border-color:var(--green); }
+.tb-mode-pill.active[data-mode="pin"]     { background:rgba(200,94,10,.1);color:var(--orange);border-color:var(--orange); }
+.tb-mode-pill.active[data-mode="erase"]   { background:rgba(155,28,17,.08);color:var(--red);border-color:var(--red); }
 .tb-spacer{ flex:1; }
 .tb-zoom-cluster{ display:flex;align-items:center;gap:2px;flex-shrink:0; }
 .tb-zoom-btn{ width:26px;height:26px;background:var(--bg);border:1px solid var(--border);color:var(--muted);border-radius:5px;cursor:pointer;font-size:13px;transition:all .15s;display:flex;align-items:center;justify-content:center; }
@@ -143,7 +169,7 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 
 /* ── VOD STAGE (center left, video + canvas) ── */
 #vod-stage{
-  flex:1;position:relative;overflow:hidden;background:#000;
+  flex:1;position:relative;overflow:hidden;background:#050a10;
 }
 #yt-player-wrap{ position:absolute;inset:0;z-index:1; }
 #yt-player-wrap iframe,
@@ -153,18 +179,49 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 #zoom-hud{
   position:absolute;top:8px;left:8px;z-index:10;background:rgba(2,6,23,.75);
   border:1px solid var(--border);border-radius:6px;padding:4px 8px;
-  font-family:var(--font-mono);font-size:11px;color:var(--accent);pointer-events:none;
+  font-family:var(--font-mono);font-size:11px;color:var(--muted);pointer-events:none;
   backdrop-filter:blur(4px);
 }
-#toast-container{ position:absolute;top:12px;right:12px;z-index:100;display:flex;flex-direction:column;gap:6px;pointer-events:none; }
-.toast{ padding:8px 14px;border-radius:8px;font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:.06em;backdrop-filter:blur(8px);opacity:1;transition:opacity .3s; }
-.toast.ok{ background:rgba(74,222,128,.18);border:1px solid rgba(74,222,128,.4);color:var(--green); }
-.toast.warn{ background:rgba(250,204,21,.14);border:1px solid rgba(250,204,21,.35);color:var(--yellow); }
-.toast.err{ background:rgba(248,113,113,.14);border:1px solid rgba(248,113,113,.35);color:var(--red); }
-.toast.out{ opacity:0; }
+#toast-container{
+  position:absolute;top:12px;right:12px;z-index:100;
+  display:flex;flex-direction:column;gap:8px;pointer-events:none;
+}
+.toast{
+  background:#F2EDE4;
+  border:1px solid #C9BFA8;
+  border-left:3px solid #2C4A2E;
+  border-radius:3px;
+  padding:10px 14px 10px 12px;
+  pointer-events:none;
+  min-width:180px;max-width:280px;
+  box-shadow:0 2px 16px rgba(12,10,7,0.18);
+  animation:toast-in .22s cubic-bezier(.4,0,.2,1) forwards;
+}
+@keyframes toast-in{
+  from{transform:translateX(110%);opacity:0}
+  to{transform:translateX(0);opacity:1}
+}
+.toast-label{
+  font-family:'Lexend Deca','Segoe UI',sans-serif;
+  font-size:8px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
+  color:#2C4A2E;margin-bottom:4px;
+}
+.toast-msg{
+  font-family:'Manrope','Segoe UI',sans-serif;
+  font-size:11px;color:#1C1A14;line-height:1.5;
+}
+.toast.info{ border-left-color:#2C4A2E; }
+.toast.info .toast-label{ color:#2C4A2E; }
+.toast.warn{ border-left-color:#C85E0A; }
+.toast.warn .toast-label{ color:#C85E0A; }
+.toast.err { border-left-color:#A02010; }
+.toast.err  .toast-label{ color:#A02010; }
+.toast.ok  { border-left-color:#4E7C2F; }
+.toast.ok   .toast-label{ color:#4E7C2F; }
+.toast.out { animation:none;transform:translateX(110%);opacity:0;transition:transform .2s ease-in,opacity .2s ease-in; }
 #path-indicator{
   position:absolute;bottom:70px;left:50%;transform:translateX(-50%);z-index:10;
-  background:rgba(74,222,128,.15);border:1px solid rgba(74,222,128,.35);border-radius:6px;
+  background:rgba(78,124,47,.15);border:1px solid var(--green);border-radius:6px;
   padding:6px 14px;font-family:var(--font-mono);font-size:10px;color:var(--green);
   letter-spacing:.08em;text-transform:uppercase;pointer-events:none;display:none;
 }
@@ -179,22 +236,22 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
   display:flex;align-items:center;gap:10px;padding:10px 20px;
   background:rgba(2,6,23,.88);border:1px solid var(--border);border-radius:8px;
 }
-.pb-icon{ font-size:18px; }
-.pb-text{ font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase; }
+.pb-icon{ font-size:18px;color:var(--orange); }
+.pb-text{ font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#F2EDE4; }
 .pb-skip{
-  height:24px;padding:0 10px;background:none;border:1px solid var(--muted2);color:var(--muted);
+  height:24px;padding:0 10px;background:none;border:1px solid rgba(255,255,255,.3);color:rgba(255,255,255,.7);
   border-radius:5px;font-family:var(--font-mono);font-size:9px;cursor:pointer;transition:all .15s;
 }
-.pb-skip:hover{ border-color:var(--red);color:var(--red); }
+.pb-skip:hover{ border-color:var(--red);color:#F08A80; }
 
 /* ── SQUAD PANEL ── */
 #squad-panel{
-  width:220px;min-width:220px;background:var(--bg-panel);border-left:1px solid var(--border);
+  width:280px;min-width:280px;background:var(--bg-panel);border-left:1px solid var(--border);
   display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;
   scrollbar-width:thin;scrollbar-color:var(--border) transparent;
 }
 .sp-section{ padding:10px 12px;border-bottom:1px solid var(--border-dim); }
-.sp-label{ font-family:var(--font-mono);font-size:9px;font-weight:500;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px;display:block; }
+.sp-label{ font-family:var(--font-mono);font-size:9px;font-weight:600;color:var(--forest);letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px;display:block; }
 .sp-self-header{
   display:flex;align-items:center;gap:8px;margin-bottom:8px;
 }
@@ -222,14 +279,14 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
   cursor:pointer;transition:all .15s;text-align:center;border:1px solid;
 }
 .sp-event-btn:disabled{ opacity:.35;cursor:not-allowed; }
-.sp-event-btn.elim{  background:rgba(34,211,238,.1);color:var(--accent);border-color:rgba(34,211,238,.4); }
-.sp-event-btn.elim:not(:disabled):hover{ background:rgba(34,211,238,.2); }
-.sp-event-btn.loss{  background:rgba(250,204,21,.1);color:var(--yellow);border-color:rgba(250,204,21,.4); }
-.sp-event-btn.loss:not(:disabled):hover{ background:rgba(250,204,21,.2); }
-.sp-event-btn.wipe{  background:rgba(248,113,113,.1);color:var(--red);border-color:rgba(248,113,113,.4); }
-.sp-event-btn.wipe:not(:disabled):hover{ background:rgba(248,113,113,.2); }
-.sp-event-btn.ewipe{ background:rgba(251,146,60,.1);color:var(--orange);border-color:rgba(251,146,60,.4); }
-.sp-event-btn.ewipe:not(:disabled):hover{ background:rgba(251,146,60,.2); }
+.sp-event-btn.elim{  background:rgba(44,74,46,.1);color:var(--accent);border-color:rgba(44,74,46,.4); }
+.sp-event-btn.elim:not(:disabled):hover{ background:rgba(44,74,46,.2); }
+.sp-event-btn.loss{  background:rgba(124,90,0,.1);color:var(--yellow);border-color:rgba(124,90,0,.4); }
+.sp-event-btn.loss:not(:disabled):hover{ background:rgba(124,90,0,.2); }
+.sp-event-btn.wipe{  background:rgba(155,28,17,.1);color:var(--red);border-color:rgba(155,28,17,.4); }
+.sp-event-btn.wipe:not(:disabled):hover{ background:rgba(155,28,17,.2); }
+.sp-event-btn.ewipe{ background:rgba(200,94,10,.1);color:var(--orange);border-color:rgba(200,94,10,.4); }
+.sp-event-btn.ewipe:not(:disabled):hover{ background:rgba(200,94,10,.2); }
 .sp-match-end-btn{
   width:100%;margin-top:6px;padding:7px;background:none;border:1px dashed var(--muted2);
   border-radius:6px;font-family:var(--font-mono);font-size:9px;color:var(--muted);cursor:pointer;
@@ -261,7 +318,7 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 .vel-body{ flex:1;min-width:0; }
 .vel-title{ font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
 .vel-time{ font-family:var(--font-mono);font-size:9px;color:var(--muted);margin-top:1px; }
-.vel-entry.lit{ border-left-color:var(--accent);background:rgba(34,211,238,.05); }
+.vel-entry.lit{ border-left-color:var(--accent);background:rgba(44,74,46,.05); }
 
 /* ── TIMELINE ── */
 #vod-timeline{
@@ -305,7 +362,7 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 }
 .btn-modal-cancel:hover{ border-color:var(--red);color:var(--red); }
 .btn-modal-confirm{
-  flex:1;padding:9px;border:none;color:#020617;
+  flex:1;padding:9px;border:none;color:var(--bg);
   border-radius:6px;font-family:var(--font-display);font-size:13px;font-weight:800;cursor:pointer;transition:opacity .15s;
 }
 .btn-modal-confirm:hover{ opacity:.85; }
@@ -321,8 +378,8 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
   display:flex;align-items:center;gap:8px;padding:8px 10px;
   background:var(--bg-card);border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:all .15s;
 }
-.modal-player:hover{ border-color:rgba(34,211,238,.3); }
-.modal-player.selected{ border-color:var(--accent);background:rgba(34,211,238,.07); }
+.modal-player:hover{ border-color:rgba(44,74,46,.3); }
+.modal-player.selected{ border-color:var(--accent);background:rgba(44,74,46,.07); }
 .modal-player-dot{ width:6px;height:6px;border-radius:50%;background:var(--muted);flex-shrink:0; }
 .modal-player.selected .modal-player-dot{ background:var(--accent); }
 .modal-player-name{ font-size:13px;font-weight:600; }
@@ -351,7 +408,7 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 
 /* ── RESULTS PANEL ── */
 #results-panel{
-  position:fixed;right:-400px;top:56px;bottom:0;width:360px;
+  position:fixed;right:-400px;top:52px;bottom:0;width:360px;
   background:var(--bg-panel);border-left:1px solid var(--border);
   display:flex;flex-direction:column;transition:right .3s cubic-bezier(.25,.46,.45,.94);z-index:300;
 }
@@ -375,7 +432,7 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 .results-whats-next-btns{ display:flex;gap:8px; }
 .btn-results-keep{ flex:1;padding:11px;background:none;border:1px solid var(--border);color:var(--muted);border-radius:8px;font-family:var(--font-mono);font-size:11px;cursor:pointer;letter-spacing:.06em;text-transform:uppercase;transition:all .15s; }
 .btn-results-keep:hover{ border-color:var(--accent);color:var(--accent); }
-.btn-results-next{ flex:1;padding:11px;background:var(--green);color:#020617;border:none;border-radius:8px;font-family:var(--font-display);font-size:12px;font-weight:800;cursor:pointer;transition:opacity .15s; }
+.btn-results-next{ flex:1;padding:11px;background:var(--green);color:var(--bg);border:none;border-radius:8px;font-family:var(--font-display);font-size:12px;font-weight:800;cursor:pointer;transition:opacity .15s; }
 .btn-results-next:hover{ opacity:.88; }
 
 /* ── NEXT MATCH MODAL ── */
@@ -396,10 +453,10 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
   background:var(--bg-card);border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:all .15s;
   margin-bottom:4px;
 }
-.apm-player-row:hover{ border-color:rgba(34,211,238,.3); }
-.apm-player-row.sel{ border-color:var(--accent);background:rgba(34,211,238,.07); }
+.apm-player-row:hover{ border-color:rgba(44,74,46,.3); }
+.apm-player-row.sel{ border-color:var(--accent);background:rgba(44,74,46,.07); }
 .apm-checkbox{ width:16px;height:16px;border:2px solid var(--border);border-radius:3px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;font-weight:700;transition:all .15s; }
-.apm-player-row.sel .apm-checkbox{ background:var(--accent);border-color:var(--accent);color:#020617; }
+.apm-player-row.sel .apm-checkbox{ background:var(--accent);border-color:var(--accent);color:var(--bg); }
 .apm-player-name{ font-size:13px;font-weight:600;flex:1; }
 .apm-player-role{ font-family:var(--font-mono);font-size:9px;color:var(--muted); }
 
@@ -419,18 +476,18 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 }
 @keyframes calPop{ from{transform:scale(0);opacity:0} to{transform:scale(1);opacity:1} }
 .cal-dot.stream .cal-dot-inner{
-  border-color:var(--orange);background:rgba(251,146,60,.2);
-  box-shadow:0 0 0 1px rgba(251,146,60,.4),0 0 10px rgba(251,146,60,.3);
+  border-color:var(--orange);background:rgba(200,94,10,.2);
+  box-shadow:0 0 0 1px rgba(200,94,10,.4),0 0 10px rgba(200,94,10,.3);
 }
 .cal-dot.mappt .cal-dot-inner{
-  border-color:var(--accent);background:rgba(34,211,238,.2);
-  box-shadow:0 0 0 1px rgba(34,211,238,.4),0 0 10px rgba(34,211,238,.3);
+  border-color:#7BC47F;background:rgba(123,196,127,.2);
+  box-shadow:0 0 0 1px rgba(123,196,127,.4),0 0 10px rgba(123,196,127,.3);
 }
 .cal-dot-pip{
   width:6px;height:6px;border-radius:50%;
 }
 .cal-dot.stream .cal-dot-pip{ background:var(--orange); }
-.cal-dot.mappt  .cal-dot-pip{ background:var(--accent); }
+.cal-dot.mappt  .cal-dot-pip{ background:#7BC47F; }
 .cal-dot-num{
   position:absolute;top:-14px;left:50%;transform:translateX(-50%);
   font-family:var(--font-mono);font-size:9px;font-weight:700;
@@ -438,7 +495,7 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
   background:rgba(2,6,23,.85);white-space:nowrap;
 }
 .cal-dot.stream .cal-dot-num{ color:var(--orange); }
-.cal-dot.mappt  .cal-dot-num{ color:var(--accent); }
+.cal-dot.mappt  .cal-dot-num{ color:#7BC47F; }
 #cal-banner{
   position:absolute;bottom:70px;left:50%;transform:translateX(-50%);z-index:31;
   border-radius:10px;padding:12px 24px;font-family:var(--font-mono);font-size:10px;
@@ -449,9 +506,9 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
   box-shadow:0 4px 24px rgba(0,0,0,.7);
 }
 #cal-banner.show{ display:block; }
-#cal-banner.phase1{ border:1.5px solid rgba(251,146,60,.7);color:var(--orange); }
-#cal-banner.phase2{ border:1.5px solid rgba(34,211,238,.65);color:var(--accent); }
-#cal-banner.done  { border:1.5px solid rgba(74,222,128,.65);color:var(--green); }
+#cal-banner.phase1{ border:1.5px solid rgba(200,94,10,.7);color:var(--orange); }
+#cal-banner.phase2{ border:1.5px solid rgba(123,196,127,.65);color:#7BC47F; }
+#cal-banner.done  { border:1.5px solid rgba(123,196,127,.65);color:#7BC47F; }
 /* ── Loupe (magnifier) ── */
 #cal-loupe-wrap{
   position:absolute;pointer-events:none;z-index:35;display:none;
@@ -475,11 +532,11 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
   background:rgba(255,255,255,.12);transition:background .3s;
 }
 .cal-step-pill.active{ background:var(--orange); }
-.cal-step-pill.done-p{ background:var(--green); }
-.cal-step-pill.map{ background:var(--accent); }
+.cal-step-pill.done-p{ background:#7BC47F; }
+.cal-step-pill.map{ background:#7BC47F; }
 .cal-mode-btn.active{
   border-color:var(--orange)!important;color:var(--orange)!important;
-  background:rgba(251,146,60,.1)!important;
+  background:rgba(200,94,10,.1)!important;
 }
 /* dim everything when in cal phase 1 */
 body.cal-phase1-active #yt-player-wrap{ filter:none; }
@@ -499,18 +556,18 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 .vid-state[data-vs="idle"]   .vsd-dot{ background:var(--muted2); }
 .vid-state[data-vs="loading"] .vsd-dot{ background:var(--yellow);animation:pulse 1s infinite; }
 .vid-state[data-vs="ready"]   .vsd-dot{ background:var(--green); }
-.vid-state[data-vs="ready"]   { border-color:rgba(74,222,128,.25); }
+.vid-state[data-vs="ready"]   { border-color:rgba(78,124,47,.25); }
 .vid-state[data-vs="synced"]  .vsd-dot{ background:var(--accent); }
-.vid-state[data-vs="synced"]  { border-color:rgba(34,211,238,.25); }
+.vid-state[data-vs="synced"]  { border-color:rgba(44,74,46,.25); }
 .vid-state[data-vs="synced"]  .vsd-label{ color:var(--accent); }
 .vid-state[data-vs="lost"]    .vsd-dot{ background:var(--red);animation:pulse .6s infinite; }
-.vid-state[data-vs="lost"]    { border-color:rgba(248,113,113,.4); }
+.vid-state[data-vs="lost"]    { border-color:rgba(155,28,17,.4); }
 .vid-state[data-vs="lost"]    .vsd-label{ color:var(--red); }
 
 /* ══ MATCH CONTEXT BAR ══ */
 #match-context-bar{
   height:28px;min-height:28px;flex-shrink:0;
-  background:rgba(15,23,42,.7);border-bottom:1px solid var(--border-dim);
+  background:var(--bg-card);border-bottom:1px solid var(--border-dim);
   display:flex;align-items:center;gap:0;padding:0 14px;overflow:hidden;
 }
 #match-context-bar.hidden{ display:none; }
@@ -568,15 +625,15 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
   padding:3px 9px;border:1px solid var(--border);border-radius:5px;
   font-family:var(--font-mono);font-size:10px;color:var(--muted);background:var(--bg-card);
 }
-.sfd-data-chip.ok{ border-color:rgba(74,222,128,.3);color:var(--green); }
+.sfd-data-chip.ok{ border-color:rgba(78,124,47,.3);color:var(--green); }
 .sfd-steps{ display:flex;flex-direction:column;gap:10px; }
 .sfd-step{
   display:flex;align-items:flex-start;gap:12px;padding:10px 12px;
   border:1px solid var(--border);border-radius:8px;background:var(--bg-card);
   transition:border-color .3s,background .3s;
 }
-.sfd-step.active{ border-color:var(--accent);background:rgba(34,211,238,.05); }
-.sfd-step.done{ border-color:rgba(74,222,128,.3);background:rgba(74,222,128,.04); }
+.sfd-step.active{ border-color:var(--accent);background:rgba(44,74,46,.05); }
+.sfd-step.done{ border-color:rgba(78,124,47,.3);background:rgba(78,124,47,.04); }
 .sfd-step-num{
   width:22px;height:22px;border-radius:50%;background:var(--border);
   font-family:var(--font-display);font-size:11px;font-weight:800;
@@ -617,12 +674,12 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 .tb-match-status.hidden{ display:none; }
 .tms-dot{ width:6px;height:6px;border-radius:50%;flex-shrink:0; }
 .tms-label{ color:var(--muted); }
-.tms-vod{ font-size:8px;padding:1px 5px;border-radius:3px;background:rgba(34,211,238,.1);color:var(--accent);border:1px solid rgba(34,211,238,.25);margin-left:3px; }
+.tms-vod{ font-size:8px;padding:1px 5px;border-radius:3px;background:rgba(44,74,46,.1);color:var(--accent);border:1px solid rgba(44,74,46,.25);margin-left:3px; }
 
 /* ══ SKIP TO MATCH START BANNER ══ */
 #skip-to-start-banner{
   display:none;align-items:center;gap:10px;padding:7px 14px;
-  background:rgba(34,211,238,.08);border-bottom:1px solid rgba(34,211,238,.2);
+  background:rgba(44,74,46,.08);border-bottom:1px solid rgba(44,74,46,.2);
   font-family:var(--font-mono);font-size:11px;color:var(--accent);flex-shrink:0;
 }
 #skip-to-start-banner.show{ display:flex; }
@@ -667,7 +724,7 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 }
 .btn-edd-fresh:hover{ border-color:var(--red);color:var(--red); }
 .btn-edd-continue{
-  flex:2;padding:11px;background:var(--green);border:none;color:#020617;
+  flex:2;padding:11px;background:var(--green);border:none;color:var(--bg);
   border-radius:8px;font-family:var(--font-display);font-size:13px;font-weight:800;cursor:pointer;transition:opacity .15s;
 }
 .btn-edd-continue:hover{ opacity:.85; }
@@ -691,7 +748,7 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 }
 .btn-owd-cancel:hover{ border-color:var(--muted);color:var(--text); }
 .btn-owd-confirm{
-  flex:1;padding:10px;background:var(--orange);border:none;color:#020617;
+  flex:1;padding:10px;background:var(--orange);border:none;color:var(--bg);
   border-radius:7px;font-family:var(--font-display);font-size:13px;font-weight:800;cursor:pointer;transition:opacity .15s;
 }
 .btn-owd-confirm:hover{ opacity:.85; }
@@ -713,7 +770,7 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 <div id="app-header">
   <div class="header-left">
     <a href="index.html" class="logo-mark" style="text-decoration:none">
-      <div class="logo-icon"><div class="logo-icon-inner">⬡</div></div>
+      <div class="logo-icon"><span class="logo-icon-inner"><iconify-icon icon="lucide:layers"></iconify-icon></span></div>
       <div class="logo-text">METAZONE</div>
     </a>
     <nav class="header-nav">
@@ -755,13 +812,13 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
       <div class="tb-match-status hidden" id="tb-match-status">
         <div class="tms-dot" id="tms-dot"></div>
         <span class="tms-label" id="tms-label">—</span>
-        <span class="tms-vod hidden" id="tms-vod">VOD ✓</span>
+        <span class="tms-vod hidden" id="tms-vod"><iconify-icon icon="lucide:check"></iconify-icon> VOD</span>
       </div>
       <div class="tb-divider"></div>
       <input class="tb-input" id="vod-url-input" placeholder="Paste YouTube URL…" onkeydown="if(event.key==='Enter')loadVideo()">
-      <button class="tb-btn" onclick="loadVideo()">▶ LOAD</button>
+      <button class="tb-btn" onclick="loadVideo()"><iconify-icon icon="lucide:play"></iconify-icon> LOAD</button>
       <div class="tb-divider"></div>
-      <button class="btn-start-match" id="btn-start-match" onclick="toggleMatchActive()" disabled>▶ START MATCH</button>
+      <button class="btn-start-match" id="btn-start-match" onclick="toggleMatchActive()" disabled><iconify-icon icon="lucide:play"></iconify-icon> START MATCH</button>
       <div class="vid-state" id="vid-state" data-vs="idle">
         <div class="vsd-dot"></div>
         <span class="vsd-label" id="vsd-label">NO VIDEO</span>
@@ -773,8 +830,8 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
       <label style="font-size:10px;color:var(--muted);white-space:nowrap;">X <input type="number" id="map-offset-x" value="0" step="1" style="width:48px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:2px 4px;font-size:10px;" oninput="updateMapOffset()"></label>
       <label style="font-size:10px;color:var(--muted);white-space:nowrap;">Y <input type="number" id="map-offset-y" value="0" step="1" style="width:48px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:2px 4px;font-size:10px;" oninput="updateMapOffset()"></label>
       <label style="font-size:10px;color:var(--muted);white-space:nowrap;">SCALE <input type="number" id="map-scale-f" value="1.00" step="0.01" min="0.1" max="3" style="width:52px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:2px 4px;font-size:10px;" oninput="updateMapOffset()"></label>
-      <button class="tb-btn" onclick="resetMapOffset()" title="Reset map alignment">↺ RESET</button>
-      <button class="tb-btn cal-mode-btn" id="btn-calibrate" onclick="toggleCalibration()" title="2-point map calibration">🎯 CALIBRATE</button>
+      <button class="tb-btn" onclick="resetMapOffset()" title="Reset map alignment"><iconify-icon icon="lucide:rotate-ccw"></iconify-icon> RESET</button>
+      <button class="tb-btn cal-mode-btn" id="btn-calibrate" onclick="toggleCalibration()" title="2-point map calibration"><iconify-icon icon="lucide:crosshair"></iconify-icon> CALIBRATE</button>
     </div>
 
     <!-- ROW 2: Drawing tools + overlay + playback -->
@@ -783,21 +840,21 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
         <option value="">— Team —</option>
       </select>
       <div class="tb-divider"></div>
-      <button class="tb-mode-pill" data-mode="zone"  onclick="setMode('zone')"  title="Zone Circle (drag)">⭕ ZONE</button>
-      <button class="tb-mode-pill" data-mode="path"  onclick="setMode('path')"  title="Path — click waypoints, RIGHT-CLICK to finish">→ PATH</button>
-      <button class="tb-mode-pill" data-mode="pin"   onclick="setMode('pin')"   title="Pin">📍 PIN</button>
-      <button class="tb-mode-pill" data-mode="erase" onclick="setMode('erase')" title="Erase shape">✕ ERASE</button>
-      <button class="tb-btn" onclick="undo()" title="Undo (Ctrl+Z)">↩ UNDO</button>
+      <button class="tb-mode-pill" data-mode="zone"  onclick="setMode('zone')"  title="Zone Circle (drag)"><iconify-icon icon="lucide:circle"></iconify-icon> ZONE</button>
+      <button class="tb-mode-pill" data-mode="path"  onclick="setMode('path')"  title="Path — click waypoints, RIGHT-CLICK to finish"><iconify-icon icon="lucide:spline"></iconify-icon> PATH</button>
+      <button class="tb-mode-pill" data-mode="pin"   onclick="setMode('pin')"   title="Pin"><iconify-icon icon="lucide:map-pin"></iconify-icon> PIN</button>
+      <button class="tb-mode-pill" data-mode="erase" onclick="setMode('erase')" title="Erase shape"><iconify-icon icon="lucide:eraser"></iconify-icon> ERASE</button>
+      <button class="tb-btn" onclick="undo()" title="Undo (Ctrl+Z)"><iconify-icon icon="lucide:undo-2"></iconify-icon> UNDO</button>
       <div class="tb-divider"></div>
-      <button class="tb-btn active" id="btn-overlay" onclick="toggleOverlayCanvas()" title="Toggle map overlay (Z)">👁 MAP</button>
+      <button class="tb-btn active" id="btn-overlay" onclick="toggleOverlayCanvas()" title="Toggle map overlay (Z)"><iconify-icon icon="lucide:eye"></iconify-icon> MAP</button>
       <div class="map-opacity-cluster" id="map-opacity-cluster" title="Map opacity">
         <span class="map-opacity-label">MAP α</span>
         <input type="range" class="map-opacity-slider" id="map-opacity-slider" min="0" max="100" value="62" oninput="setMapOpacity(this.value)">
         <span class="map-opacity-val" id="map-opacity-val">62%</span>
       </div>
-      <button class="tb-btn" id="btn-play-pause" onclick="togglePlayPause()" title="Play/Pause video (P key)">⏯ PLAY</button>
+      <button class="tb-btn" id="btn-play-pause" onclick="togglePlayPause()" title="Play/Pause video (P key)"><iconify-icon icon="lucide:play-circle"></iconify-icon> PLAY</button>
       <div class="tb-divider"></div>
-      <button class="tb-btn" id="btn-save" onclick="manualSave()">💾 SAVE</button>
+      <button class="tb-btn" id="btn-save" onclick="manualSave()"><iconify-icon icon="lucide:save"></iconify-icon> SAVE</button>
       <div class="tb-spacer"></div>
       <div class="tb-zoom-cluster">
         <button class="tb-zoom-btn" onclick="adjustZoom(-.15)">−</button>
@@ -828,8 +885,8 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
       <span id="mcb-status-label">—</span>
     </div>
     <div class="mcb-spacer"></div>
-    <button class="mcb-refresh" onclick="refreshMatchData()" title="Re-fetch match data from DB">↺ REFRESH DATA</button>
-    <a class="mcb-open-editor" id="mcb-open-editor" href="editor.html" title="Open this match in Editor">✏ OPEN IN EDITOR</a>
+    <button class="mcb-refresh" onclick="refreshMatchData()" title="Re-fetch match data from DB"><iconify-icon icon="lucide:rotate-ccw"></iconify-icon> REFRESH DATA</button>
+    <a class="mcb-open-editor" id="mcb-open-editor" href="editor.html" title="Open this match in Editor"><iconify-icon icon="lucide:pencil"></iconify-icon> OPEN IN EDITOR</a>
   </div>
 
   <!-- VOD Body -->
@@ -837,7 +894,7 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 
     <!-- ══ SKIP TO MATCH START BANNER ══ -->
     <div id="skip-to-start-banner">
-      <span class="stb-text" id="stb-text">⏱ This match has a saved start point — want to jump there?</span>
+      <span class="stb-text" id="stb-text"><iconify-icon icon="lucide:clock"></iconify-icon> This match has a saved start point — want to jump there?</span>
       <button class="btn-stb-skip" onclick="skipToMatchStart()">JUMP TO MATCH START</button>
       <button class="btn-stb-dismiss" onclick="dismissSkipBanner()">DISMISS</button>
     </div>
@@ -862,7 +919,7 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
       <!-- Placement banner -->
       <div id="placement-banner">
         <div class="pb-inner">
-          <span class="pb-icon" id="pb-icon">📍</span>
+          <span class="pb-icon" id="pb-icon"><iconify-icon icon="lucide:map-pin"></iconify-icon></span>
           <span class="pb-text" id="pb-text">CLICK MAP TO PLACE</span>
           <button class="pb-skip" onclick="cancelPlacement()">SKIP</button>
         </div>
@@ -885,19 +942,19 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
         <button style="width:100%;padding:5px;background:none;border:1px dashed var(--border);border-radius:5px;font-family:var(--font-mono);font-size:9px;color:var(--muted);cursor:pointer;transition:all .15s;letter-spacing:.08em;"
           onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
           onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'"
-          onclick="openActivePlayersModal()">👥 SET SQUAD</button>
+          onclick="openActivePlayersModal()"><iconify-icon icon="lucide:users"></iconify-icon> SET SQUAD</button>
       </div>
 
       <!-- Event Buttons -->
       <div class="sp-section">
         <span class="sp-label">Log Event</span>
         <div class="sp-event-grid">
-          <button class="sp-event-btn elim"  id="btn-ev-elim"  onclick="startEvent('elim')"  disabled>⚡ SELF ELIM</button>
-          <button class="sp-event-btn loss"  id="btn-ev-loss"  onclick="startEvent('loss')"  disabled>💀 SELF LOSS</button>
-          <button class="sp-event-btn wipe"  id="btn-ev-wipe"  onclick="startEvent('wipe')"  disabled>☠ SELF WIPE</button>
-          <button class="sp-event-btn ewipe" id="btn-ev-ewipe" onclick="startEvent('ewipe')" disabled>⚑ ENEMY WIPE</button>
+          <button class="sp-event-btn elim"  id="btn-ev-elim"  onclick="startEvent('elim')"  disabled><iconify-icon icon="lucide:zap"></iconify-icon> SELF ELIM</button>
+          <button class="sp-event-btn loss"  id="btn-ev-loss"  onclick="startEvent('loss')"  disabled><iconify-icon icon="lucide:skull"></iconify-icon> SELF LOSS</button>
+          <button class="sp-event-btn wipe"  id="btn-ev-wipe"  onclick="startEvent('wipe')"  disabled><iconify-icon icon="lucide:shield-x"></iconify-icon> SELF WIPE</button>
+          <button class="sp-event-btn ewipe" id="btn-ev-ewipe" onclick="startEvent('ewipe')" disabled><iconify-icon icon="lucide:flag"></iconify-icon> ENEMY WIPE</button>
         </div>
-        <button class="sp-match-end-btn" id="btn-match-end" onclick="markMatchEnd()" disabled>⏹ MARK MATCH END</button>
+        <button class="sp-match-end-btn" id="btn-match-end" onclick="markMatchEnd()" disabled><iconify-icon icon="lucide:square"></iconify-icon> MARK MATCH END</button>
       </div>
 
       <!-- Enemy Teams -->
@@ -906,7 +963,7 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
           <span class="sp-label" style="margin-bottom:0">Enemy Teams</span>
           <button onclick="refreshMatchData()" title="Refresh match data" style="height:18px;padding:0 6px;background:none;border:1px solid var(--border);color:var(--muted);border-radius:4px;font-family:var(--font-mono);font-size:9px;cursor:pointer;letter-spacing:.05em;transition:all .15s;"
             onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
-            onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">↺</button>
+            onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'"><iconify-icon icon="lucide:rotate-ccw"></iconify-icon></button>
         </div>
         <div id="sp-enemy-list">
           <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted);text-align:center;padding:8px 0;">No teams loaded</div>
@@ -942,7 +999,7 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 <!-- ELIM Modal -->
 <div class="modal-backdrop" id="elim-modal">
   <div class="modal-box" style="border-color:var(--accent)">
-    <div class="modal-title" style="color:var(--accent)">⚡ SELF ELIM</div>
+    <div class="modal-title" style="color:var(--accent)"><iconify-icon icon="lucide:zap"></iconify-icon> SELF ELIM</div>
     <div class="modal-sub" id="elim-modal-time">At 00:00</div>
     <div class="modal-label">WHO SECURED THE FINISH?</div>
     <div class="modal-player-list" id="elim-player-list"></div>
@@ -962,7 +1019,7 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 <!-- LOSS Modal -->
 <div class="modal-backdrop" id="loss-modal">
   <div class="modal-box" style="border-color:var(--yellow)">
-    <div class="modal-title" style="color:var(--yellow)">💀 SELF LOSS</div>
+    <div class="modal-title" style="color:var(--yellow)"><iconify-icon icon="lucide:skull"></iconify-icon> SELF LOSS</div>
     <div class="modal-sub" id="loss-modal-time">At 00:00</div>
     <div class="modal-label">WHO WENT DOWN?</div>
     <div class="modal-player-list" id="loss-player-list"></div>
@@ -980,7 +1037,7 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 <!-- WIPE Modal (Self Wipe) -->
 <div class="modal-backdrop" id="wipe-modal">
   <div class="modal-box" style="border-color:var(--red)">
-    <div class="modal-title" style="color:var(--red)">☠ SELF WIPED</div>
+    <div class="modal-title" style="color:var(--red)"><iconify-icon icon="lucide:shield-x"></iconify-icon> SELF WIPED</div>
     <div class="modal-sub" id="wipe-modal-time">At 00:00 — confirm placement</div>
     <div class="pos-row">
       <span class="pos-label">PLACEMENT</span>
@@ -996,7 +1053,7 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 <!-- EWIPE Modal (Enemy Wipe) -->
 <div class="modal-backdrop" id="ewipe-modal">
   <div class="modal-box" style="border-color:var(--orange)">
-    <div class="modal-title" style="color:var(--orange)">⚑ ENEMY WIPE</div>
+    <div class="modal-title" style="color:var(--orange)"><iconify-icon icon="lucide:flag"></iconify-icon> ENEMY WIPE</div>
     <div class="modal-sub" id="ewipe-modal-time">At 00:00</div>
     <div class="modal-label">WHICH TEAM WAS ELIMINATED?</div>
     <select class="modal-select" id="ewipe-team-select">
@@ -1032,11 +1089,11 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
     <div class="modal-sub">Match saved. What's next?</div>
     <div class="nm-btn-row">
       <button class="nm-btn" onclick="nextMatchSameVod()">
-        📹 SAME VOD
+        <iconify-icon icon="lucide:video"></iconify-icon> SAME VOD
         <span class="nm-btn-sub">Video stays loaded. Select next match and press START MATCH.</span>
       </button>
       <button class="nm-btn" onclick="nextMatchNewVod()">
-        🔗 NEW VOD
+        <iconify-icon icon="lucide:link"></iconify-icon> NEW VOD
         <span class="nm-btn-sub">Load a new YouTube URL for the next match.</span>
       </button>
       <button class="btn-modal-cancel" onclick="closeModal('next-match-modal')" style="margin-top:4px">STAY ON THIS MATCH</button>
@@ -1047,7 +1104,7 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 <!-- Active Players Modal -->
 <div class="modal-backdrop" id="active-players-modal">
   <div class="modal-box wide" style="border-color:var(--accent)">
-    <div class="modal-title">👥 Active Squad</div>
+    <div class="modal-title"><iconify-icon icon="lucide:users"></iconify-icon> Active Squad</div>
     <div class="modal-sub">Select players rostered for this match.</div>
     <div id="apm-player-list" style="display:flex;flex-direction:column;gap:4px;overflow-y:auto;max-height:280px;"></div>
     <div class="modal-sub" id="apm-count" style="color:var(--accent)"></div>
@@ -1062,7 +1119,7 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 <div id="editor-data-dialog">
   <div class="sfd-box">
     <div class="sfd-header">
-      <div class="sfd-icon">📋</div>
+      <div class="sfd-icon"><iconify-icon icon="lucide:clipboard"></iconify-icon></div>
       <div class="sfd-titles">
         <div class="sfd-title">Editor Data Found</div>
         <div class="sfd-sub">This match has data from the Editor. Sync it to the video timeline in 3 steps.</div>
@@ -1105,7 +1162,7 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 <!-- ══ OFFSET OVERWRITE DIALOG ══ -->
 <div id="offset-overwrite-dialog">
   <div class="owd-box">
-    <div class="owd-title">⚠ Match Start Already Set</div>
+    <div class="owd-title"><iconify-icon icon="lucide:alert-triangle"></iconify-icon> Match Start Already Set</div>
     <div class="owd-sub" id="owd-sub">This match already has a saved start point. Pressing START MATCH will overwrite it. Are you sure?</div>
     <div class="owd-actions">
       <button class="btn-owd-cancel" onclick="document.getElementById('offset-overwrite-dialog').classList.remove('show')">CANCEL</button>
@@ -1577,7 +1634,7 @@ function _setSyncLost(lost) {
   const el = document.getElementById('tb-match-time');
   if (el) {
     el.style.color = lost ? 'var(--red)' : '';
-    el.title = lost ? '⚠ Video sync lost — tab may be throttled.' : '';
+    el.title = lost ? 'Video sync lost — tab may be throttled.' : '';
   }
   if (lost) {
     const fr = document.getElementById('yt-iframe');
@@ -1620,7 +1677,7 @@ async function toggleMatchActive() {
     matchActive = false;
     matchTime = 0; state.time = 0;
     updateEventButtons();
-    document.getElementById('btn-start-match').textContent = '▶ START MATCH';
+    document.getElementById('btn-start-match').innerHTML = '<iconify-icon icon="lucide:play"></iconify-icon> START MATCH';
     document.getElementById('btn-start-match').style.background = '';
     document.getElementById('btn-start-match').style.color = '';
     toast('Match reset — scrub to start and press START MATCH','ok');
@@ -1637,7 +1694,7 @@ async function _doStartMatch() {
   // fix 1.7: warn if video is still at 0:00 (user probably hasn't scrubbed yet)
   if (_ytCurrentTime < 30) {
     const confirmed = await _confirmDialog(
-      '⚠ Video is at ' + fmtTime(Math.round(_ytCurrentTime)),
+      '<iconify-icon icon="lucide:alert-triangle"></iconify-icon> Video is at ' + fmtTime(Math.round(_ytCurrentTime)),
       'The video is near the start. Have you scrubbed to the moment the match begins?',
       'YES, SET START HERE', 'GO BACK'
     );
@@ -1647,7 +1704,7 @@ async function _doStartMatch() {
   // fix 1.1: if _ytCurrentTime is 0 and fallback fired, warn that position is unconfirmed
   if (_ytCurrentTime === 0 && !_ytRealOnReadyFired) {
     const confirmed = await _confirmDialog(
-      '⚠ Video position unconfirmed',
+      '<iconify-icon icon="lucide:alert-triangle"></iconify-icon> Video position unconfirmed',
       'The video may not have loaded correctly — its current position reads as 0:00. Saving this offset will corrupt event timestamps. Continue anyway?',
       'SAVE ANYWAY', 'CANCEL'
     );
@@ -1670,7 +1727,7 @@ async function _doStartMatch() {
     }
     startPolling();
     updateEventButtons();
-    document.getElementById('btn-start-match').textContent = '⏹ RESET OFFSET';
+    document.getElementById('btn-start-match').innerHTML = '<iconify-icon icon="lucide:square"></iconify-icon> RESET OFFSET';
     document.getElementById('btn-start-match').style.background = 'var(--muted2)';
     document.getElementById('btn-start-match').style.color = 'var(--text)';
     document.getElementById('skip-to-start-banner').classList.remove('show');
@@ -1680,7 +1737,7 @@ async function _doStartMatch() {
     const syncedTeams = matchTeams.length;
     const syncedPlayers = matchPlayers.length;
     const syncedEvents = matchTeams.filter(t=>t.time_of_wipe!=null).length + matchPlayers.filter(p=>p.time_of_loss!=null).length;
-    let syncMsg = `▶ Match synced @ ${fmtTime(Math.round(vodStartOffset))} into video`;
+    let syncMsg = `Match synced @ ${fmtTime(Math.round(vodStartOffset))} into video`;
     if (syncedTeams || syncedPlayers || syncedEvents) {
       syncMsg += ` — ${syncedTeams} teams, ${syncedPlayers} players, ${syncedEvents} events mapped`;
     }
@@ -1713,11 +1770,13 @@ function updateEventButtons() {
 // ══════════════════════════════════════════════════════
 // EVENT FLOW — placement → modal
 // ══════════════════════════════════════════════════════
+// NOTE: these colors are used for pb-text, which sits in a dark overlay chip on
+// top of the video — bright HUD-safe tints, not the dark parchment-ink brand vars.
 const EVENT_CONFIG = {
-  elim:  { icon:'⚡', text:'SELF ELIM — click map to place fight marker', color:'var(--accent)' },
-  loss:  { icon:'💀', text:'SELF LOSS — click map to place death position', color:'var(--yellow)' },
-  wipe:  { icon:'☠',  text:'SELF WIPE — click map to mark wipe position', color:'var(--red)' },
-  ewipe: { icon:'⚑',  text:'ENEMY WIPE — click map to mark wipe position', color:'var(--orange)' },
+  elim:  { icon:'<iconify-icon icon="lucide:zap"></iconify-icon>', text:'SELF ELIM — click map to place fight marker', color:'#7BC47F' },
+  loss:  { icon:'<iconify-icon icon="lucide:skull"></iconify-icon>', text:'SELF LOSS — click map to place death position', color:'#E8C84A' },
+  wipe:  { icon:'<iconify-icon icon="lucide:shield-x"></iconify-icon>',  text:'SELF WIPE — click map to mark wipe position', color:'#F08A80' },
+  ewipe: { icon:'<iconify-icon icon="lucide:flag"></iconify-icon>',  text:'ENEMY WIPE — click map to mark wipe position', color:'var(--orange)' },
 };
 
 function startEvent(eventType) {
@@ -1734,7 +1793,7 @@ function startEvent(eventType) {
   pendingEventCoords = null;
 
   const cfg = EVENT_CONFIG[eventType];
-  document.getElementById('pb-icon').textContent = cfg.icon;
+  document.getElementById('pb-icon').innerHTML = cfg.icon;
   document.getElementById('pb-text').textContent = cfg.text;
   document.getElementById('pb-text').style.color = cfg.color;
   document.getElementById('placement-banner').classList.add('show');
@@ -1832,8 +1891,8 @@ async function confirmElim() {
     } catch(e) { toast('Save error: '+e.message,'err'); }
   }
 
-  addEventLog({ icon:'⚡', title:`${player.name} — ${finishes} finish${finishes!==1?'es':''}`, time:t, color:'var(--accent)' });
-  toast(`⚡ ${player.name} — ${finishes} finish${finishes!==1?'es':''} @ ${fmtTime(t)}`, 'ok');
+  addEventLog({ icon:'<iconify-icon icon="lucide:zap"></iconify-icon>', title:`${player.name} — ${finishes} finish${finishes!==1?'es':''}`, time:t, color:'var(--accent)' });
+  toast(`${player.name} — ${finishes} finish${finishes!==1?'es':''} @ ${fmtTime(t)}`, 'ok');
   renderTimelineMarkers(); draw();
   pendingEventCoords = null;
 }
@@ -1895,15 +1954,15 @@ async function confirmLoss() {
   }
 
   const kbTeam = killedByTeamId ? teams.find(t2=>t2.id===killedByTeamId) : null;
-  addEventLog({ icon:'💀', title:`${player.name} down${kbTeam?` · by ${kbTeam.name}`:''}`, time:t, color:'var(--yellow)' });
-  toast(`💀 ${player.name} down @ ${fmtTime(t)}`, 'ok');
+  addEventLog({ icon:'<iconify-icon icon="lucide:skull"></iconify-icon>', title:`${player.name} down${kbTeam?` · by ${kbTeam.name}`:''}`, time:t, color:'var(--yellow)' });
+  toast(`${player.name} down @ ${fmtTime(t)}`, 'ok');
   renderTimelineMarkers(); renderSquadPanel(); draw();
   pendingEventCoords = null;
 
   // Auto-trigger self wipe if last player
   const stillAlive = matchPlayers.filter(p2 => p2.time_of_loss==null || p2.time_of_loss > t);
   if (stillAlive.length === 0) {
-    toast('☠ Last player — triggering Self Wipe…','warn');
+    toast('Last player — triggering Self Wipe…','warn');
     setTimeout(() => startEvent('wipe'), 400);
   }
 }
@@ -1941,8 +2000,8 @@ async function confirmSelfWipe() {
     await sb.from('teams').update(upd).eq('id',selfTeam.id);
   }
 
-  addEventLog({ icon:'☠', title:`SELF wiped${pos?` — #${pos}`:''}`, time:t, color:'var(--red)' });
-  toast(`☠ SELF wiped @ ${fmtTime(t)}${pos?` — #${pos}`:''}`, 'ok');
+  addEventLog({ icon:'<iconify-icon icon="lucide:shield-x"></iconify-icon>', title:`SELF wiped${pos?` — #${pos}`:''}`, time:t, color:'var(--red)' });
+  toast(`SELF wiped @ ${fmtTime(t)}${pos?` — #${pos}`:''}`, 'ok');
   renderTimelineMarkers(); renderSquadPanel(); updateEventButtons(); draw();
   pendingEventCoords = null;
 }
@@ -1980,8 +2039,8 @@ async function confirmEnemyWipe() {
     await sb.from('teams').update(upd).eq('id',teamId);
   }
 
-  addEventLog({ icon:'⚑', title:`${team.name} wiped${pos?` — #${pos}`:''}`, time:t, color:'var(--orange)' });
-  toast(`⚑ ${team.name} wiped @ ${fmtTime(t)}${pos?` — #${pos}`:''}`, 'ok');
+  addEventLog({ icon:'<iconify-icon icon="lucide:flag"></iconify-icon>', title:`${team.name} wiped${pos?` — #${pos}`:''}`, time:t, color:'var(--orange)' });
+  toast(`${team.name} wiped @ ${fmtTime(t)}${pos?` — #${pos}`:''}`, 'ok');
   renderTimelineMarkers(); renderSquadPanel(); draw();
   pendingEventCoords = null;
 
@@ -2032,12 +2091,12 @@ async function markMatchEnd() {
     // Undo
     if(sb&&!String(state.matchId).startsWith('local_')) await sb.from('matches').update({duration_seconds:null}).eq('id',state.matchId);
     if(m) m.duration_seconds=null;
-    toast('⏹ Match end removed','ok'); return;
+    toast('Match end removed','ok'); return;
   }
   if(sb&&!String(state.matchId).startsWith('local_')) await sb.from('matches').update({duration_seconds:dur}).eq('id',state.matchId);
   if(m) m.duration_seconds=dur;
-  addEventLog({ icon:'⏹', title:`Match ended @ ${fmtTime(dur)}`, time:dur, color:'var(--muted)' });
-  toast(`⏹ Match ended @ ${fmtTime(dur)}`,'ok');
+  addEventLog({ icon:'<iconify-icon icon="lucide:square"></iconify-icon>', title:`Match ended @ ${fmtTime(dur)}`, time:dur, color:'var(--muted)' });
+  toast(`Match ended @ ${fmtTime(dur)}`,'ok');
   renderTimelineMarkers();
   await showResultsPanel();
 }
@@ -2065,7 +2124,7 @@ async function showResultsPanel() {
   matchTeams.forEach(team => {
     const row = document.createElement('div'); row.className='results-team-row';
     const dot = document.createElement('div'); dot.className='results-team-dot'; dot.style.background=team.color;
-    const name = document.createElement('div'); name.className='results-team-name'; name.textContent = team.is_self?'⚡ SELF':team.name;
+    const name = document.createElement('div'); name.className='results-team-name'; name.textContent = team.is_self?'SELF':team.name;
     const prefillPlace = team.confirmed_position||team.placement||'';
     const prefillKills = team.is_self ? selfKills : (team.kills||0);
     const plLabel = document.createElement('div'); plLabel.className='results-input-label'; plLabel.textContent='PLACE';
@@ -2121,7 +2180,7 @@ function nextMatchSameVod() {
   closeModal('next-match-modal');
   // Reset match-active state, video stays loaded
   stopPolling(); matchActive=false; matchTime=0; state.time=0;
-  document.getElementById('btn-start-match').textContent='▶ START MATCH';
+  document.getElementById('btn-start-match').innerHTML='<iconify-icon icon="lucide:play"></iconify-icon> START MATCH';
   document.getElementById('btn-start-match').style.background='';
   document.getElementById('btn-start-match').style.color='';
   updateEventButtons(); updateMatchTimeDisplay();
@@ -2146,7 +2205,7 @@ function nextMatchNewVod() {
   stopPolling(); matchActive=false; matchTime=0; state.time=0;
   if (ytPlayer && typeof ytPlayer.stopVideo === 'function') ytPlayer.stopVideo();
   document.getElementById('vod-url-input').value='';
-  document.getElementById('btn-start-match').textContent='▶ START MATCH';
+  document.getElementById('btn-start-match').innerHTML='<iconify-icon icon="lucide:play"></iconify-icon> START MATCH';
   document.getElementById('btn-start-match').style.background='';
   document.getElementById('btn-start-match').style.color='';
   document.getElementById('btn-start-match').disabled=true;
@@ -2433,7 +2492,7 @@ async function onMatchChange(val) {
     updateVodMatchStatus();
   }
   stopPolling(); matchActive=false; matchTime=0; state.time=0;
-  document.getElementById('btn-start-match').textContent='▶ START MATCH';
+  document.getElementById('btn-start-match').innerHTML='<iconify-icon icon="lucide:play"></iconify-icon> START MATCH';
   document.getElementById('btn-start-match').style.background='';
   document.getElementById('btn-start-match').style.color='';
   setVideoState('idle');
@@ -2469,8 +2528,8 @@ async function _postMatchLoadDialogs(m) {
 
 function _showSkipBanner(offsetSeconds) {
   const t = fmtTime(Math.round(offsetSeconds));
-  document.getElementById('stb-text').textContent =
-    `⏱ This match starts at ${t} in the video — jump there now?`;
+  document.getElementById('stb-text').innerHTML =
+    `<iconify-icon icon="lucide:clock"></iconify-icon> This match starts at ${t} in the video — jump there now?`;
   document.getElementById('skip-to-start-banner').classList.add('show');
 }
 
@@ -2479,7 +2538,7 @@ function skipToMatchStart() {
   if (!ytPlayer || !_ytPlayerReady) { toast('Video not ready yet','warn'); return; }
   ytPlayer.seekTo(vodStartOffset, true);
   ytPlayer.playVideo();
-  toast(`⏩ Jumped to match start (${fmtTime(Math.round(vodStartOffset))})`, 'ok');
+  toast(`Jumped to match start (${fmtTime(Math.round(vodStartOffset))})`, 'ok');
 }
 
 function dismissSkipBanner() {
@@ -2623,7 +2682,7 @@ function sfdLoadVideo() {
   // Close the dialog after short delay so user can see step advance
   setTimeout(() => {
     document.getElementById('editor-data-dialog').classList.remove('show');
-    toast('Video loading — scrub to match start, then press ▶ START MATCH', 'ok');
+    toast('Video loading — scrub to match start, then press START MATCH', 'ok');
     // Pulse START MATCH button
     const btn = document.getElementById('btn-start-match');
     if (btn) {
@@ -2680,7 +2739,7 @@ function _confirmDialog(title, body, confirmLabel, cancelLabel) {
         <div style="font-family:var(--font-mono);font-size:11px;color:var(--muted);line-height:1.7;letter-spacing:.03em;">${body}</div>
         <div style="display:flex;gap:8px;">
           <button id="_cd-cancel" style="flex:1;padding:10px;background:none;border:1px solid var(--border);color:var(--muted);border-radius:7px;font-family:var(--font-mono);font-size:11px;cursor:pointer;">${cancelLabel||'CANCEL'}</button>
-          <button id="_cd-confirm" style="flex:1;padding:10px;background:var(--orange);border:none;color:#020617;border-radius:7px;font-family:var(--font-display);font-size:13px;font-weight:800;cursor:pointer;">${confirmLabel||'CONFIRM'}</button>
+          <button id="_cd-confirm" style="flex:1;padding:10px;background:var(--orange);border:none;color:var(--bg);border-radius:7px;font-family:var(--font-display);font-size:13px;font-weight:800;cursor:pointer;">${confirmLabel||'CONFIRM'}</button>
         </div>
       </div>`;
     document.body.appendChild(el);
@@ -2692,7 +2751,7 @@ function _confirmDialog(title, body, confirmLabel, cancelLabel) {
 // ── Match-end prompt banner (fix 3.3) ──
 function _showMatchEndPrompt(msg) {
   // reuse skip banner slot — or create a simple toast-level prompt
-  toast(msg + ' — press ⏹ MARK MATCH END when ready', 'ok');
+  toast(msg + ' — press MARK MATCH END when ready', 'ok');
   // Also pulse the match-end button to draw attention
   const btn = document.getElementById('btn-match-end');
   if (btn) {
@@ -3157,7 +3216,7 @@ function drawShape(s, isPreview, teamColor, alphaMult) {
   const am=alphaMult??1;
   const lw=2/zoom, op=0.85;
   let rgb;
-  rgb = hexRgb(teamColor||'#22d3ee');
+  rgb = hexRgb(teamColor||'#2C4A2E');
   const [r,g,b]=rgb;
   const stroke=`rgba(${r},${g},${b},${(op*am).toFixed(2)})`;
   const fill  =`rgba(${r},${g},${b},${(op*am*.12).toFixed(2)})`;
@@ -3172,17 +3231,17 @@ function drawShape(s, isPreview, teamColor, alphaMult) {
     if(s.type==='fight'&&s.teamA){
       ctx.fillStyle=`rgba(${r},${g},${b},${am.toFixed(2)})`;
       ctx.font=`bold ${9/zoom}px JetBrains Mono,monospace`;
-      ctx.fillText(`${s.teamA}⚔`,s.x+8/zoom,s.y-6/zoom);
+      ctx.fillText(`${s.teamA}`,s.x+8/zoom,s.y-6/zoom);
     }
   }
 }
 
 function drawZoneCircle(s, isPreview) {
   const lw=2/zoom, op=.85;
-  const stroke=`rgba(34,211,238,${op.toFixed(2)})`, fill=`rgba(34,211,238,${(op*.12).toFixed(2)})`;
+  const stroke=`rgba(44,74,46,${op.toFixed(2)})`, fill=`rgba(44,74,46,${(op*.12).toFixed(2)})`;
   ctx.strokeStyle=stroke; ctx.fillStyle=fill; ctx.lineWidth=lw; ctx.setLineDash([]);
   ctx.beginPath(); ctx.arc(s.cx,s.cy,s.r,0,Math.PI*2); ctx.fill(); ctx.stroke();
-  ctx.fillStyle=`rgba(34,211,238,.9)`; ctx.font=`bold ${13/zoom}px JetBrains Mono,monospace`;
+  ctx.fillStyle=`rgba(44,74,46,.9)`; ctx.font=`bold ${13/zoom}px JetBrains Mono,monospace`;
   ctx.textAlign='center'; ctx.textBaseline='middle';
   ctx.fillText(`Z${s.zone_phase||''}`,s.cx,s.cy);
   ctx.textAlign='left'; ctx.textBaseline='alphabetic';
@@ -3245,7 +3304,7 @@ function renderTimelineMarkers() {
   // Wipes
   matchTeams.forEach(team=>{
     if(team.time_of_wipe!=null){
-      const color=team.is_self?'#f87171':'#fb923c';
+      const color=team.is_self?'#9B1C11':'#C85E0A';
       addTlMarker(container,team.time_of_wipe,dur,color,`${team.name} wiped`);
     }
   });
@@ -3253,17 +3312,17 @@ function renderTimelineMarkers() {
   // Shapes
   matchTeams.forEach(team=>{
     (shapesCache[team.id]||[]).forEach(s=>{
-      if(s.type==='fight') addTlMarker(container,s.time,dur,'#f87171','Fight');
-      if(s.type==='path')  addTlMarker(container,s.time,dur,'#22d3ee','Rotation');
+      if(s.type==='fight') addTlMarker(container,s.time,dur,'#9B1C11','Fight');
+      if(s.type==='path')  addTlMarker(container,s.time,dur,'#2C4A2E','Rotation');
     });
   });
 
   // Zones
-  (zonesCache[state.matchId]||[]).forEach(s=>addTlMarker(container,s.time,dur,'#22d3ee','Zone'));
+  (zonesCache[state.matchId]||[]).forEach(s=>addTlMarker(container,s.time,dur,'#2C4A2E','Zone'));
 
   // Annotations
   annotations.forEach(ev=>{
-    const color=ev.color||'#4ade80';
+    const color=ev.color||'#4E7C2F';
     addTlMarker(container,ev.time_seconds,dur,color,ev.title);
   });
 }
@@ -3296,7 +3355,7 @@ function toggleOverlayCanvas() {
   canvas.style.display = overlayVisible ? 'block' : 'none';
   const btn = document.getElementById('btn-overlay');
   btn.classList.toggle('active', overlayVisible);
-  btn.textContent = overlayVisible ? '👁 MAP' : '👁 MAP OFF';
+  btn.innerHTML = overlayVisible ? '<iconify-icon icon="lucide:eye"></iconify-icon> MAP' : '<iconify-icon icon="lucide:eye-off"></iconify-icon> MAP OFF';
   document.getElementById('map-opacity-cluster').style.opacity = overlayVisible ? '1' : '0.35';
   if(overlayVisible) draw();
 }
@@ -3439,7 +3498,7 @@ function _updateLoupe(canvasSx, canvasSy, cssSx, cssSy) {
   lCtx.restore();
 
   // Crosshair
-  const col = calPhase === 1 ? '#fb923c' : '#22d3ee';
+  const col = calPhase === 1 ? '#C85E0A' : '#7BC47F';
   lCtx.strokeStyle = col;
   lCtx.lineWidth = 1;
   lCtx.setLineDash([3, 3]);
@@ -3558,13 +3617,13 @@ function computeCalibration() {
       <div class="cal-step-pill done-p"></div>
     </div>
     ✓ CALIBRATION COMPLETE — MAP ALIGNED<br>
-    <span style="opacity:.65;font-size:9px">ESC or click 🎯 to exit</span>
+    <span style="opacity:.65;font-size:9px">ESC or click CALIBRATE to exit</span>
   `;
   banner.classList.remove('phase1','phase2');
   banner.classList.add('show','done');
   calPhase = 0; // prevent more clicks
   setTimeout(() => exitCalibration(), 1800);
-  toast('✓ Map calibrated — coords corrected', 'ok');
+  toast('Map calibrated — coords corrected', 'ok');
 }
 
 function renderCalOverlay() {
@@ -3604,13 +3663,13 @@ function renderCalOverlay() {
   if (calPhase === 1) {
     calStreamClicks.forEach((p,i) => makeDot(p.sx, p.sy, 'stream', `VIDEO ${i+1}`));
     if (calStreamClicks.length === 2)
-      makeLine(calStreamClicks[0].sx, calStreamClicks[0].sy, calStreamClicks[1].sx, calStreamClicks[1].sy, '#fb923c');
+      makeLine(calStreamClicks[0].sx, calStreamClicks[0].sy, calStreamClicks[1].sx, calStreamClicks[1].sy, '#C85E0A');
   }
 
   // Draw map points (phase 2)
   calMapClicks.forEach((p,i) => makeDot(p.sx, p.sy, 'mappt', `MAP ${i+1}`));
   if (calMapClicks.length === 2)
-    makeLine(calMapClicks[0].sx, calMapClicks[0].sy, calMapClicks[1].sx, calMapClicks[1].sy, '#22d3ee');
+    makeLine(calMapClicks[0].sx, calMapClicks[0].sy, calMapClicks[1].sx, calMapClicks[1].sy, '#7BC47F');
 
   // Draw correspondence connectors if both A points exist
   if (calStreamClicks.length >= 1 && calMapClicks.length >= 1) {
@@ -3688,7 +3747,7 @@ function togglePlayPause() {
 function _syncPlayPauseBtn() {
   const btn = document.getElementById('btn-play-pause');
   if (!btn) return;
-  btn.textContent = _isPlaying ? '⏸ PAUSE' : '⏯ PLAY';
+  btn.innerHTML = _isPlaying ? '<iconify-icon icon="lucide:pause-circle"></iconify-icon> PAUSE' : '<iconify-icon icon="lucide:play-circle"></iconify-icon> PLAY';
   btn.classList.toggle('active', _isPlaying);
 }
 
@@ -3812,10 +3871,19 @@ function setMode(m){
 }
 function closeModal(id){ document.getElementById(id).classList.remove('show'); }
 function toast(msg,type='info'){
+  const labels={info:'INFO',warn:'WARNING',err:'ERROR',ok:'DONE'};
   const container=document.getElementById('toast-container');
-  const el=document.createElement('div'); el.className='toast '+type; el.textContent=msg;
+  const el=document.createElement('div');
+  el.className='toast '+type;
+  const lbl=document.createElement('div');
+  lbl.className='toast-label';
+  lbl.textContent=labels[type]||'INFO';
+  const txt=document.createElement('div');
+  txt.className='toast-msg';
+  txt.textContent=msg;
+  el.appendChild(lbl); el.appendChild(txt);
   container.appendChild(el);
-  setTimeout(()=>{ el.classList.add('out'); setTimeout(()=>el.remove(),350); },2800);
+  setTimeout(()=>{ el.classList.add('out'); setTimeout(()=>el.remove(),220); },2800);
 }
 </script>
 </body>
