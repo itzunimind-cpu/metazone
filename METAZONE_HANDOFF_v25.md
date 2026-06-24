@@ -1,5 +1,5 @@
 # METAZONE — Project Handoff & Continuity Document
-**Version:** v35 — Session 35. editor.html: marker UX overhaul — pure world-space scaling, fully opaque, circumference-only zone erase, pan clamping, normalized zoom HUD, parchment toast redesign, event log zoom-to-marker.
+**Version:** v36 — Session 36. editor.html: event log pill overhaul — uniform zoom-to-marker on tap, time moved below title, persistent undo button on every undoable entry (loss/elim/matchend/wipe/zone/fight/pin/rotation). Fixed loss/elim entries vanishing on refresh (now DB-sourced). Fixed active shape-color button losing white text on hover.
 **Purpose:** Single source of truth across all chat sessions. Read this first in every new chat.
 
 ---
@@ -21,7 +21,7 @@
 | File | Version | Last changed | Notes |
 |------|---------|--------------|-------|
 | index.html | v9.5 | Session 26 | All sidebar + grid bugs fixed. Skeleton loader added. Card reveal animation. |
-| editor.html | v6.8 | Session 35 | Marker UX overhaul — world-space scaling, opaque colors, pan clamp, zoom HUD, toast redesign, event log zoom |
+| editor.html | v6.9 | Session 36 | Event log pill overhaul — zoom-to-marker on tap, time below title, persistent undo button (all undoable types). Loss/elim log entries now DB-sourced (survive refresh). Active shape-color button hover text fix. |
 | tournament-create.html | v4.1 | Session 25 | VOD REVIEW nav link added |
 | tournament-editor.html | v1.4 | Session 25 | VOD REVIEW nav link added |
 | analytics.html | v2.3 | Session 25 | VOD REVIEW nav link added, active link fixed |
@@ -293,6 +293,7 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | `mzCtxRead()` | Reads context from sessionStorage |
 | `loadShapesForMatch(matchId)` | Load shapes for selected match |
 | `loadMatchPlayers(matchId)` | Load match_players |
+| `loadSelfElims(matchId)` | Load self_elims rows for current match — DB-backed source for event log Elim entries (survives refresh) |
 | `toggleCalibration()` | Enter/exit 2-point calibration mode |
 | `_calInverse(wx, wy)` | World → corrected world coords for calibrated map |
 | `updateMapOffset()` | Reads X/Y/scale toolbar inputs, redraws |
@@ -421,6 +422,10 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | 35 | **Toast redesign — design handoff palette** — toasts rebuilt to match the parchment design language: `#F2EDE4` background, `#C9BFA8` warm border, 3px left accent bar per type (forest/orange/red/olive), Lexend Deca 8px ALL CAPS type label in accent colour, Manrope 11px `#1C1A14` message body, warm box-shadow, slide-in from right animation. |
 | 35 | **Event log — zoom to marker on click** — `zoomToWorld(wx, wy)` added. All clickable event log entries now call `jumpToTime` + `zoomToWorld` together. Shape events (pin, fight, rotation line/path, zone circle) pass their world coordinates into the event object at render time. Wipe events pass `team.wipe_x / team.wipe_y`. Zoom level: 20× the fit-to-canvas minimum. |
 | 35 | **Event log — wipe hint removed** — the overlapping inline hint text ("↩ Press SELF WIPE to undo") that appeared on wipe entry click replaced by the same jump+zoom behavior as all other entries. |
+| 36 | **Event log pill redesign** — every entry click now uniformly calls `jumpToTime` + `zoomToWorld` (if it has `wx/wy`), including Self Loss (resolves its death pin via `matchPlayers`). `annotation-entry-header` row removed — title and time now stack vertically in `annotation-body` (time below title, not beside it). |
+| 36 | **Event log — persistent undo button** — undoable entries (Loss/Elim/MatchEnd/Wipe/Zone/Fight/Pin/Rotation) now show a small `↩` icon button anchored to the right of the pill (`.annotation-undo-btn`), replacing the old click-to-reveal text button. Undo extended beyond Loss/Elim/MatchEnd to Wipe (`_team` ref), Zone circles (`_zone` ref), and Fight/Pin/Rotation shapes (`_shape` ref) — `undoLogEvent()` removes the underlying record from local state + DB and redraws, mirroring the existing `eraseAtPosition` delete pattern. |
+| 36 | **Self Loss/Elim log entries fixed to survive refresh** — root cause: these entries were built from ephemeral, in-memory-only annotations (`local_loss_*` / `local_elim_*`) that were never persisted and got wiped every match reload, even though the underlying data (`match_players.time_of_loss/death_x/y`, `kills`, `self_elims` rows) was saved fine. Fix: Loss entries now built directly from `matchPlayers` (`time_of_loss!=null`); Elim entries built from a new `selfElims` cache loaded via `loadSelfElims(matchId)` (same pattern as wipe events sourced from `teams.time_of_wipe`). Called in `_activateMatch`'s `Promise.all` and the `sel-match` onchange handler; reset alongside `annotations=[]` in all reset/delete paths. |
+| 36 | **Active shape-color button hover fix** — `.btn-cm:hover` was overriding text color to accent even when `.active` (same CSS specificity, later in source order), making the green-filled active button's text flash on hover. Added `.btn-cm.active:hover` to keep border/text colour consistent with the active state. |
 
 ---
 
