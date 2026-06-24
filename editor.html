@@ -544,10 +544,10 @@ canvas.path-mode{ cursor:cell; }
 .timeline-actions{ display:flex;flex-direction:column;gap:4px;flex-shrink:0; }
 .timeline-actions-row{ display:flex;gap:4px; }
 .btn-timeline{
-  padding:5px 10px;background:var(--bg);border:1px solid var(--border);color:var(--muted);
+  flex:1;padding:5px 6px;background:var(--bg);border:1px solid var(--border);color:var(--muted);
   border-radius:5px;font-family:var(--font-mono);font-size:9px;font-weight:500;
   letter-spacing:.05em;cursor:pointer;transition:all .15s;text-transform:uppercase;white-space:nowrap;
-  display:flex;align-items:center;gap:4px;
+  display:flex;align-items:center;justify-content:center;gap:4px;
 }
 .btn-timeline iconify-icon{ font-size:11px;pointer-events:none; }
 .btn-timeline:hover{ border-color:var(--muted2);color:var(--text); }
@@ -567,12 +567,14 @@ canvas.path-mode{ cursor:cell; }
 }
 
 .rp-section{ padding:14px;border-bottom:1px solid var(--border-dim); }
-.rp-label{ font-family:var(--font-mono);font-size:9px;font-weight:500;color:var(--accent);letter-spacing:.12em;text-transform:uppercase;margin-bottom:12px;display:block; }
-.rp-field{ margin-bottom:10px; }
-.rp-field-label{ font-family:var(--font-mono);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:3px; }
-.rp-field-value{ font-size:13px;font-weight:600;color:var(--text); }
-.rp-row{ display:flex;gap:12px; }
-.rp-row .rp-field{ flex:1; }
+.meta-title{ font-family:var(--font-mono);font-size:9px;font-weight:700;color:var(--accent);letter-spacing:.14em;text-transform:uppercase;margin-bottom:10px;display:block; }
+.meta-card{ background:var(--bg);border:1px solid var(--border-dim);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;margin-bottom:10px; }
+.meta-item{ min-width:0; }
+.meta-lbl{ font-family:var(--font-mono);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;display:block;margin-bottom:2px; }
+.meta-val{ font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block; }
+.meta-mono{ font-family:var(--font-mono);color:var(--accent); }
+.meta-row-2{ display:flex;gap:10px; }
+.meta-row-2 .meta-item{ flex:1;min-width:0; }
 
 /* competing factions */
 .factions-wrap{ display:flex;flex-wrap:wrap;gap:5px;margin-top:4px; }
@@ -1081,15 +1083,6 @@ canvas.path-mode{ cursor:cell; }
 #sl-width,#sl-opacity{ margin:0; }
 
 
-/* ══ COLLAPSIBLE RIGHT PANEL SECTION ══ */
-.rp-collapse-header{
-  display:flex;align-items:center;justify-content:space-between;
-  width:100%;background:none;border:none;cursor:pointer;padding:0;
-}
-.rp-collapse-header .rp-label{ margin-bottom:0;cursor:pointer; }
-.rp-collapse-header iconify-icon{ color:var(--muted2);font-size:14px;transition:transform .2s; }
-.rp-collapse-header.open iconify-icon{ transform:rotate(180deg); }
-.rp-collapse-body{ margin-top:12px; }
 
 /* ══ ACTIVE SQUAD INLINE ══ */
 .btn-active-squad{
@@ -1411,29 +1404,30 @@ canvas.path-mode{ cursor:cell; }
   <!-- ══ RIGHT PANEL ════════════════════════════════ -->
   <div id="right-panel">
 
-    <!-- Match Metadata (collapsible) -->
+    <!-- Match Metadata -->
     <div class="rp-section">
-      <button class="rp-collapse-header" id="meta-collapse-btn" onclick="toggleMetaCollapse()">
-        <span class="rp-label">Match Metadata</span>
-        <iconify-icon icon="lucide:chevron-down" id="meta-collapse-icon"></iconify-icon>
-      </button>
-      <div class="rp-collapse-body" id="meta-collapse-body" style="display:none">
-        <div class="rp-field">
-          <span class="rp-field-label">Tournament</span>
-          <div class="rp-field-value" id="match-meta-tournament">—</div>
+      <span class="meta-title">MATCH</span>
+      <div class="meta-card">
+        <div class="meta-item">
+          <span class="meta-lbl">Tournament</span>
+          <div class="meta-val" id="match-meta-tournament">—</div>
         </div>
-        <div class="rp-row">
-          <div class="rp-field">
-            <span class="rp-field-label">Map</span>
-            <div class="rp-field-value" id="match-meta-map">—</div>
+        <div class="meta-item">
+          <span class="meta-lbl">Day · Match</span>
+          <div class="meta-val" id="match-meta-day-match">—</div>
+        </div>
+        <div class="meta-row-2">
+          <div class="meta-item">
+            <span class="meta-lbl">Map</span>
+            <div class="meta-val" id="match-meta-map">—</div>
           </div>
-          <div class="rp-field">
-            <span class="rp-field-label">Duration</span>
-            <div class="rp-field-value" id="match-meta-duration" style="font-family:var(--font-mono);color:var(--accent)">—</div>
+          <div class="meta-item">
+            <span class="meta-lbl">Duration</span>
+            <div class="meta-val meta-mono" id="match-meta-duration">—</div>
           </div>
         </div>
       </div>
-      <button class="btn-active-squad" style="margin-top:10px" onclick="if(state.matchId)openActivePlayersModal(state.matchId);else toast('Select a match first','warn');">
+      <button class="btn-active-squad" onclick="if(state.matchId)openActivePlayersModal(state.matchId);else toast('Select a match first','warn');">
         <span><iconify-icon icon="lucide:users" style="vertical-align:middle;margin-right:5px"></iconify-icon>ACTIVE SQUAD</span>
         <iconify-icon icon="lucide:pencil" style="font-size:11px;opacity:.6"></iconify-icon>
       </button>
@@ -2690,6 +2684,13 @@ function cancelPath() {
 // ══════════════════════════════════════════════════════
 // DRAW ENGINE
 // ══════════════════════════════════════════════════════
+
+// Marker pixel helper: caps screen size at `base` px when zoomed in (zoom≥1),
+// and scales it down proportionally when zoomed out to reduce visual clutter.
+function mpx(base) {
+  return base * Math.min(1, Math.max(0.5, zoom)) / zoom;
+}
+
 function draw() {
   const W=canvas.width, H=canvas.height;
   ctx.clearRect(0,0,W,H);
@@ -2864,20 +2865,20 @@ function drawPinMarker(s, isPreview, teamColor, alphaMult) {
   const fillColor=`rgba(${r},${g},${b},${(op*am*.68).toFixed(2)})`;
   const wh='rgba(255,255,255,0.9)';
   const x=s.x, y=s.y;
-  const dr=(isPreview?9:11)/zoom;
+  const dr=mpx(isPreview?9:11);
 
   if(s.tag==='fight'||s.type==='fight'){
     // Fight: diamond + X only
     ctx.beginPath();
     ctx.moveTo(x,y-dr); ctx.lineTo(x+dr,y); ctx.lineTo(x,y+dr); ctx.lineTo(x-dr,y);
     ctx.closePath(); ctx.fillStyle=fillColor; ctx.fill();
-    const d=6/zoom;
+    const d=mpx(6);
     ctx.beginPath();
     ctx.moveTo(x-d,y-d); ctx.lineTo(x+d,y+d); ctx.moveTo(x+d,y-d); ctx.lineTo(x-d,y+d);
     ctx.strokeStyle=wh; ctx.lineWidth=2.2/zoom; ctx.lineCap='round'; ctx.stroke();
   } else {
     // Pin: small teal circle only (no diamond background)
-    const cr=6/zoom;
+    const cr=mpx(6);
     ctx.beginPath(); ctx.arc(x,y,cr,0,Math.PI*2);
     ctx.fillStyle=`rgba(45,212,191,${(op*am*.85).toFixed(2)})`; ctx.fill();
   }
@@ -2885,35 +2886,32 @@ function drawPinMarker(s, isPreview, teamColor, alphaMult) {
 
 function drawWipePin(x, y) {
   const op=+document.getElementById('sl-opacity').value;
-  const dr=11/zoom;
+  const dr=mpx(11);
   ctx.beginPath();
   ctx.moveTo(x,y-dr); ctx.lineTo(x+dr,y); ctx.lineTo(x,y+dr); ctx.lineTo(x-dr,y);
   ctx.closePath(); ctx.fillStyle=`rgba(45,212,191,${(op*.7).toFixed(2)})`; ctx.fill();
-  ctx.beginPath(); ctx.arc(x,y-7/zoom,4/zoom,0,Math.PI*2);
+  ctx.beginPath(); ctx.arc(x,y-mpx(7),mpx(4),0,Math.PI*2);
   ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.lineWidth=2/zoom; ctx.stroke();
-  const d=5/zoom;
+  const d=mpx(5);
   ctx.beginPath();
-  ctx.moveTo(x-d,y+5/zoom-d*.7); ctx.lineTo(x+d,y+5/zoom+d*.7);
-  ctx.moveTo(x+d,y+5/zoom-d*.7); ctx.lineTo(x-d,y+5/zoom+d*.7);
+  ctx.moveTo(x-d,y+mpx(5)-d*.7); ctx.lineTo(x+d,y+mpx(5)+d*.7);
+  ctx.moveTo(x+d,y+mpx(5)-d*.7); ctx.lineTo(x-d,y+mpx(5)+d*.7);
   ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.lineWidth=2/zoom; ctx.lineCap='round'; ctx.stroke();
 }
 
 function drawDeathPin(x, y) {
   const op=+document.getElementById('sl-opacity').value;
-  const dr=13/zoom;
+  const dr=mpx(13);
   const fc=`rgba(200,94,10,${(op*.68).toFixed(2)})`;
   const wh='rgba(255,255,255,0.9)';
-  // Colored diamond background — same as fight marker
   ctx.beginPath();
   ctx.moveTo(x,y-dr); ctx.lineTo(x+dr,y); ctx.lineTo(x,y+dr); ctx.lineTo(x-dr,y);
   ctx.closePath(); ctx.fillStyle=fc; ctx.fill();
-  // X mark
-  const d=6/zoom;
+  const d=mpx(6);
   ctx.beginPath();
   ctx.moveTo(x-d,y-d); ctx.lineTo(x+d,y+d); ctx.moveTo(x+d,y-d); ctx.lineTo(x-d,y+d);
   ctx.strokeStyle=wh; ctx.lineWidth=2.2/zoom; ctx.lineCap='round'; ctx.stroke();
-  // Outer bracket marks
-  const od=11/zoom, os=3.5/zoom;
+  const od=mpx(11), os=mpx(3.5);
   ctx.lineWidth=1.8/zoom; ctx.lineJoin='round'; ctx.lineCap='round';
   ctx.strokeStyle=wh;
   ctx.beginPath(); ctx.moveTo(x-od,y-os); ctx.lineTo(x-od+os,y); ctx.lineTo(x-od,y+os); ctx.stroke();
@@ -4842,7 +4840,9 @@ function renderAnnotationLog(opts) {
 function updateRightPanel() {
   const tour=tournaments.find(t=>t.id===state.tournamentId);
   document.getElementById('match-meta-tournament').textContent=tour?.name||'—';
+  const day=days.find(d=>d.id===state.dayId);
   const m=matches.find(x=>x.id===state.matchId);
+  document.getElementById('match-meta-day-match').textContent=[day?.name,m?.name].filter(Boolean).join(' · ')||'—';
   document.getElementById('match-meta-map').textContent=m?.map_key?m.map_key.charAt(0).toUpperCase()+m.map_key.slice(1):'—';
   document.getElementById('match-meta-duration').textContent=m?.duration_seconds?fmtTime(m.duration_seconds):'—';
   renderActiveSquadInline();
@@ -4941,13 +4941,6 @@ function renderActiveSquadInline() {
   });
 }
 
-function toggleMetaCollapse() {
-  const body = document.getElementById('meta-collapse-body');
-  const btn  = document.getElementById('meta-collapse-btn');
-  const isOpen = body.style.display !== 'none';
-  body.style.display = isOpen ? 'none' : '';
-  btn.classList.toggle('open', !isOpen);
-}
 
 function openInVOD() {
   if (!state.matchId) { toast('Select a match first', 'warn'); return; }
