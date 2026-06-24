@@ -1635,6 +1635,7 @@ const wrap   = document.getElementById('canvas-wrap');
 
 // World coord system
 let WORLD_W = 2048, WORLD_H = 2048;
+let _canvasReady = false; // true only after initCanvas() has sized the canvas
 let zoom=1, panX=0, panY=0;
 let isPanning=false, spaceDown=false;
 let panSX=0, panSY=0, panPX=0, panPY=0;
@@ -2282,7 +2283,7 @@ function loadMapKey(key) {
     // Unknown map key — load directly
     const src = key+'.png';
     const img = new Image(); img.crossOrigin='anonymous'; img.src=src;
-    img.onload=()=>{ mapImg=img; WORLD_W=img.naturalWidth||2048; WORLD_H=img.naturalHeight||2048; resetView(); draw(); canvas.classList.add('map-ready'); };
+    img.onload=()=>{ mapImg=img; WORLD_W=img.naturalWidth||2048; WORLD_H=img.naturalHeight||2048; resetView(); draw(); if(_canvasReady) canvas.classList.add('map-ready'); };
     img.onerror=()=>{ toast('MAP NOT FOUND: '+src,'warn'); };
     return;
   }
@@ -2293,7 +2294,7 @@ function loadMapKey(key) {
     WORLD_W = img.naturalWidth || 2048;
     WORLD_H = img.naturalHeight || 2048;
     resetView(); draw();
-    canvas.classList.add('map-ready');
+    if (_canvasReady) canvas.classList.add('map-ready');
   });
   // Pre-load mid + hi in background so they're ready when zooming in
   _loadMapRes(key, 'mid');
@@ -2446,8 +2447,15 @@ function getTouchMid(t1,t2,rect,scaleX,scaleY){
 // ══════════════════════════════════════════════════════
 function initCanvas() {
   resizeCanvas();
-  canvas.classList.remove('map-ready');
-  loadMapKey(state.mapKey || 'erangel');
+  _canvasReady = true;
+  // If _activateMatch already loaded the map image before we were sized,
+  // resetView now runs with correct dimensions and reveals the canvas.
+  // Otherwise load the default map — onload will see _canvasReady=true.
+  if (mapImg && mapImg.complete && mapImg.naturalWidth) {
+    resetView(); draw(); canvas.classList.add('map-ready');
+  } else {
+    loadMapKey(state.mapKey || 'erangel');
+  }
   window.addEventListener('resize', resizeCanvas);
   wrap.addEventListener('wheel', onWheel, {passive:false});
   canvas.addEventListener('mousedown',  onPointerDown);
