@@ -539,7 +539,9 @@ canvas.path-mode{ cursor:cell; }
   padding:5px 10px;background:var(--bg);border:1px solid var(--border);color:var(--muted);
   border-radius:5px;font-family:var(--font-mono);font-size:9px;font-weight:500;
   letter-spacing:.05em;cursor:pointer;transition:all .15s;text-transform:uppercase;white-space:nowrap;
+  display:flex;align-items:center;gap:4px;
 }
+.btn-timeline iconify-icon{ font-size:11px;pointer-events:none; }
 .btn-timeline:hover{ border-color:var(--muted2);color:var(--text); }
 .btn-timeline.self-elim:hover { border-color:var(--accent);color:var(--accent); }
 .btn-timeline.self-loss:hover  { border-color:var(--yellow);color:var(--yellow); }
@@ -1097,6 +1099,7 @@ canvas.path-mode{ cursor:cell; }
   transition:all .15s;flex-shrink:0;white-space:nowrap;
 }
 .btn-tool-action:hover{ border-color:var(--accent);color:var(--accent);background:var(--bg); }
+.btn-match-end-toolbar:hover{ border-color:var(--red)!important;color:var(--red)!important; }
 .btn-tool-action iconify-icon{ font-size:14px;pointer-events:none; }
 .btn-tool-action.vod:hover{ border-color:var(--orange);color:var(--orange); }
 </style>
@@ -1284,6 +1287,7 @@ canvas.path-mode{ cursor:cell; }
         <div class="toolbar-divider"></div>
         <button class="btn-tool-action" onclick="downloadSnapshot()" title="Screenshot"><iconify-icon icon="lucide:camera"></iconify-icon>SCREENSHOT</button>
         <button class="btn-tool-action" onclick="clearTeam()" title="Clear all shapes for active team"><iconify-icon icon="lucide:x-circle"></iconify-icon>CLEAR TEAM</button>
+        <button class="btn-tool-action btn-match-end-toolbar" onclick="markMatchEnd()" title="Mark match end and record results"><iconify-icon icon="lucide:square"></iconify-icon>MATCH END</button>
       </div>
       <div class="toolbar-right">
         <button class="btn-save idle" id="btn-save" onclick="manualSave()"><iconify-icon icon="lucide:save" style="font-size:14px;pointer-events:none"></iconify-icon></button>
@@ -1353,13 +1357,12 @@ canvas.path-mode{ cursor:cell; }
 
       <div class="timeline-actions">
         <div class="timeline-actions-row">
-          <button class="btn-timeline self-elim" onclick="markSelfElim()" title="Your team got a kill">SELF ELIM</button>
-          <button class="btn-timeline self-loss" onclick="markSelfLoss()" title="One of your players died">SELF LOSS</button>
+          <button class="btn-timeline self-elim" onclick="markSelfElim()" title="Your team got a kill"><iconify-icon icon="lucide:zap"></iconify-icon>SELF ELIM</button>
+          <button class="btn-timeline self-loss" onclick="markSelfLoss()" title="One of your players died"><iconify-icon icon="lucide:skull"></iconify-icon>SELF LOSS</button>
         </div>
         <div class="timeline-actions-row">
-          <button class="btn-timeline self-wipe" onclick="markSelfWipe()" title="Your team was eliminated">SELF WIPE</button>
-          <button class="btn-timeline enemy-wipe" onclick="markEnemyWipe()" title="An enemy team was eliminated">ENEMY WIPE</button>
-          <button class="btn-timeline match-end" onclick="markMatchEnd()" title="End the match and record results">MATCH END</button>
+          <button class="btn-timeline self-wipe" onclick="markSelfWipe()" title="Your team was eliminated"><iconify-icon icon="lucide:shield-x"></iconify-icon>SELF WIPE</button>
+          <button class="btn-timeline enemy-wipe" onclick="markEnemyWipe()" title="An enemy team was eliminated"><iconify-icon icon="lucide:flag"></iconify-icon>ENEMY WIPE</button>
         </div>
       </div>
     </div>
@@ -2363,7 +2366,8 @@ function resetView() {
 function adjustZoom(delta) { zoomAt(canvas.width/2, canvas.height/2, delta); }
 
 function zoomAt(sx, sy, delta) {
-  const nz=Math.max(.05, Math.min(40, zoom*(1+delta)));
+  const minZoom=Math.min(canvas.width/WORLD_W, canvas.height/WORLD_H);
+  const nz=Math.max(minZoom, Math.min(40, zoom*(1+delta)));
   const s=nz/zoom;
   panX=sx-s*(sx-panX); panY=sy-s*(sy-panY); zoom=nz;
   updateZoomHud(); draw();
@@ -3270,10 +3274,18 @@ async function _activateMatch(match, statusMsg) {
   const selfTeam   = matchTeams.find(t => t.is_self) || matchTeams[0];
   state.activeTeamId = selfTeam?.id || null;
 
-  // Update timeline duration
+  // Update timeline duration and jump to match end
   if (match.duration_seconds) {
     const slider = document.getElementById('temporal-slider');
-    if (slider) slider.max = Math.max(match.duration_seconds + 60, 2100);
+    if (slider) {
+      slider.max = Math.max(match.duration_seconds + 60, 2100);
+      slider.value = match.duration_seconds;
+      state.time = match.duration_seconds;
+      document.getElementById('time-display').textContent = fmtTime(match.duration_seconds);
+      const pct = (match.duration_seconds / +slider.max) * 100;
+      document.getElementById('track-fill').style.width = pct + '%';
+      document.getElementById('track-thumb').style.left = pct + '%';
+    }
   }
 
   // Load shapes & annotations
@@ -3362,10 +3374,15 @@ document.getElementById('sel-match').onchange=async function(){
     const selfTeam=matchTeams.find(t=>t.is_self)||matchTeams[0];
     state.activeTeamId=selfTeam?.id||null;
     if(sb&&state.matchId) await loadShapesForMatch(state.matchId);
-    // Update timeline max if match has duration
+    // Update timeline max and jump to match end if duration is set
     if(m?.duration_seconds){
       const slider=document.getElementById('temporal-slider');
       slider.max=Math.max(m.duration_seconds+60, 2100);
+      slider.value=m.duration_seconds; state.time=m.duration_seconds;
+      document.getElementById('time-display').textContent=fmtTime(m.duration_seconds);
+      const pct=(m.duration_seconds/+slider.max)*100;
+      document.getElementById('track-fill').style.width=pct+'%';
+      document.getElementById('track-thumb').style.left=pct+'%';
     }
   } else {
     setMapDisplayMode(false);
