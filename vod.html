@@ -30,6 +30,9 @@
   --text-label: #2C4A2E;
   --muted:      #6B6048;
   --muted2:     #A89880;
+  --overlay-dark:  rgba(2,6,23,.85);
+  --selected-tint: rgba(44,74,46,.07);
+  --hover-tint:    rgba(44,74,46,.04);
   /* Fonts */
   --font-display: 'Oswald', sans-serif;
   --font-body:    'Manrope', sans-serif;
@@ -41,6 +44,7 @@
 }
 
 *{ box-sizing:border-box; margin:0; padding:0; }
+.hidden{ display:none!important; }
 body{ font-family:var(--font-body); background:var(--bg); color:var(--text); height:100vh; overflow:hidden; display:flex; flex-direction:column; }
 
 /* ── SCROLLBAR ── */
@@ -70,7 +74,7 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
   padding:0 20px;z-index:50;flex-shrink:0;
 }
 .header-left{display:flex;align-items:center;gap:36px;}
-.logo-mark{display:flex;align-items:center;gap:10px;}
+.logo-mark{display:flex;align-items:center;gap:10px;text-decoration:none;}
 .logo-icon{width:28px;height:28px;background:var(--orange);display:flex;align-items:center;justify-content:center;border-radius:2px;flex-shrink:0;}
 .logo-icon-inner{color:#fff;font-size:15px;display:flex;}
 .logo-text{font-family:var(--font-display);font-size:19px;font-weight:600;letter-spacing:2px;color:#fff;text-transform:uppercase;}
@@ -99,16 +103,29 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 /* ── VOD TOOLBAR ── */
 #vod-toolbar{
   min-height:50px;background:var(--bg-panel);border-bottom:1px solid var(--border);
-  display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:6px 12px;flex-shrink:0;
+  display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 14px;flex-shrink:0;
 }
-#tb-row1,#tb-row2{display:flex;align-items:center;gap:6px;flex-wrap:wrap;width:100%;}
+.toolbar-group{ display:flex;align-items:center;gap:6px;flex-wrap:nowrap; }
+.toolbar-group-label{
+  font-family:var(--font-mono);font-size:9px;color:var(--muted);font-weight:600;
+  letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;margin-right:2px;
+}
 .tb-select{
   height:30px;padding:0 8px;background:var(--bg);color:var(--text);border:1px solid var(--border);
   border-radius:6px;font-family:var(--font-body);font-size:11px;font-weight:500;outline:none;
   transition:border-color .2s;min-width:110px;max-width:160px;cursor:pointer;
 }
 .tb-select:focus{ border-color:var(--accent); }
-.tb-divider{ width:1px;height:22px;background:var(--border);flex-shrink:0; }
+.tb-select.active-team{ min-width:120px;border-color:var(--accent);color:var(--accent); }
+.tb-divider{ width:1px;height:24px;background:var(--border-mid);flex-shrink:0; }
+.map-align-label{ font-size:10px;color:var(--muted);white-space:nowrap; }
+.map-align-input{
+  width:48px;height:22px;background:var(--bg);color:var(--text);border:1px solid var(--border);
+  border-radius:4px;padding:2px 4px;font-size:10px;font-family:var(--font-mono);outline:none;
+  transition:border-color .2s;
+}
+.map-align-input:focus{ border-color:var(--accent); }
+.map-align-input.wide{ width:52px; }
 .tb-input{
   height:30px;padding:0 10px;background:var(--bg);color:var(--text);border:1px solid var(--border);
   border-radius:6px;font-family:var(--font-mono);font-size:11px;outline:none;width:220px;flex-shrink:0;
@@ -177,7 +194,7 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 #yt-player{ width:100%;height:100%; }
 #overlay-canvas{ position:absolute;inset:0;z-index:2;cursor:crosshair; }
 #zoom-hud{
-  position:absolute;top:8px;left:8px;z-index:10;background:rgba(2,6,23,.75);
+  position:absolute;top:8px;left:8px;z-index:10;background:var(--overlay-dark);
   border:1px solid var(--border);border-radius:6px;padding:4px 8px;
   font-family:var(--font-mono);font-size:11px;color:var(--muted);pointer-events:none;
   backdrop-filter:blur(4px);
@@ -187,9 +204,9 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
   display:flex;flex-direction:column;gap:8px;pointer-events:none;
 }
 .toast{
-  background:#F2EDE4;
-  border:1px solid #C9BFA8;
-  border-left:3px solid #2C4A2E;
+  background:var(--bg);
+  border:1px solid var(--border);
+  border-left:3px solid var(--forest);
   border-radius:3px;
   padding:10px 14px 10px 12px;
   pointer-events:none;
@@ -202,22 +219,22 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
   to{transform:translateX(0);opacity:1}
 }
 .toast-label{
-  font-family:'Lexend Deca','Segoe UI',sans-serif;
+  font-family:var(--font-mono);
   font-size:8px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
-  color:#2C4A2E;margin-bottom:4px;
+  color:var(--forest);margin-bottom:4px;
 }
 .toast-msg{
-  font-family:'Manrope','Segoe UI',sans-serif;
-  font-size:11px;color:#1C1A14;line-height:1.5;
+  font-family:var(--font-body);
+  font-size:11px;color:var(--text);line-height:1.5;
 }
-.toast.info{ border-left-color:#2C4A2E; }
-.toast.info .toast-label{ color:#2C4A2E; }
-.toast.warn{ border-left-color:#C85E0A; }
-.toast.warn .toast-label{ color:#C85E0A; }
-.toast.err { border-left-color:#A02010; }
-.toast.err  .toast-label{ color:#A02010; }
-.toast.ok  { border-left-color:#4E7C2F; }
-.toast.ok   .toast-label{ color:#4E7C2F; }
+.toast.info{ border-left-color:var(--forest); }
+.toast.info .toast-label{ color:var(--forest); }
+.toast.warn{ border-left-color:var(--orange); }
+.toast.warn .toast-label{ color:var(--orange); }
+.toast.err { border-left-color:var(--red); }
+.toast.err  .toast-label{ color:var(--red); }
+.toast.ok  { border-left-color:var(--green); }
+.toast.ok   .toast-label{ color:var(--green); }
 .toast.out { animation:none;transform:translateX(110%);opacity:0;transition:transform .2s ease-in,opacity .2s ease-in; }
 #path-indicator{
   position:absolute;bottom:70px;left:50%;transform:translateX(-50%);z-index:10;
@@ -234,10 +251,10 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 #placement-banner.show{ display:flex; }
 .pb-inner{
   display:flex;align-items:center;gap:10px;padding:10px 20px;
-  background:rgba(2,6,23,.88);border:1px solid var(--border);border-radius:8px;
+  background:var(--overlay-dark);border:1px solid var(--border);border-radius:8px;
 }
 .pb-icon{ font-size:18px;color:var(--orange); }
-.pb-text{ font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#F2EDE4; }
+.pb-text{ font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--bg); }
 .pb-skip{
   height:24px;padding:0 10px;background:none;border:1px solid rgba(255,255,255,.3);color:rgba(255,255,255,.7);
   border-radius:5px;font-family:var(--font-mono);font-size:9px;cursor:pointer;transition:all .15s;
@@ -250,7 +267,26 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
   display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;
   scrollbar-width:thin;scrollbar-color:var(--border) transparent;
 }
-.sp-section{ padding:10px 12px;border-bottom:1px solid var(--border-dim); }
+.sp-section{ padding:12px 12px 8px;border-bottom:1px solid var(--border-dim); }
+.sp-section.no-grow{ flex:0; }
+.sp-card{ background:var(--bg);border:1px solid var(--border-dim);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:8px; }
+.sp-log-section{ flex:1;display:flex;flex-direction:column;min-height:0; }
+.sp-log-card{ flex:1;min-height:0; }
+.sp-card-header{ display:flex;align-items:center;justify-content:space-between; }
+.sp-card-header .sp-label{ margin-bottom:0; }
+.sp-empty-note{ font-family:var(--font-mono);font-size:10px;color:var(--muted);text-align:center;padding:8px 0; }
+.btn-set-squad{
+  width:100%;padding:6px;background:none;border:1px dashed var(--border);border-radius:5px;
+  font-family:var(--font-mono);font-size:9px;color:var(--muted);cursor:pointer;transition:all .15s;
+  letter-spacing:.08em;
+}
+.btn-set-squad:hover{ border-color:var(--accent);color:var(--accent); }
+.icon-btn-sm{
+  height:18px;padding:0 6px;background:none;border:1px solid var(--border);color:var(--muted);
+  border-radius:4px;font-family:var(--font-mono);font-size:9px;cursor:pointer;letter-spacing:.05em;
+  transition:all .15s;
+}
+.icon-btn-sm:hover{ border-color:var(--accent);color:var(--accent); }
 .sp-label{ font-family:var(--font-mono);font-size:9px;font-weight:600;color:var(--forest);letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px;display:block; }
 .sp-self-header{
   display:flex;align-items:center;gap:8px;margin-bottom:8px;
@@ -259,7 +295,7 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 .sp-self-name{ font-family:var(--font-display);font-size:13px;font-weight:700;color:var(--accent); }
 .sp-player-list{ display:flex;flex-direction:column;gap:3px;margin-bottom:6px; }
 .sp-player{
-  display:flex;align-items:center;gap:7px;padding:5px 8px;
+  display:flex;align-items:center;gap:7px;padding:6px 8px;
   background:var(--bg);border:1px solid var(--border);border-radius:6px;
   font-family:var(--font-body);font-size:12px;font-weight:500;
   transition:all .15s;
@@ -297,7 +333,7 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 
 /* Enemy teams */
 .sp-enemy-team{
-  display:flex;align-items:center;gap:7px;padding:5px 8px;
+  display:flex;align-items:center;gap:7px;padding:6px 8px;
   background:var(--bg);border:1px solid var(--border);border-radius:6px;margin-bottom:3px;
   font-size:11px;font-weight:600;font-family:var(--font-body);transition:all .15s;
 }
@@ -307,10 +343,10 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 .sp-enemy-pos{ font-family:var(--font-mono);font-size:9px;color:var(--muted); }
 
 /* Event log in squad panel */
-#vod-event-log{ padding:6px 8px;display:flex;flex-direction:column;gap:4px;flex:1;overflow-y:auto;min-height:60px; }
+#vod-event-log{ padding:10px;display:flex;flex-direction:column;gap:6px;flex:1;overflow-y:auto;min-height:60px; }
 .vel-entry{
-  display:flex;align-items:flex-start;gap:6px;padding:5px 7px;
-  background:var(--bg);border-left:2px solid var(--border);border-radius:4px;
+  display:flex;align-items:flex-start;gap:6px;padding:8px 10px;
+  background:var(--bg);border-left:2px solid var(--border);border-radius:6px;
   cursor:pointer;transition:border-color .15s;
 }
 .vel-entry:hover{ border-left-color:var(--muted2); }
@@ -318,7 +354,7 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 .vel-body{ flex:1;min-width:0; }
 .vel-title{ font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
 .vel-time{ font-family:var(--font-mono);font-size:9px;color:var(--muted);margin-top:1px; }
-.vel-entry.lit{ border-left-color:var(--accent);background:rgba(44,74,46,.05); }
+.vel-entry.lit{ border-left-color:var(--accent);background:var(--hover-tint); }
 
 /* ── TIMELINE ── */
 #vod-timeline{
@@ -338,6 +374,8 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 .tl-marker:hover{ transform:translateX(-50%) scaleY(1.3); }
 #tl-thumb{ position:absolute;top:50%;width:12px;height:12px;background:var(--accent);border-radius:50%;border:2px solid var(--bg);transform:translate(-50%,-50%);pointer-events:none; }
 .tl-time{ font-family:var(--font-mono);font-size:11px;color:var(--accent);min-width:42px;letter-spacing:.04em; }
+.tl-time-dur{ color:var(--muted); }
+.tl-sep{ font-family:var(--font-mono);font-size:9px;color:var(--muted); }
 
 /* ══ MODALS ══ */
 .modal-backdrop{
@@ -349,12 +387,28 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 /* Generic modal box */
 .modal-box{
   background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;
-  padding:22px;width:300px;display:flex;flex-direction:column;gap:12px;max-height:85vh;
+  padding:22px;display:flex;flex-direction:column;gap:12px;max-height:85vh;
 }
-.modal-box.wide{ width:360px; }
+.modal-sm{ width:300px; }
+.modal-md{ width:360px; }
+.modal-lg{ width:380px; }
+.modal-accent{ border-color:var(--accent); }
+.modal-accent .modal-title{ color:var(--accent); }
+.modal-yellow{ border-color:var(--yellow); }
+.modal-yellow .modal-title{ color:var(--yellow); }
+.modal-red{ border-color:var(--red); }
+.modal-red .modal-title{ color:var(--red); }
+.modal-orange{ border-color:var(--orange); }
+.modal-orange .modal-title{ color:var(--orange); }
+.modal-orange .pos-input{ border-color:var(--orange); }
 .modal-title{ font-family:var(--font-display);font-size:16px;font-weight:800;color:var(--text); }
 .modal-sub{ font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:.06em;line-height:1.6; }
 .modal-label{ font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px; }
+.modal-label-spaced{ margin-top:4px; }
+.modal-empty.error{ color:var(--red); }
+.modal-empty-link{ cursor:pointer; }
+.modal-empty-link.accent{ color:var(--accent); }
+.modal-empty-link.yellow{ color:var(--yellow); }
 .modal-actions{ display:flex;gap:8px;margin-top:4px; }
 .btn-modal-cancel{
   flex:1;padding:9px;background:none;border:1px solid var(--border);color:var(--muted);
@@ -379,7 +433,7 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
   background:var(--bg-card);border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:all .15s;
 }
 .modal-player:hover{ border-color:rgba(44,74,46,.3); }
-.modal-player.selected{ border-color:var(--accent);background:rgba(44,74,46,.07); }
+.modal-player.selected{ border-color:var(--accent);background:var(--selected-tint); }
 .modal-player-dot{ width:6px;height:6px;border-radius:50%;background:var(--muted);flex-shrink:0; }
 .modal-player.selected .modal-player-dot{ background:var(--accent); }
 .modal-player-name{ font-size:13px;font-weight:600; }
@@ -436,7 +490,6 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 .btn-results-next:hover{ opacity:.88; }
 
 /* ── NEXT MATCH MODAL ── */
-#next-match-modal .modal-box{ border-color:var(--accent); }
 .nm-btn-row{ display:flex;flex-direction:column;gap:8px; }
 .nm-btn{
   width:100%;padding:12px;border:1px solid var(--border);background:var(--bg-card);
@@ -445,20 +498,22 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 }
 .nm-btn:hover{ border-color:var(--accent);color:var(--accent); }
 .nm-btn-sub{ font-family:var(--font-mono);font-size:10px;color:var(--muted);font-weight:400;display:block;margin-top:3px; }
+.nm-stay-btn{ margin-top:4px; }
 
 /* Active players modal */
-#active-players-modal .modal-box{ width:380px; }
 .apm-player-row{
   display:flex;align-items:center;gap:10px;padding:8px 10px;
   background:var(--bg-card);border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:all .15s;
   margin-bottom:4px;
 }
 .apm-player-row:hover{ border-color:rgba(44,74,46,.3); }
-.apm-player-row.sel{ border-color:var(--accent);background:rgba(44,74,46,.07); }
+.apm-player-row.sel{ border-color:var(--accent);background:var(--selected-tint); }
 .apm-checkbox{ width:16px;height:16px;border:2px solid var(--border);border-radius:3px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;font-weight:700;transition:all .15s; }
 .apm-player-row.sel .apm-checkbox{ background:var(--accent);border-color:var(--accent);color:var(--bg); }
 .apm-player-name{ font-size:13px;font-weight:600;flex:1; }
 .apm-player-role{ font-family:var(--font-mono);font-size:9px;color:var(--muted); }
+.apm-player-list-wrap{ display:flex;flex-direction:column;gap:4px;overflow-y:auto;max-height:280px; }
+.apm-count{ color:var(--accent); }
 
 /* ── CALIBRATION TOOL ── */
 #cal-overlay{
@@ -502,9 +557,12 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
   letter-spacing:.07em;text-transform:uppercase;pointer-events:none;
   display:none;text-align:center;line-height:2;
   transition:border-color .25s,color .25s;
-  background:#040c1a;
+  background:var(--overlay-dark);
   box-shadow:0 4px 24px rgba(0,0,0,.7);
 }
+.cal-banner-hint{ opacity:.7;font-size:9px; }
+.cal-banner-hint.dim{ opacity:.5; }
+.cal-banner-hint.soft{ opacity:.65; }
 #cal-banner.show{ display:block; }
 #cal-banner.phase1{ border:1.5px solid rgba(200,94,10,.7);color:var(--orange); }
 #cal-banner.phase2{ border:1.5px solid rgba(123,196,127,.65);color:#7BC47F; }
@@ -522,7 +580,7 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
   position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);
   font-family:var(--font-mono);font-size:8px;color:var(--muted);
   letter-spacing:.08em;white-space:nowrap;text-transform:uppercase;
-  background:#040c1a;padding:2px 6px;border-radius:3px;
+  background:var(--overlay-dark);padding:2px 6px;border-radius:3px;
 }
 .cal-step-pills{
   display:flex;justify-content:center;gap:6px;margin-bottom:6px;
@@ -632,7 +690,7 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
   border:1px solid var(--border);border-radius:8px;background:var(--bg-card);
   transition:border-color .3s,background .3s;
 }
-.sfd-step.active{ border-color:var(--accent);background:rgba(44,74,46,.05); }
+.sfd-step.active{ border-color:var(--accent);background:var(--hover-tint); }
 .sfd-step.done{ border-color:rgba(78,124,47,.3);background:rgba(78,124,47,.04); }
 .sfd-step-num{
   width:22px;height:22px;border-radius:50%;background:var(--border);
@@ -769,7 +827,7 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 <!-- ══ APP HEADER ══ -->
 <div id="app-header">
   <div class="header-left">
-    <a href="index.html" class="logo-mark" style="text-decoration:none">
+    <a href="index.html" class="logo-mark">
       <div class="logo-icon"><span class="logo-icon-inner"><iconify-icon icon="lucide:layers"></iconify-icon></span></div>
       <div class="logo-text">METAZONE</div>
     </a>
@@ -798,8 +856,8 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 
   <!-- VOD Toolbar -->
   <div id="vod-toolbar">
-    <!-- ROW 1: Match setup + video load -->
-    <div id="tb-row1">
+    <!-- Match controls -->
+    <div class="toolbar-group" data-group="match">
       <select class="tb-select" id="sel-tournament" onchange="onTournamentChange(this.value)">
         <option value="">— Tournament —</option>
       </select>
@@ -814,38 +872,46 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
         <span class="tms-label" id="tms-label">—</span>
         <span class="tms-vod hidden" id="tms-vod"><iconify-icon icon="lucide:check"></iconify-icon> VOD</span>
       </div>
-      <div class="tb-divider"></div>
       <input class="tb-input" id="vod-url-input" placeholder="Paste YouTube URL…" onkeydown="if(event.key==='Enter')loadVideo()">
       <button class="tb-btn" onclick="loadVideo()"><iconify-icon icon="lucide:play"></iconify-icon> LOAD</button>
-      <div class="tb-divider"></div>
       <button class="btn-start-match" id="btn-start-match" onclick="toggleMatchActive()" disabled><iconify-icon icon="lucide:play"></iconify-icon> START MATCH</button>
       <div class="vid-state" id="vid-state" data-vs="idle">
         <div class="vsd-dot"></div>
         <span class="vsd-label" id="vsd-label">NO VIDEO</span>
       </div>
       <div class="tb-time" id="tb-match-time">—:——</div>
-      <div class="tb-divider"></div>
-      <!-- Map alignment -->
-      <span style="font-size:10px;color:var(--muted);font-weight:600;white-space:nowrap;">MAP ALIGN</span>
-      <label style="font-size:10px;color:var(--muted);white-space:nowrap;">X <input type="number" id="map-offset-x" value="0" step="1" style="width:48px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:2px 4px;font-size:10px;" oninput="updateMapOffset()"></label>
-      <label style="font-size:10px;color:var(--muted);white-space:nowrap;">Y <input type="number" id="map-offset-y" value="0" step="1" style="width:48px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:2px 4px;font-size:10px;" oninput="updateMapOffset()"></label>
-      <label style="font-size:10px;color:var(--muted);white-space:nowrap;">SCALE <input type="number" id="map-scale-f" value="1.00" step="0.01" min="0.1" max="3" style="width:52px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:2px 4px;font-size:10px;" oninput="updateMapOffset()"></label>
+    </div>
+
+    <div class="tb-divider"></div>
+
+    <!-- Map alignment -->
+    <div class="toolbar-group" data-group="map-align">
+      <span class="toolbar-group-label">MAP ALIGN</span>
+      <label class="map-align-label">X <input type="number" id="map-offset-x" value="0" step="1" class="map-align-input" oninput="updateMapOffset()"></label>
+      <label class="map-align-label">Y <input type="number" id="map-offset-y" value="0" step="1" class="map-align-input" oninput="updateMapOffset()"></label>
+      <label class="map-align-label">SCALE <input type="number" id="map-scale-f" value="1.00" step="0.01" min="0.1" max="3" class="map-align-input wide" oninput="updateMapOffset()"></label>
       <button class="tb-btn" onclick="resetMapOffset()" title="Reset map alignment"><iconify-icon icon="lucide:rotate-ccw"></iconify-icon> RESET</button>
       <button class="tb-btn cal-mode-btn" id="btn-calibrate" onclick="toggleCalibration()" title="2-point map calibration"><iconify-icon icon="lucide:crosshair"></iconify-icon> CALIBRATE</button>
     </div>
 
-    <!-- ROW 2: Drawing tools + overlay + playback -->
-    <div id="tb-row2">
-      <select class="tb-select" id="sel-active-team" onchange="setActiveTeam(this.value)" title="Drawing team" style="min-width:120px;border-color:var(--accent);color:var(--accent);">
+    <div class="tb-divider"></div>
+
+    <!-- Draw tools -->
+    <div class="toolbar-group" data-group="draw">
+      <select class="tb-select active-team" id="sel-active-team" onchange="setActiveTeam(this.value)" title="Drawing team">
         <option value="">— Team —</option>
       </select>
-      <div class="tb-divider"></div>
       <button class="tb-mode-pill" data-mode="zone"  onclick="setMode('zone')"  title="Zone Circle (drag)"><iconify-icon icon="lucide:circle"></iconify-icon> ZONE</button>
       <button class="tb-mode-pill" data-mode="path"  onclick="setMode('path')"  title="Path — click waypoints, RIGHT-CLICK to finish"><iconify-icon icon="lucide:spline"></iconify-icon> PATH</button>
       <button class="tb-mode-pill" data-mode="pin"   onclick="setMode('pin')"   title="Pin"><iconify-icon icon="lucide:map-pin"></iconify-icon> PIN</button>
       <button class="tb-mode-pill" data-mode="erase" onclick="setMode('erase')" title="Erase shape"><iconify-icon icon="lucide:eraser"></iconify-icon> ERASE</button>
       <button class="tb-btn" onclick="undo()" title="Undo (Ctrl+Z)"><iconify-icon icon="lucide:undo-2"></iconify-icon> UNDO</button>
-      <div class="tb-divider"></div>
+    </div>
+
+    <div class="tb-divider"></div>
+
+    <!-- Overlay / playback -->
+    <div class="toolbar-group" data-group="playback">
       <button class="tb-btn active" id="btn-overlay" onclick="toggleOverlayCanvas()" title="Toggle map overlay (Z)"><iconify-icon icon="lucide:eye"></iconify-icon> MAP</button>
       <div class="map-opacity-cluster" id="map-opacity-cluster" title="Map opacity">
         <span class="map-opacity-label">MAP α</span>
@@ -853,15 +919,11 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
         <span class="map-opacity-val" id="map-opacity-val">62%</span>
       </div>
       <button class="tb-btn" id="btn-play-pause" onclick="togglePlayPause()" title="Play/Pause video (P key)"><iconify-icon icon="lucide:play-circle"></iconify-icon> PLAY</button>
-      <div class="tb-divider"></div>
-      <button class="tb-btn" id="btn-save" onclick="manualSave()"><iconify-icon icon="lucide:save"></iconify-icon> SAVE</button>
-      <div class="tb-spacer"></div>
       <div class="tb-zoom-cluster">
         <button class="tb-zoom-btn" onclick="adjustZoom(-.15)">−</button>
         <span class="tb-zoom-val" id="zoom-hud-tb">1.00×</span>
         <button class="tb-zoom-btn" onclick="adjustZoom(.15)">+</button>
       </div>
-      <div class="tb-divider"></div>
       <div class="speed-cluster" id="speed-cluster">
         <button class="speed-btn" onclick="setSpeed(.25)">0.25×</button>
         <button class="speed-btn" onclick="setSpeed(.5)">0.5×</button>
@@ -869,6 +931,13 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
         <button class="speed-btn" onclick="setSpeed(1.5)">1.5×</button>
         <button class="speed-btn" onclick="setSpeed(2)">2×</button>
       </div>
+    </div>
+
+    <div class="tb-spacer"></div>
+
+    <!-- Save -->
+    <div class="toolbar-group" data-group="save">
+      <button class="tb-btn" id="btn-save" onclick="manualSave()"><iconify-icon icon="lucide:save"></iconify-icon> SAVE</button>
     </div>
   </div>
 
@@ -879,8 +948,8 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
     <span class="mcb-crumb" id="mcb-day">—</span>
     <span class="mcb-sep">›</span>
     <span class="mcb-crumb mcb-match" id="mcb-match">—</span>
-    <span class="mcb-map" id="mcb-map" style="display:none"></span>
-    <div class="mcb-status" id="mcb-status" style="display:none">
+    <span class="mcb-map hidden" id="mcb-map"></span>
+    <div class="mcb-status hidden" id="mcb-status">
       <div class="mcb-status-dot" id="mcb-status-dot"></div>
       <span id="mcb-status-label">—</span>
     </div>
@@ -931,50 +1000,53 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 
       <!-- Self Team -->
       <div class="sp-section" id="sp-self-section">
-        <span class="sp-label">Our Squad</span>
-        <div class="sp-self-header">
-          <div class="sp-self-dot"></div>
-          <div class="sp-self-name" id="sp-self-name">—</div>
+        <div class="sp-card">
+          <span class="sp-label">Our Squad</span>
+          <div class="sp-self-header">
+            <div class="sp-self-dot"></div>
+            <div class="sp-self-name" id="sp-self-name">—</div>
+          </div>
+          <div class="sp-player-list" id="sp-player-list">
+            <div class="sp-empty-note">No match selected</div>
+          </div>
+          <button class="btn-set-squad" onclick="openActivePlayersModal()"><iconify-icon icon="lucide:users"></iconify-icon> SET SQUAD</button>
         </div>
-        <div class="sp-player-list" id="sp-player-list">
-          <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted);text-align:center;padding:8px 0;">No match selected</div>
-        </div>
-        <button style="width:100%;padding:5px;background:none;border:1px dashed var(--border);border-radius:5px;font-family:var(--font-mono);font-size:9px;color:var(--muted);cursor:pointer;transition:all .15s;letter-spacing:.08em;"
-          onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
-          onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'"
-          onclick="openActivePlayersModal()"><iconify-icon icon="lucide:users"></iconify-icon> SET SQUAD</button>
       </div>
 
       <!-- Event Buttons -->
       <div class="sp-section">
-        <span class="sp-label">Log Event</span>
-        <div class="sp-event-grid">
-          <button class="sp-event-btn elim"  id="btn-ev-elim"  onclick="startEvent('elim')"  disabled><iconify-icon icon="lucide:zap"></iconify-icon> SELF ELIM</button>
-          <button class="sp-event-btn loss"  id="btn-ev-loss"  onclick="startEvent('loss')"  disabled><iconify-icon icon="lucide:skull"></iconify-icon> SELF LOSS</button>
-          <button class="sp-event-btn wipe"  id="btn-ev-wipe"  onclick="startEvent('wipe')"  disabled><iconify-icon icon="lucide:shield-x"></iconify-icon> SELF WIPE</button>
-          <button class="sp-event-btn ewipe" id="btn-ev-ewipe" onclick="startEvent('ewipe')" disabled><iconify-icon icon="lucide:flag"></iconify-icon> ENEMY WIPE</button>
+        <div class="sp-card">
+          <span class="sp-label">Log Event</span>
+          <div class="sp-event-grid">
+            <button class="sp-event-btn elim"  id="btn-ev-elim"  onclick="startEvent('elim')"  disabled><iconify-icon icon="lucide:zap"></iconify-icon> SELF ELIM</button>
+            <button class="sp-event-btn loss"  id="btn-ev-loss"  onclick="startEvent('loss')"  disabled><iconify-icon icon="lucide:skull"></iconify-icon> SELF LOSS</button>
+            <button class="sp-event-btn wipe"  id="btn-ev-wipe"  onclick="startEvent('wipe')"  disabled><iconify-icon icon="lucide:shield-x"></iconify-icon> SELF WIPE</button>
+            <button class="sp-event-btn ewipe" id="btn-ev-ewipe" onclick="startEvent('ewipe')" disabled><iconify-icon icon="lucide:flag"></iconify-icon> ENEMY WIPE</button>
+          </div>
+          <button class="sp-match-end-btn" id="btn-match-end" onclick="markMatchEnd()" disabled><iconify-icon icon="lucide:square"></iconify-icon> MARK MATCH END</button>
         </div>
-        <button class="sp-match-end-btn" id="btn-match-end" onclick="markMatchEnd()" disabled><iconify-icon icon="lucide:square"></iconify-icon> MARK MATCH END</button>
       </div>
 
       <!-- Enemy Teams -->
-      <div class="sp-section" style="flex:0">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-          <span class="sp-label" style="margin-bottom:0">Enemy Teams</span>
-          <button onclick="refreshMatchData()" title="Refresh match data" style="height:18px;padding:0 6px;background:none;border:1px solid var(--border);color:var(--muted);border-radius:4px;font-family:var(--font-mono);font-size:9px;cursor:pointer;letter-spacing:.05em;transition:all .15s;"
-            onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
-            onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'"><iconify-icon icon="lucide:rotate-ccw"></iconify-icon></button>
-        </div>
-        <div id="sp-enemy-list">
-          <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted);text-align:center;padding:8px 0;">No teams loaded</div>
+      <div class="sp-section no-grow">
+        <div class="sp-card">
+          <div class="sp-card-header">
+            <span class="sp-label">Enemy Teams</span>
+            <button class="icon-btn-sm" onclick="refreshMatchData()" title="Refresh match data"><iconify-icon icon="lucide:rotate-ccw"></iconify-icon></button>
+          </div>
+          <div id="sp-enemy-list">
+            <div class="sp-empty-note">No teams loaded</div>
+          </div>
         </div>
       </div>
 
       <!-- Event Log -->
-      <div style="padding:8px 12px 4px;border-bottom:1px solid var(--border-dim);flex-shrink:0;">
-        <span class="sp-label" style="margin-bottom:0">Event Log</span>
+      <div class="sp-section sp-log-section">
+        <div class="sp-card sp-log-card">
+          <span class="sp-label">Event Log</span>
+          <div id="vod-event-log"></div>
+        </div>
       </div>
-      <div id="vod-event-log"></div>
 
     </div>
   </div>
@@ -982,14 +1054,14 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
   <!-- ── VOD TIMELINE ── -->
   <div id="vod-timeline">
     <span class="tl-label">00:00</span>
-    <div id="tl-track" onclick="onTimelineClick(event)" style="position:relative;flex:1;height:6px;background:var(--border-dim);border-radius:3px;cursor:pointer;">
-      <div id="tl-fill" style="position:absolute;left:0;top:0;height:100%;background:var(--accent);border-radius:3px;pointer-events:none;width:0%"></div>
+    <div id="tl-track" onclick="onTimelineClick(event)">
+      <div id="tl-fill" style="width:0%"></div>
       <div id="tl-events"></div>
-      <div id="tl-thumb" style="position:absolute;top:50%;width:12px;height:12px;background:var(--accent);border-radius:50%;border:2px solid var(--bg);transform:translate(-50%,-50%);pointer-events:none;left:0%"></div>
+      <div id="tl-thumb" style="left:0%"></div>
     </div>
     <div class="tl-time" id="tl-time-cur">00:00</div>
-    <span style="font-family:var(--font-mono);font-size:9px;color:var(--muted);">/</span>
-    <div class="tl-time" id="tl-time-dur" style="color:var(--muted)">—:——</div>
+    <span class="tl-sep">/</span>
+    <div class="tl-time tl-time-dur" id="tl-time-dur">—:——</div>
   </div>
 
 </div><!-- end #vod-app -->
@@ -998,8 +1070,8 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 
 <!-- ELIM Modal -->
 <div class="modal-backdrop" id="elim-modal">
-  <div class="modal-box" style="border-color:var(--accent)">
-    <div class="modal-title" style="color:var(--accent)"><iconify-icon icon="lucide:zap"></iconify-icon> SELF ELIM</div>
+  <div class="modal-box modal-sm modal-accent">
+    <div class="modal-title"><iconify-icon icon="lucide:zap"></iconify-icon> SELF ELIM</div>
     <div class="modal-sub" id="elim-modal-time">At 00:00</div>
     <div class="modal-label">WHO SECURED THE FINISH?</div>
     <div class="modal-player-list" id="elim-player-list"></div>
@@ -1018,12 +1090,12 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 
 <!-- LOSS Modal -->
 <div class="modal-backdrop" id="loss-modal">
-  <div class="modal-box" style="border-color:var(--yellow)">
-    <div class="modal-title" style="color:var(--yellow)"><iconify-icon icon="lucide:skull"></iconify-icon> SELF LOSS</div>
+  <div class="modal-box modal-sm modal-yellow">
+    <div class="modal-title"><iconify-icon icon="lucide:skull"></iconify-icon> SELF LOSS</div>
     <div class="modal-sub" id="loss-modal-time">At 00:00</div>
     <div class="modal-label">WHO WENT DOWN?</div>
     <div class="modal-player-list" id="loss-player-list"></div>
-    <div class="modal-label" style="margin-top:4px">KILLED BY (optional)</div>
+    <div class="modal-label modal-label-spaced">KILLED BY (optional)</div>
     <select class="modal-select" id="loss-killedby">
       <option value="">— None —</option>
     </select>
@@ -1036,8 +1108,8 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 
 <!-- WIPE Modal (Self Wipe) -->
 <div class="modal-backdrop" id="wipe-modal">
-  <div class="modal-box" style="border-color:var(--red)">
-    <div class="modal-title" style="color:var(--red)"><iconify-icon icon="lucide:shield-x"></iconify-icon> SELF WIPED</div>
+  <div class="modal-box modal-sm modal-red">
+    <div class="modal-title"><iconify-icon icon="lucide:shield-x"></iconify-icon> SELF WIPED</div>
     <div class="modal-sub" id="wipe-modal-time">At 00:00 — confirm placement</div>
     <div class="pos-row">
       <span class="pos-label">PLACEMENT</span>
@@ -1052,8 +1124,8 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 
 <!-- EWIPE Modal (Enemy Wipe) -->
 <div class="modal-backdrop" id="ewipe-modal">
-  <div class="modal-box" style="border-color:var(--orange)">
-    <div class="modal-title" style="color:var(--orange)"><iconify-icon icon="lucide:flag"></iconify-icon> ENEMY WIPE</div>
+  <div class="modal-box modal-sm modal-orange">
+    <div class="modal-title"><iconify-icon icon="lucide:flag"></iconify-icon> ENEMY WIPE</div>
     <div class="modal-sub" id="ewipe-modal-time">At 00:00</div>
     <div class="modal-label">WHICH TEAM WAS ELIMINATED?</div>
     <select class="modal-select" id="ewipe-team-select">
@@ -1061,7 +1133,7 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
     </select>
     <div class="pos-row">
       <span class="pos-label">PLACEMENT</span>
-      <input class="pos-input" id="ewipe-position" type="number" min="1" max="25" value="1" style="border-color:var(--orange)">
+      <input class="pos-input" id="ewipe-position" type="number" min="1" max="25" value="1">
     </div>
     <div class="modal-actions">
       <button class="btn-modal-cancel" onclick="closeModal('ewipe-modal')">CANCEL</button>
@@ -1084,7 +1156,7 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 
 <!-- Next Match Modal -->
 <div class="modal-backdrop" id="next-match-modal">
-  <div class="modal-box" style="border-color:var(--accent)">
+  <div class="modal-box modal-sm modal-accent">
     <div class="modal-title">NEXT MATCH</div>
     <div class="modal-sub">Match saved. What's next?</div>
     <div class="nm-btn-row">
@@ -1096,18 +1168,18 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
         <iconify-icon icon="lucide:link"></iconify-icon> NEW VOD
         <span class="nm-btn-sub">Load a new YouTube URL for the next match.</span>
       </button>
-      <button class="btn-modal-cancel" onclick="closeModal('next-match-modal')" style="margin-top:4px">STAY ON THIS MATCH</button>
+      <button class="btn-modal-cancel nm-stay-btn" onclick="closeModal('next-match-modal')">STAY ON THIS MATCH</button>
     </div>
   </div>
 </div>
 
 <!-- Active Players Modal -->
 <div class="modal-backdrop" id="active-players-modal">
-  <div class="modal-box wide" style="border-color:var(--accent)">
+  <div class="modal-box modal-lg modal-accent">
     <div class="modal-title"><iconify-icon icon="lucide:users"></iconify-icon> Active Squad</div>
     <div class="modal-sub">Select players rostered for this match.</div>
-    <div id="apm-player-list" style="display:flex;flex-direction:column;gap:4px;overflow-y:auto;max-height:280px;"></div>
-    <div class="modal-sub" id="apm-count" style="color:var(--accent)"></div>
+    <div id="apm-player-list" class="apm-player-list-wrap"></div>
+    <div class="modal-sub apm-count" id="apm-count"></div>
     <div class="modal-actions">
       <button class="btn-modal-cancel" onclick="closeModal('active-players-modal')">CANCEL</button>
       <button class="btn-modal-confirm cyan" id="btn-apm-confirm" onclick="confirmActiveSquad()">CONFIRM</button>
@@ -1840,7 +1912,7 @@ function renderElimPlayers() {
   container.innerHTML = '';
   const alive = matchPlayers.filter(p => p.time_of_loss==null || p.time_of_loss > state.time);
   if (!alive.length) {
-    container.innerHTML = `<div class="modal-empty">No alive players at this time.<br><span style="color:var(--accent);cursor:pointer;" onclick="closeModal('elim-modal');openActivePlayersModal()">→ Set Active Squad</span></div>`;
+    container.innerHTML = `<div class="modal-empty">No alive players at this time.<br><span class="modal-empty-link accent" onclick="closeModal('elim-modal');openActivePlayersModal()">→ Set Active Squad</span></div>`;
     return;
   }
   alive.forEach(p => {
@@ -1918,7 +1990,7 @@ function renderLossPlayers() {
   container.innerHTML = '';
   const alive = matchPlayers.filter(p => p.time_of_loss==null || p.time_of_loss > state.time);
   if (!alive.length) {
-    container.innerHTML = `<div class="modal-empty">No alive players.<br><span style="color:var(--yellow);cursor:pointer;" onclick="closeModal('loss-modal');openActivePlayersModal()">→ Set Active Squad</span></div>`;
+    container.innerHTML = `<div class="modal-empty">No alive players.<br><span class="modal-empty-link yellow" onclick="closeModal('loss-modal');openActivePlayersModal()">→ Set Active Squad</span></div>`;
     return;
   }
   alive.forEach(p => {
@@ -2240,7 +2312,7 @@ async function openActivePlayersModal() {
     let {data:mpRows} = await sb.from('match_players').select('player_id').eq('match_id',state.matchId).eq('user_id',currentUser.id);
     if(!mpRows||!mpRows.length){ const fb=await sb.from('match_players').select('player_id').eq('match_id',state.matchId); if(!fb.error&&fb.data) mpRows=fb.data; }
     (mpRows||[]).forEach(r=>{ if(r.player_id) _apmSelectedIds.add(r.player_id); });
-  } catch(e) { document.getElementById('apm-player-list').innerHTML=`<div class="modal-empty" style="color:var(--red)">Error: ${esc(e.message)}</div>`; return; }
+  } catch(e) { document.getElementById('apm-player-list').innerHTML=`<div class="modal-empty error">Error: ${esc(e.message)}</div>`; return; }
 
   renderApmList();
 }
@@ -2308,7 +2380,7 @@ function renderSquadPanel() {
   const playerList = document.getElementById('sp-player-list');
   playerList.innerHTML = '';
   if (!matchPlayers.length) {
-    playerList.innerHTML = '<div style="font-family:var(--font-mono);font-size:10px;color:var(--muted);text-align:center;padding:4px 0;">No squad set</div>';
+    playerList.innerHTML = '<div class="sp-empty-note">No squad set</div>';
   } else {
     matchPlayers.forEach(p => {
       const kia = p.time_of_loss!=null && p.time_of_loss <= state.time;
@@ -2329,7 +2401,7 @@ function renderSquadPanel() {
   const enemyList = document.getElementById('sp-enemy-list');
   enemyList.innerHTML = '';
   if (!enemyTeams.length) {
-    enemyList.innerHTML = '<div style="font-family:var(--font-mono);font-size:10px;color:var(--muted);text-align:center;padding:4px 0;">No enemies loaded</div>';
+    enemyList.innerHTML = '<div class="sp-empty-note">No enemies loaded</div>';
   } else {
     enemyTeams.sort((a,b)=>(a.confirmed_position||99)-(b.confirmed_position||99));
     enemyTeams.forEach(team => {
@@ -2362,7 +2434,7 @@ function renderEventLog() {
   const container = document.getElementById('vod-event-log');
   container.innerHTML = '';
   if (!annotations.length) {
-    container.innerHTML = '<div style="font-family:var(--font-mono);font-size:10px;color:var(--muted);text-align:center;padding:12px 0;">No events yet</div>';
+    container.innerHTML = '<div class="sp-empty-note">No events yet</div>';
     return;
   }
   [...annotations].reverse().forEach(ev => {
@@ -2617,8 +2689,8 @@ function updateMatchContextBar() {
   document.getElementById('mcb-match').textContent      = m.name  || '—';
 
   const mapEl = document.getElementById('mcb-map');
-  if (m.map_key) { mapEl.textContent = m.map_key.toUpperCase(); mapEl.style.display=''; }
-  else { mapEl.style.display='none'; }
+  if (m.map_key) { mapEl.textContent = m.map_key.toUpperCase(); mapEl.classList.remove('hidden'); }
+  else { mapEl.classList.add('hidden'); }
 
   // status chip
   const matchTeams = teams.filter(tt=>tt.match_id===state.matchId);
@@ -2628,7 +2700,7 @@ function updateMatchContextBar() {
   const statusEl   = document.getElementById('mcb-status');
   const dotEl      = document.getElementById('mcb-status-dot');
   const lblEl      = document.getElementById('mcb-status-label');
-  statusEl.style.display = '';
+  statusEl.classList.remove('hidden');
   if (hasDur && hasWipes)   { dotEl.style.background='var(--green)';  lblEl.textContent='COMPLETE'; }
   else if (hasTeams)        { dotEl.style.background='var(--yellow)'; lblEl.textContent='IN PROGRESS'; }
   else                      { dotEl.style.background='var(--muted2)'; lblEl.textContent='NO DATA'; }
@@ -2732,14 +2804,14 @@ function _matchStatusIcon(m) {
 function _confirmDialog(title, body, confirmLabel, cancelLabel) {
   return new Promise(resolve => {
     const el = document.createElement('div');
-    el.style.cssText = 'position:fixed;inset:0;background:rgba(2,6,23,.82);backdrop-filter:blur(6px);z-index:700;display:flex;align-items:center;justify-content:center;';
+    el.className = 'modal-backdrop show';
     el.innerHTML = `
-      <div style="background:var(--bg-panel);border:1px solid var(--orange);border-radius:12px;padding:26px;width:360px;display:flex;flex-direction:column;gap:14px;">
-        <div style="font-family:var(--font-display);font-size:16px;font-weight:800;color:var(--orange);">${title}</div>
-        <div style="font-family:var(--font-mono);font-size:11px;color:var(--muted);line-height:1.7;letter-spacing:.03em;">${body}</div>
-        <div style="display:flex;gap:8px;">
-          <button id="_cd-cancel" style="flex:1;padding:10px;background:none;border:1px solid var(--border);color:var(--muted);border-radius:7px;font-family:var(--font-mono);font-size:11px;cursor:pointer;">${cancelLabel||'CANCEL'}</button>
-          <button id="_cd-confirm" style="flex:1;padding:10px;background:var(--orange);border:none;color:var(--bg);border-radius:7px;font-family:var(--font-display);font-size:13px;font-weight:800;cursor:pointer;">${confirmLabel||'CONFIRM'}</button>
+      <div class="modal-box modal-md modal-orange">
+        <div class="modal-title">${title}</div>
+        <div class="modal-sub">${body}</div>
+        <div class="modal-actions">
+          <button id="_cd-cancel" class="btn-modal-cancel">${cancelLabel||'CANCEL'}</button>
+          <button id="_cd-confirm" class="btn-modal-confirm orange">${confirmLabel||'CONFIRM'}</button>
         </div>
       </div>`;
     document.body.appendChild(el);
@@ -3617,7 +3689,7 @@ function computeCalibration() {
       <div class="cal-step-pill done-p"></div>
     </div>
     ✓ CALIBRATION COMPLETE — MAP ALIGNED<br>
-    <span style="opacity:.65;font-size:9px">ESC or click CALIBRATE to exit</span>
+    <span class="cal-banner-hint soft">ESC or click CALIBRATE to exit</span>
   `;
   banner.classList.remove('phase1','phase2');
   banner.classList.add('show','done');
@@ -3698,8 +3770,8 @@ function updateCalBanner() {
       </div>`;
     bodyHtml = `
       STEP 1 — CLICK 2 SPOTS ON THE <strong>VIDEO</strong><br>
-      <span style="opacity:.7;font-size:9px">Pick any 2 landmarks you can see clearly &nbsp;·&nbsp; ${calStreamClicks.length}/2 marked</span><br>
-      <span style="opacity:.5;font-size:9px">ESC to cancel</span>
+      <span class="cal-banner-hint">Pick any 2 landmarks you can see clearly &nbsp;·&nbsp; ${calStreamClicks.length}/2 marked</span><br>
+      <span class="cal-banner-hint dim">ESC to cancel</span>
     `;
     banner.classList.add('phase1');
   } else if (calPhase === 2) {
@@ -3712,8 +3784,8 @@ function updateCalBanner() {
       </div>`;
     bodyHtml = `
       STEP 2 — CLICK THOSE SAME SPOTS ON THE <strong>MAP</strong><br>
-      <span style="opacity:.7;font-size:9px">Match the order — point A first, then B &nbsp;·&nbsp; ${calMapClicks.length}/2 marked</span><br>
-      <span style="opacity:.5;font-size:9px">ESC to cancel</span>
+      <span class="cal-banner-hint">Match the order — point A first, then B &nbsp;·&nbsp; ${calMapClicks.length}/2 marked</span><br>
+      <span class="cal-banner-hint dim">ESC to cancel</span>
     `;
     banner.classList.add('phase2');
   }
