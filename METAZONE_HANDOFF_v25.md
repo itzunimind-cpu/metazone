@@ -388,30 +388,85 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 
 ---
 
-## SECTION 9 — PENDING ITEMS (next session)
+## SECTION 9 — BUG TRACKER & PENDING ITEMS
 
-### DB
+> Single source of truth. BUGSTOFIX.md is retired — all bugs now tracked here.
+> Bugs marked ✅ are fixed and logged in Section 8. Remove from this table once fixed.
+
+---
+
+### DB — Pending migrations
 | Priority | Item |
 |----------|------|
 | 🔴 HIGH | Run Session 21 SQL: `ALTER TABLE matches ADD COLUMN IF NOT EXISTS vod_url text; ALTER TABLE matches ADD COLUMN IF NOT EXISTS vod_start_offset int;` |
+| 🟡 MED | X3 prerequisite: `ALTER TABLE matches ADD COLUMN updated_at TIMESTAMPTZ DEFAULT now();` + trigger (see X3 below). Do NOT swap sort logic until column exists. |
 
-### editor.html — Bug Fixes (remaining)
-| Priority | Bug ID | Item |
-|----------|--------|------|
-| 🟡 MED | E4 | `confirmWipe` Scenario A assigns `selfTeam.confirmed_position=2` with no collision check |
-| 🟡 MED | E8 | `confirmSelfLoss` fires `setTimeout(markSelfWipe,300)` while death pin prompt is active |
-| 🟡 MED | E6 | `startRename` — Escape calls `input.blur()` → `finish()` → saves. Should restore original name |
-| 🟡 MED | X3 | Auto-load sorts by `created_at` not `updated_at` — blocked on DB migration (add `updated_at` column + trigger to `matches`) |
-| 🟢 LOW | E7 | `markSelfLoss` killed-by dropdown uses `!t.time_of_wipe` (static) — needs `t.time_of_wipe > state.time` |
+---
 
-### Other
+### Phase 1 — Data Integrity
+> These corrupt or silently lose real data. Fix first.
+
+| ID | ✅ | File | Function | Priority | What breaks | Fix |
+|----|----|----- |----------|----------|-------------|-----|
+| V1+E5 | ✅ | `editor.html` | `confirmWipe` | 🔴 | Winner gets `time_of_wipe` set in Scenarios A+B | Done S32 |
+| V1 | | `vod.html` | `confirmEnemyWipe` ~line 847 | 🔴 | Same bug — Scenario A+B set `winner.time_of_wipe = t`. Remove that line and `time_of_wipe:t` from the DB update in both scenarios. Only write `confirmed_position:1`. |
+| E1 | ✅ | `editor.html` | `manualSave` | 🔴 | Only active team's shapes saved | Done S32 |
+| E9 | ✅ | `editor.html` | `deleteSelected` | 🔴 | `match_players` orphaned on delete | Done S32 |
+| E4 | | `editor.html` | `confirmWipe` Scenario A | 🟡 | `selfTeam.confirmed_position=2` with no collision check — if user already entered pos=2 manually, two teams get #2. Guard: `if (!selfTeam.confirmed_position) { const taken = matchTeams.some(t => t.confirmed_position===2 && t.id!==selfTeam.id); if (!taken) { assign 2; } }` |
+
+---
+
+### Phase 2 — Editor Logic
+> Break specific workflows, no data corruption. Fix after Phase 1.
+
+| ID | ✅ | File | Function | Priority | What breaks | Fix |
+|----|----|----- |----------|----------|-------------|-----|
+| E2 | ✅ | `editor.html` | `confirmWipe` (x3) | 🔴 | `markMatchEnd` fired via setTimeout while pin prompt open | Done S32 — `_pinPromptOnClose` hook |
+| E3 | | `editor.html` | `confirmWipe` auto-fire | 🔴 | Auto match-end fires when only a subset of teams are registered (e.g. 5 of 16) — resolved conceptually by E2 fix since `_pinPromptOnClose` defers the action; confirm working correctly in practice |
+| E8 | | `editor.html` | `confirmSelfLoss` ~line 2558 | 🟡 | `markSelfWipe` fires 300ms after last death while death-pin prompt is still open. Guard: `if (stillAlive.length===0 && !_pinPromptActive) { setTimeout(markSelfWipe,300); } else if (stillAlive.length===0) { toast('All players down — log wipe when ready','warn'); }` |
+| E6 | | `editor.html` | `startRename` ~line 1976 | 🟡 | Escape calls `input.blur()` → `finish()` → saves. Should restore original. Fix: capture `originalName` before edit; `input.onkeydown`: Enter → `finish(true)`, Escape → `input.onblur = ()=>finish(false); input.blur()`. `finish(save)` takes a bool — only writes to DB when `save=true`. |
+| E7 | | `editor.html` | `markSelfLoss` ~line 2509 | 🟢 | Killed-by dropdown uses `!t.time_of_wipe` (static). Change to `t.time_of_wipe==null \|\| t.time_of_wipe > state.time` (same fix already in vod.html as F3). |
+
+---
+
+### Phase 3 — Cross-page Navigation
+> Nav bar links silently load the wrong match. Fix after Phase 2.
+
+| ID | ✅ | File | Function | Priority | What breaks | Fix |
+|----|----|----- |----------|----------|-------------|-----|
+| X1 | ✅ | `editor.html` | `_activateMatch` | 🔴 | `mzCtxWrite()` never called | Done S32 |
+| X2 | | `vod.html` | `onMatchChange` | 🔴 | `mzCtxWrite` doesn't exist in vod — nav to EDITOR always loads wrong match. Add function near `mzCtxRead()`, call at end of `onMatchChange` after `updateMatchContextBar()`. |
+| X3 | | both | `applyUrlParams` | 🟡 | Auto-load sorts by `created_at` not `updated_at` — loads newest match, not most recently worked on. **Blocked on DB migration** (see DB section). After SQL runs: swap sort to `updated_at` in both files. |
+
+---
+
+### Phase 4 — Session Continuity
+> Quality-of-life. Fix after Phases 1–3 are stable.
+
+| ID | ✅ | File | Function | Priority | What breaks | Fix |
+|----|----|----- |----------|----------|-------------|-----|
+| P1 | | `editor.html` | `beforeunload` + nav links | 🟡 | No warning when navigating away with unsaved shapes. Add `beforeunload` listener: check `Object.values(shapesCache).flat().some(s => !s.id \|\| s.id.startsWith('local_'))`. Also intercept `.nav-link` clicks. |
+| P2 | | `editor.html` | `_activateMatch` + scrubber | 🟢 | Timeline position resets to 0 on every reload. Save `state.time` to `sessionStorage('mz_last_time_'+matchId)` on scrubber input; restore in `_activateMatch` after shapes load. |
+| P3 | | `vod.html` | `applyUrlParams` | 🟢 | VOD review position never persisted — always restarts from `vod_start_offset`. Save/restore last review timestamp per match in sessionStorage. |
+| P4 | | both | `resetView` / match load | 🟢 | Map camera (zoom/pan) resets on every load. Save/restore `{zoom, panX, panY}` to sessionStorage per match. Fall back to `resetView()` if nothing saved. |
+
+---
+
+### Planned Features (not bugs)
+| ID | File | Priority | Description |
+|----|------|----------|-------------|
+| FEAT-1 | `editor.html` | 🟡 | **Self Elim fight-location pin** — SELF LOSS and Wipe both open a pin prompt after confirm; SELF ELIM has no pin. After `confirmSelfElim`, call `openPinPrompt` and push a `{type:'fight', x, y, tag:'fight', time}` shape into `shapesCache[state.activeTeamId]`. |
+| FEAT-2 | `editor.html` | 🟡 | **drawPath upgrade** — animate path point-by-point using `t` values as scrubber moves |
+| FEAT-3 | all pages | 🟡 | **Welcome modal** — one-time modal on first visit per session (`sessionStorage mz_welcomed` flag). Agreed Session 20, not built. |
+| FEAT-4 | — | 🟢 | **history.html** — deferred until 2–3 tournaments of real data exist |
+| FEAT-5 | `vod.html` | 🟢 | **Paywall** — deferred |
+
+---
+
+### Calibration
 | Priority | Item |
 |----------|------|
 | 🟡 MED | Test calibration tool in real use — verify alignment accuracy per map |
-| 🟡 MED | editor.html drawPath upgrade: animate path point-by-point using `t` values when scrubber moves |
-| 🟡 MED | Welcome modal on all pages (sessionStorage `mz_welcomed` flag) — agreed in Session 20, not yet built |
-| 🟢 LOW | history.html — deferred until 2–3 tournaments of real data |
-| 🟢 LOW | vod.html paywall — deferred |
 
 ---
 
