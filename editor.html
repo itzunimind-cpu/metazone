@@ -1173,17 +1173,14 @@ canvas.path-mode{ cursor:cell; }
     <!-- MAP -->
     <div class="sb-section">
       <span class="sb-label">Map</span>
-      <!-- Pre-match: dropdown to pick map -->
-      <select class="mz-select" id="sel-map" onchange="selectMapFromDropdown(this.value)">
-        <option value="erangel">Erangel</option>
-        <option value="miramar">Miramar</option>
-        <option value="rondo">Rondo</option>
-        <option value="sanhok">Sanhok</option>
-        <option value="custom">Custom...</option>
-      </select>
-      <!-- Post-match: read-only name + delete -->
-      <div class="map-display-row" id="map-display-row" style="display:none;">
-        <span class="map-display-name" id="map-display-name">Erangel</span>
+      <div class="sel-del-row">
+        <select class="mz-select" id="sel-map" onchange="selectMapFromDropdown(this.value)">
+          <option value="erangel">Erangel</option>
+          <option value="miramar">Miramar</option>
+          <option value="rondo">Rondo</option>
+          <option value="sanhok">Sanhok</option>
+          <option value="custom">Custom...</option>
+        </select>
         <button class="btn-map-del" title="Clear map" onclick="showDeleteWarning('map','Clear map?','This will remove the map from this match. The match data is kept.', clearMatchMap)"><iconify-icon icon="lucide:trash-2"></iconify-icon></button>
       </div>
       <input type="file" id="file-map" accept="image/*" style="display:none">
@@ -2271,11 +2268,7 @@ function loadMapKey(key) {
   state.mapKey=key;
   localStorage.setItem('mz_map',key);
   document.getElementById('match-meta-map').textContent = key.charAt(0).toUpperCase()+key.slice(1);
-  // Refresh display row if visible
-  const dispEl = document.getElementById('map-display-row');
-  if(dispEl && dispEl.style.display!=='none') {
-    document.getElementById('map-display-name').textContent = key.charAt(0).toUpperCase()+key.slice(1);
-  }
+  document.getElementById('sel-map').value = key;
 
   // Check if multi-res files exist — if not, fall back to original
   const srcs = MAP_SRCS[key];
@@ -2327,25 +2320,14 @@ async function updateMatchMap(key) {
 
 // ── Map display mode toggle ──────────────────
 function setMapDisplayMode(hasMatch) {
-  const selEl  = document.getElementById('sel-map');
-  const dispEl = document.getElementById('map-display-row');
-  if(hasMatch) {
-    selEl.style.display  = 'none';
-    dispEl.style.display = 'flex';
-    const key = state.mapKey || 'erangel';
-    const name = key.charAt(0).toUpperCase() + key.slice(1);
-    document.getElementById('map-display-name').textContent = name;
-  } else {
-    selEl.style.display  = '';
-    dispEl.style.display = 'none';
-  }
+  const key = state.mapKey || 'erangel';
+  document.getElementById('sel-map').value = key;
 }
 
 async function clearMatchMap() {
   state.mapKey = 'erangel';
   mapImg = new Image(); WORLD_W=2048; WORLD_H=2048; draw();
   if(sb && state.matchId) await sb.from('matches').update({map_key:null}).eq('id',state.matchId);
-  setMapDisplayMode(false);
   document.getElementById('sel-map').value = 'erangel';
   toast('Map cleared','ok');
 }
