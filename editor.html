@@ -2439,7 +2439,7 @@ function adjustZoom(delta) { zoomAt(canvas.width/2, canvas.height/2, delta); }
 
 function zoomToWorld(wx, wy) {
   const minZoom=Math.min(canvas.width/WORLD_W, canvas.height/WORLD_H);
-  zoom=minZoom*16;
+  zoom=minZoom*20;
   panX=canvas.width/2 - wx*zoom;
   panY=canvas.height/2 - wy*zoom;
   clampPan(); updateZoomHud(); draw();
@@ -2740,7 +2740,7 @@ function cancelPath() {
 // Markers are drawn in world-space (canvas is pre-scaled by zoom).
 // Returning base directly makes them scale exactly with the map.
 function mpx(base) {
-  return base * 0.05;
+  return base * 0.075;
 }
 
 function draw() {
