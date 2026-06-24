@@ -1,5 +1,5 @@
 # METAZONE — Project Handoff & Continuity Document
-**Version:** v28 — Session 28. editor.html layout stability: sidebar scrollbar always reserved, right panel empty states pre-populated in HTML.
+**Version:** v29 — Session 29. editor.html: team/select animations, map zoom root fix (_canvasReady flag), map section simplified to always-visible select+delete.
 **Purpose:** Single source of truth across all chat sessions. Read this first in every new chat.
 
 ---
@@ -21,7 +21,7 @@
 | File | Version | Last changed | Notes |
 |------|---------|--------------|-------|
 | index.html | v9.5 | Session 26 | All sidebar + grid bugs fixed. Skeleton loader added. Card reveal animation. |
-| editor.html | v6.1 | Session 28 | Layout stability fixes — sidebar scrollbar, pre-populated empty states |
+| editor.html | v6.2 | Session 29 | Animations, map zoom root fix, map section always-visible select+delete |
 | tournament-create.html | v4.1 | Session 25 | VOD REVIEW nav link added |
 | tournament-editor.html | v1.4 | Session 25 | VOD REVIEW nav link added |
 | analytics.html | v2.3 | Session 25 | VOD REVIEW nav link added, active link fixed |
@@ -211,11 +211,13 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | `boot()` | Auth + data load entry point |
 | `loadAllData()` | Fetches all tournaments/days/matches/teams/players |
 | `_activateMatch(match, statusMsg)` | Loads shapes, matchPlayers, renders everything for selected match |
-| `refreshDropdowns()` | Populates all selectors (no status icons — chip removed) |
-| `renderTeamList()` | Redraws sidebar team list |
+| `refreshDropdowns()` | Populates all selectors; calls `_flashSelect()` on each that gets a non-empty value |
+| `_flashSelect(el)` | Brief opacity fade-in on a `<select>` after populate — resets animation via reflow trick |
+| `renderTeamList()` | Redraws sidebar team list; stagger-animates rows (`.animate-in`) only when container was empty |
 | `draw()` | Main canvas render loop |
-| `loadMapKey(key)` | Loads map at correct resolution — called inside `initCanvas()` after `resizeCanvas()` |
-| `initCanvas()` | Sizes canvas, then calls `loadMapKey()` — order matters (fixes zoom bug) |
+| `loadMapKey(key)` | Loads map at correct resolution. **Never add `map-ready` class directly here** — gated on `_canvasReady` flag so canvas is never revealed before `initCanvas()` has sized it |
+| `initCanvas()` | Sizes canvas, sets `_canvasReady=true`. If `mapImg` already loaded (from `_activateMatch` running before init), calls `resetView()+draw()+map-ready` immediately. Otherwise calls `loadMapKey()` to start the load. |
+| `setMapDisplayMode(hasMatch)` | Now just syncs `#sel-map` value to `state.mapKey`. No visibility toggling — map section is always a `sel-del-row`. |
 | `renderActiveSquadInline()` | Renders match_players inline below ACTIVE SQUAD button in right panel |
 | `toggleMetaCollapse()` | Toggles Match Metadata accordion in right panel |
 | `openInVOD()` | Navigates to vod.html with current tournament/day/match as URL params |
@@ -285,7 +287,7 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | Page | Status | Notes |
 |------|--------|-------|
 | index.html | ✅ Complete | v9.5 — all sidebar/grid bugs fixed, skeleton loader, card reveal animation |
-| editor.html | ✅ Complete | v6.1 — full UI overhaul + layout stability fixes |
+| editor.html | ✅ Complete | v6.2 — animations, map zoom fix, map section simplified |
 | tournament-create.html | ✅ Complete | Nav updated |
 | tournament-editor.html | ✅ Complete | Nav updated |
 | analytics.html | ✅ Complete | Nav updated, active link fixed |
@@ -336,6 +338,10 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | 28 | **editor.html loading states reverted** — shimmer overlay + canvas opacity fade-in from Sessions 27 removed. Returned to d8002f1 (post-UI-overhaul, pre-loading-states). No loading indicators on editor page. |
 | 28 | **editor.html sidebar scrollbar stability** — `#sidebar` changed from `overflow-y:auto` to `overflow-y:scroll`. Scrollbar lane always reserved so dropdown/input width never changes when teams load and make the list scrollable. |
 | 28 | **editor.html right panel pre-populated empty states** — `#active-squad-inline` and `#annotation-log` now ship with their empty state HTML in the markup (`No squad registered…` and `NO EVENTS YET`). `renderActiveSquadInline()` and `renderAnnotationLog()` overwrite on first call. Right panel height is stable before any data loads — no layout shift. |
+| 29 | **editor.html team row stagger animation** — `.animate-in` keyframe (opacity 0→1, translateY 5px→0, 0.22s, 45ms stagger). Only fires when `container.children.length === 0` before render — re-renders from switchActiveTeam/toggleOverlay are instant. |
+| 29 | **editor.html select fade-in** — `_flashSelect(el)` helper. `refreshDropdowns()` calls it on each select that receives a non-empty value. `sel-pop` keyframe fades from 0.6→1 opacity over 0.45s ease-out. Starts at 0.6 (not 0) to avoid flicker. |
+| 29 | **editor.html map zoom root cause fixed** — `_canvasReady` flag (default false). `loadMapKey()` onload only adds `canvas.map-ready` when `_canvasReady` is true. `initCanvas()` sets flag after `resizeCanvas()`, then: if `mapImg` already loaded (from `_activateMatch` running before init) → `resetView()+draw()+map-ready` immediately with correct dims. Else → calls `loadMapKey()`. Canvas stays invisible until dims are guaranteed correct. |
+| 29 | **editor.html map section simplified** — removed two-state toggle (select vs display-row). Map always shows as `sel-del-row` with select + `✕` button (`.btn-del`), matching tournament/day/match pattern. `map-display-row`, `map-display-name` elements removed. `setMapDisplayMode()` reduced to one line: syncs select value only. |
 | 27 | **editor.html emoji purge** — all emoji removed across entire file (HTML, JS strings, toast messages, modal titles, annotation log event data, multi-track stats). Annotation log icons converted from `textContent` emoji to `innerHTML` Iconify SVG strings. |
 | 27 | **editor.html left sidebar refactor** — Screenshot + Clear Team buttons moved from sidebar to top toolbar as `.btn-tool-action` buttons. MAP button removed from toolbar. OPEN IN VOD button added to sidebar below Map section (`.btn-open-vod` style, orange border, navigates via `openInVOD()`). |
 | 27 | **editor.html match status chip removed** — `#match-status-chip` HTML, its CSS, `updateMatchStatusChip()`, and `_matchStatusLevel()` all deleted. Status symbols (`✓`, `◐`) removed from match dropdown labels in `refreshDropdowns()`. |
