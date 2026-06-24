@@ -340,11 +340,15 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text-body);he
   border-left:1px solid var(--border);
 }
 .card-action-vod:hover{background:var(--orange);color:#fff;}
-.card-action-delete{
-  flex:0 0 38px;background:var(--bg-card);color:var(--text-dim);
-  border-left:1px solid var(--border);font-size:13px;
+/* Delete — small icon button overlaid in the top-right corner of the image */
+.card-del-corner{
+  position:absolute;top:8px;right:8px;z-index:2;
+  width:24px;height:24px;display:flex;align-items:center;justify-content:center;
+  background:rgba(20,18,15,.55);border:1px solid rgba(255,255,255,.18);color:rgba(255,255,255,.85);
+  border-radius:4px;cursor:pointer;font-size:13px;transition:all .15s;
+  backdrop-filter:blur(2px);
 }
-.card-action-delete:hover{background:var(--red);color:#fff;}
+.card-del-corner:hover{background:var(--red);border-color:var(--red);color:#fff;}
 /* Add-match card */
 .add-match-card{
   background:var(--bg-card);border:2px dashed var(--border-mid);border-radius:3px;
@@ -1118,6 +1122,7 @@ function matchCard(m,i){
       ${img?`<img class="card-img" src="${img}" alt="${m.map_key}">`:`<div class="card-img-placeholder"><iconify-icon icon="lucide:map" style="font-size:32px;color:#555;"></iconify-icon></div>`}
       <div class="card-gradient"></div>
       <div class="card-corner-tab">MATCH ${String(i+1).padStart(2,'0')}</div>
+      <button class="card-del-corner" onclick="event.stopPropagation();deleteMatch('${m.id}')" title="Delete match"><iconify-icon icon="lucide:trash-2"></iconify-icon></button>
       <div class="card-map-info"><div class="card-map-name">${(m.map_key||'UNKNOWN').toUpperCase()}</div></div>
       <div class="card-stats">
         <div class="card-stat"><span class="csl">POSITION</span><span class="csv">${placement}</span></div>
@@ -1128,7 +1133,6 @@ function matchCard(m,i){
     <div class="card-foot">
       <a class="card-action card-action-editor" href="${eUrl}" onclick="event.stopPropagation()"><iconify-icon icon="lucide:zap"></iconify-icon> EDITOR</a>
       <a class="card-action card-action-vod" href="${vUrl}" onclick="event.stopPropagation()"><iconify-icon icon="lucide:video"></iconify-icon> VOD</a>
-      <button class="card-action card-action-delete" onclick="event.stopPropagation();deleteMatch('${m.id}')" title="Delete match"><iconify-icon icon="lucide:trash-2"></iconify-icon></button>
     </div>
   </div>`;
 }
