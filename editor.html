@@ -123,7 +123,7 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 ══════════════════════════════════════════ */
 #sidebar{
   width:240px;min-width:240px;background:var(--bg-panel);border-right:1px solid var(--border);
-  display:flex;flex-direction:column;overflow-y:auto;
+  display:flex;flex-direction:column;overflow-y:scroll;
   scrollbar-width:thin;scrollbar-color:var(--border) transparent;
   flex-shrink:0;
 }
@@ -1378,7 +1378,7 @@ canvas.path-mode{ cursor:cell; }
         <span><iconify-icon icon="lucide:users" style="vertical-align:middle;margin-right:5px"></iconify-icon>ACTIVE SQUAD</span>
         <iconify-icon icon="lucide:pencil" style="font-size:11px;opacity:.6"></iconify-icon>
       </button>
-      <div id="active-squad-inline"></div>
+      <div id="active-squad-inline"><div class="sq-empty-note">No squad registered — click ACTIVE SQUAD to set.</div></div>
     </div>
 
     <!-- Multi-Track [E9] -->
@@ -1401,7 +1401,7 @@ canvas.path-mode{ cursor:cell; }
         <option value="ALL">ALL TEAMS</option>
       </select>
     </div>
-    <div id="annotation-log"></div>
+    <div id="annotation-log"><div style="font-family:var(--font-mono);font-size:10px;color:var(--muted);text-align:center;padding:20px;">NO EVENTS YET</div></div>
 
   </div>
 </div>
