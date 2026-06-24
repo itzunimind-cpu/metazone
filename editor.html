@@ -1659,6 +1659,7 @@ let pendingPin=null, cpTeamId=null;
 // ── PIN PROMPT STATE (death/wipe position capture) ──
 let _pinPromptActive = false;
 let _pinPromptCallback = null; // fn(wx, wy) called on tap, or null on skip
+let _pinPromptOnClose = null;  // fired after prompt closes (click or skip) — used to defer markMatchEnd
 
 const TEAM_COLORS=[
   '#22d3ee','#4ade80','#f87171','#fb923c','#facc15',
@@ -2177,12 +2178,12 @@ async function manualSave() {
   if(!sb||!state.matchId){ toast('Nothing to save','warn'); return; }
   setSaveState('saving'); setSyncState('syncing');
   try {
-    // Save team shapes (non-circle)
-    if(state.activeTeamId) {
-      const shapes = shapesCache[state.activeTeamId]||[];
+    // Save all teams' shapes (not just the active one)
+    for (const teamId of Object.keys(shapesCache)) {
+      const shapes = shapesCache[teamId]||[];
       const toInsert = shapes.filter(s=>!s.id||String(s.id).startsWith('local_'));
       if(toInsert.length) {
-        const rows = toInsert.map(s=>shapeToDbRow(s,state.activeTeamId,state.matchId));
+        const rows = toInsert.map(s=>shapeToDbRow(s,teamId,state.matchId));
         const {data,error} = await sb.from('shapes').insert(rows).select();
         if(error) throw error;
         data.forEach((row,i)=>{ toInsert[i].id=row.id; });
@@ -3138,6 +3139,7 @@ async function deleteSelected(type) {
           const dIds=days.filter(d=>d.tournament_id===t.id).map(d=>d.id);
           const mIds=matches.filter(m=>dIds.includes(m.day_id)).map(m=>m.id);
           const tIds=teams.filter(tm=>mIds.includes(tm.match_id)).map(tm=>tm.id);
+          if(mIds.length) await sb.from('match_players').delete().in('match_id',mIds);
           if(tIds.length) await sb.from('shapes').delete().in('team_id',tIds);
           if(tIds.length) await sb.from('teams').delete().in('id',tIds);
           if(mIds.length) await sb.from('matches').delete().in('id',mIds);
@@ -3168,6 +3170,7 @@ async function deleteSelected(type) {
         if(sb&&!String(d.id).startsWith('local_')){
           const mIds=matches.filter(m=>m.day_id===d.id).map(m=>m.id);
           const tIds=teams.filter(tm=>mIds.includes(tm.match_id)).map(tm=>tm.id);
+          if(mIds.length) await sb.from('match_players').delete().in('match_id',mIds);
           if(tIds.length) await sb.from('shapes').delete().in('team_id',tIds);
           if(tIds.length) await sb.from('teams').delete().in('id',tIds);
           if(mIds.length) await sb.from('matches').delete().in('id',mIds);
@@ -3198,6 +3201,7 @@ async function deleteSelected(type) {
       async ()=>{
         if(sb&&!String(m.id).startsWith('local_')){
           const tIds=teams.filter(t=>t.match_id===m.id).map(t=>t.id);
+          await sb.from('match_players').delete().eq('match_id',m.id);
           if(tIds.length) await sb.from('shapes').delete().in('team_id',tIds);
           if(tIds.length) await sb.from('teams').delete().in('id',tIds);
           const {error}=await sb.from('matches').delete().eq('id',m.id);
@@ -3342,6 +3346,7 @@ async function _activateMatch(match, statusMsg) {
     }
   }
 
+  mzCtxWrite();
   setStatus(statusMsg, true);
   setTimeout(() => setStatus('READY', true), 2000);
 }
@@ -3993,15 +3998,14 @@ async function confirmWipe() {
       toast(`🏆 SELF wins — marked #1, ending match…`, 'ok');
       renderTimelineTicks(); renderAnnotationLog({scrollToTop:true});
       await _clearMatchEndIfSet();
-      setTimeout(()=>markMatchEnd(), 600);
+      if (_pinPromptActive) { _pinPromptOnClose = markMatchEnd; } else { setTimeout(()=>markMatchEnd(), 600); }
 
     // Scenario A — 1 enemy left, self alive → enemy wins, self is #2
     } else if(survivingEnemies.length === 1 && selfAlive) {
       const winner = survivingEnemies[0];
       winner.confirmed_position = 1;
-      winner.time_of_wipe = state.time;
       if(sb && !String(winner.id).startsWith('local_')){
-        await sb.from('teams').update({confirmed_position:1, time_of_wipe:state.time}).eq('id', winner.id);
+        await sb.from('teams').update({confirmed_position:1}).eq('id', winner.id);
       }
       selfTeam.confirmed_position = 2;
       if(sb && !String(selfTeam.id).startsWith('local_')){
@@ -4010,20 +4014,19 @@ async function confirmWipe() {
       toast(`🏆 ${winner.name} marked #1 · SELF marked #2 — ending match…`, 'ok');
       renderTimelineTicks(); renderAnnotationLog({scrollToTop:true});
       await _clearMatchEndIfSet();
-      setTimeout(()=>markMatchEnd(), 600);
+      if (_pinPromptActive) { _pinPromptOnClose = markMatchEnd; } else { setTimeout(()=>markMatchEnd(), 600); }
 
     // Scenario B — 1 enemy left, self already wiped → that enemy is the winner
     } else if(survivingEnemies.length === 1 && !selfAlive) {
       const winner = survivingEnemies[0];
       winner.confirmed_position = 1;
-      winner.time_of_wipe = state.time;
       if(sb && !String(winner.id).startsWith('local_')){
-        await sb.from('teams').update({confirmed_position:1, time_of_wipe:state.time}).eq('id', winner.id);
+        await sb.from('teams').update({confirmed_position:1}).eq('id', winner.id);
       }
       toast(`🏆 ${winner.name} marked #1 — ending match…`, 'ok');
       renderTimelineTicks(); renderAnnotationLog({scrollToTop:true});
       await _clearMatchEndIfSet();
-      setTimeout(()=>markMatchEnd(), 600);
+      if (_pinPromptActive) { _pinPromptOnClose = markMatchEnd; } else { setTimeout(()=>markMatchEnd(), 600); }
     }
   }
 }
@@ -4217,6 +4220,7 @@ function skipPinPrompt() {
   _pinPromptActive = false;
   _pinPromptCallback = null;
   document.getElementById('pin-prompt-overlay').classList.remove('show');
+  if (_pinPromptOnClose) { const fn = _pinPromptOnClose; _pinPromptOnClose = null; setTimeout(fn, 300); }
 }
 
 function _handlePinPromptClick(e) {
