@@ -340,6 +340,11 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text-body);he
   border-left:1px solid var(--border);
 }
 .card-action-vod:hover{background:var(--orange);color:#fff;}
+.card-action-delete{
+  flex:0 0 38px;background:var(--bg-card);color:var(--text-dim);
+  border-left:1px solid var(--border);font-size:13px;
+}
+.card-action-delete:hover{background:var(--red);color:#fff;}
 /* Add-match card */
 .add-match-card{
   background:var(--bg-card);border:2px dashed var(--border-mid);border-radius:3px;
@@ -1123,6 +1128,7 @@ function matchCard(m,i){
     <div class="card-foot">
       <a class="card-action card-action-editor" href="${eUrl}" onclick="event.stopPropagation()"><iconify-icon icon="lucide:zap"></iconify-icon> EDITOR</a>
       <a class="card-action card-action-vod" href="${vUrl}" onclick="event.stopPropagation()"><iconify-icon icon="lucide:video"></iconify-icon> VOD</a>
+      <button class="card-action card-action-delete" onclick="event.stopPropagation();deleteMatch('${m.id}')" title="Delete match"><iconify-icon icon="lucide:trash-2"></iconify-icon></button>
     </div>
   </div>`;
 }
@@ -1454,6 +1460,30 @@ async function deleteDay(tid,did){
       }catch(e){setStatus('ERROR');toast('Delete failed: '+e.message,'err');}
     },
     'DELETE DAY'
+  );
+}
+
+async function deleteMatch(mid){
+  const m=matches.find(x=>x.id===mid);
+  if(!m)return;
+  showDeleteWarning(
+    `Delete "${m.name}"?`,
+    'This will permanently delete the match and all its drawings.',
+    async()=>{
+      setStatus('DELETING…');
+      try{
+        const tIds=m.teams.map(t=>t.id);
+        await sb.from('match_players').delete().eq('match_id',mid);
+        if(tIds.length) await sb.from('shapes').delete().in('team_id',tIds);
+        if(tIds.length) await sb.from('teams').delete().in('id',tIds);
+        await sb.from('matches').delete().eq('id',mid);
+        matches=matches.filter(x=>x.id!==mid);
+        if(activeMatchId===mid){activeMatchId=null;selectedMatch=null;}
+        renderGrid();renderRP();
+        setStatus('READY');toast('Match deleted','ok');
+      }catch(e){setStatus('ERROR');toast('Delete failed: '+e.message,'err');}
+    },
+    'DELETE MATCH'
   );
 }
 

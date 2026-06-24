@@ -858,15 +858,6 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
   <div id="vod-toolbar">
     <!-- Match controls -->
     <div class="toolbar-group" data-group="match">
-      <select class="tb-select" id="sel-tournament" onchange="onTournamentChange(this.value)">
-        <option value="">— Tournament —</option>
-      </select>
-      <select class="tb-select" id="sel-day" onchange="onDayChange(this.value)">
-        <option value="">— Day —</option>
-      </select>
-      <select class="tb-select" id="sel-match" onchange="onMatchChange(this.value)">
-        <option value="">— Match —</option>
-      </select>
       <div class="tb-match-status hidden" id="tb-match-status">
         <div class="tms-dot" id="tms-dot"></div>
         <span class="tms-label" id="tms-label">—</span>
@@ -1410,7 +1401,7 @@ function resetLocalState() {
   if (ytPlayer && typeof ytPlayer.stopVideo === 'function') ytPlayer.stopVideo();
   _isPlaying=false; _syncPlayPauseBtn();
   stopPolling(); updateEventButtons();
-  refreshDropdowns(); renderSquadPanel();
+  renderSquadPanel();
 }
 
 // ══════════════════════════════════════════════════════
@@ -1429,7 +1420,6 @@ async function loadAllData() {
     if(t.error) throw t.error;
     tournaments=t.data; days=d.data; matches=m.data; teams=tm.data;
     setSyncState('saved');
-    refreshDropdowns();
   } catch(e) { setSyncState('error'); toast('DB ERROR: '+e.message,'err'); }
 }
 
@@ -2261,13 +2251,11 @@ function nextMatchSameVod() {
   const curIdx = dayMatches.findIndex(m=>m.id===state.matchId);
   if (curIdx >=0 && curIdx < dayMatches.length - 1) {
     const nextMatch = dayMatches[curIdx+1];
-    document.getElementById('sel-match').value = nextMatch.id;
     onMatchChange(nextMatch.id);
     toast('Advanced to ' + nextMatch.name + ' — press START MATCH when ready','ok');
   } else {
-    toast('No next match in this day — select a match manually','warn');
+    toast('No next match in this day — return to the dashboard to pick a match','warn');
     state.matchId=null; state.activeTeamId=null;
-    document.getElementById('sel-match').value='';
     renderSquadPanel();
   }
 }
@@ -2455,46 +2443,6 @@ function renderEventLog() {
 // ══════════════════════════════════════════════════════
 // DROPDOWNS / MATCH SELECTION
 // ══════════════════════════════════════════════════════
-function refreshDropdowns() {
-  const tSel=document.getElementById('sel-tournament');
-  const dSel=document.getElementById('sel-day');
-  const mSel=document.getElementById('sel-match');
-  tSel.innerHTML='<option value="">— Tournament —</option>';
-  tournaments.forEach(t=>{ const o=new Option(t.name,t.id); if(t.id===state.tournamentId) o.selected=true; tSel.add(o); });
-  dSel.innerHTML='<option value="">— Day —</option>';
-  days.filter(d=>d.tournament_id===state.tournamentId).forEach(d=>{ const o=new Option(d.name,d.id); if(d.id===state.dayId) o.selected=true; dSel.add(o); });
-  mSel.innerHTML='<option value="">— Match —</option>';
-  matches.filter(m=>m.day_id===state.dayId).forEach(m=>{
-    const icon = _matchStatusIcon(m);
-    const o=new Option(icon+m.name,m.id);
-    if(m.id===state.matchId) o.selected=true;
-    mSel.add(o);
-  });
-}
-
-async function onTournamentChange(val) {
-  state.tournamentId=val||null; state.dayId=null; state.matchId=null; state.activeTeamId=null;
-  if(state.tournamentId&&sb){
-    const {data}=await sb.from('days').select('*').eq('tournament_id',state.tournamentId).order('order_index');
-    if(data){ days=days.filter(d=>d.tournament_id!==state.tournamentId); days.push(...data); }
-  }
-  stopPolling(); matchActive=false; matchTime=0; state.time=0;
-  updateEventButtons(); updateMatchTimeDisplay();
-  document.getElementById('btn-start-match').disabled=true;
-  refreshDropdowns(); renderSquadPanel(); draw();
-}
-
-async function onDayChange(val) {
-  state.dayId=val||null; state.matchId=null; state.activeTeamId=null;
-  if(state.dayId&&sb){
-    const {data}=await sb.from('matches').select('*').eq('day_id',state.dayId).order('created_at');
-    if(data){ matches=matches.filter(m=>m.day_id!==state.dayId); matches.push(...data); }
-  }
-  stopPolling(); matchActive=false; matchTime=0; state.time=0;
-  updateEventButtons(); updateMatchTimeDisplay();
-  refreshDropdowns(); renderSquadPanel(); draw();
-}
-
 async function onMatchChange(val) {
   // fix 3.4: warn if there are unsaved ephemeral events before switching
   if (annotations.length > 0 && val !== state.matchId) {
@@ -2504,8 +2452,6 @@ async function onMatchChange(val) {
       'SWITCH MATCH', 'STAY'
     );
     if (!proceed) {
-      // restore the selector to current match
-      document.getElementById('sel-match').value = state.matchId || '';
       return;
     }
   }
@@ -2569,7 +2515,7 @@ async function onMatchChange(val) {
   document.getElementById('btn-start-match').style.color='';
   setVideoState('idle');
   updateEventButtons(); updateMatchTimeDisplay();
-  refreshDropdowns(); renderSquadPanel(); renderTimelineMarkers(); draw();
+  renderSquadPanel(); renderTimelineMarkers(); draw();
   updateMatchContextBar();
 }
 
@@ -2731,7 +2677,6 @@ async function refreshMatchData() {
     if (sb) await loadShapesForMatch(state.matchId);
     updateMatchContextBar();
     updateVodMatchStatus();
-    refreshDropdowns();
     renderSquadPanel();
     renderTimelineMarkers();
     draw();
@@ -2789,17 +2734,6 @@ function updateVodMatchStatus() {
   else { vodBadge.classList.add('hidden'); }
 }
 
-// ── Match status icons in dropdown ──
-function _matchStatusIcon(m) {
-  const matchTeams = teams.filter(t=>t.match_id===m.id);
-  const hasWipes = matchTeams.some(t=>t.time_of_wipe!=null);
-  const hasDuration = m.duration_seconds != null;
-  const hasTeams = matchTeams.length > 0;
-  if (hasDuration && hasWipes) return '✓ ';
-  if (hasTeams) return '◐ ';
-  return '';
-}
-
 // ── Lightweight confirm dialog (returns Promise<bool>) ──
 function _confirmDialog(title, body, confirmLabel, cancelLabel) {
   return new Promise(resolve => {
@@ -2841,13 +2775,12 @@ async function applyUrlParams() {
   const pDId = params.get('dayId')||ctx.dayId||null;
   const pMId = params.get('matchId')||ctx.matchId||null;
 
-  if (pTId) { state.tournamentId=pTId; document.getElementById('sel-tournament').value=pTId||''; }
-  if (pDId) { state.dayId=pDId; document.getElementById('sel-day').value=pDId||''; }
+  if (pTId) { state.tournamentId=pTId; }
+  if (pDId) { state.dayId=pDId; }
 
   if (pMId) {
     // Deep-linked to specific match
     state.matchId=pMId;
-    document.getElementById('sel-match').value=pMId;
     await onMatchChange(pMId);
     return;
   }
@@ -2865,7 +2798,6 @@ async function applyUrlParams() {
   state.dayId = latestDay.id;
   state.matchId = latest.id;
 
-  document.getElementById('sel-tournament').value = latestT.id;
   // Load days for this tournament if not already loaded
   if (!days.find(d=>d.tournament_id===latestT.id)) {
     const {data} = await sb.from('days').select('*').eq('tournament_id',latestT.id).order('order_index');
@@ -2876,10 +2808,6 @@ async function applyUrlParams() {
     const {data} = await sb.from('matches').select('*').eq('day_id',latestDay.id).order('created_at');
     if (data) matches.push(...data);
   }
-  refreshDropdowns();
-  document.getElementById('sel-tournament').value = latestT.id;
-  document.getElementById('sel-day').value = latestDay.id;
-  document.getElementById('sel-match').value = latest.id;
   await onMatchChange(latest.id);
   toast(`Auto-loaded: ${latest.name}`, 'ok');
 }

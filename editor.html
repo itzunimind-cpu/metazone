@@ -5008,9 +5008,9 @@ function renderActiveSquadInline() {
 function openInVOD() {
   if (!state.matchId) { toast('Select a match first', 'warn'); return; }
   const params = new URLSearchParams();
-  if (state.tournamentId) params.set('tournament', state.tournamentId);
-  if (state.dayId) params.set('day', state.dayId);
-  params.set('match', state.matchId);
+  if (state.tournamentId) params.set('tournamentId', state.tournamentId);
+  if (state.dayId) params.set('dayId', state.dayId);
+  params.set('matchId', state.matchId);
   window.location.href = 'vod.html?' + params.toString();
 }
 
