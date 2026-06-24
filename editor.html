@@ -468,19 +468,41 @@ canvas.path-mode{ cursor:cell; }
 /* toast */
 #toast-container{
   position:absolute;bottom:90px;right:16px;
-  display:flex;flex-direction:column;gap:6px;z-index:300;pointer-events:none;
+  display:flex;flex-direction:column;gap:8px;z-index:300;pointer-events:none;
 }
 .toast{
-  background:rgba(2,6,23,.97);border:1px solid var(--border);border-radius:6px;
-  padding:8px 14px;font-family:var(--font-mono);font-size:11px;color:var(--muted);
-  letter-spacing:.03em;pointer-events:none;
-  transform:translateX(0);opacity:1;transition:all .3s;max-width:260px;line-height:1.5;
+  background:#F2EDE4;
+  border:1px solid #C9BFA8;
+  border-left:3px solid #2C4A2E;
+  border-radius:3px;
+  padding:10px 14px 10px 12px;
+  pointer-events:none;
+  min-width:180px;max-width:280px;
+  box-shadow:0 2px 16px rgba(12,10,7,0.18);
+  animation:toast-in .22s cubic-bezier(.4,0,.2,1) forwards;
 }
-.toast.info{ border-color:var(--accent);color:var(--accent); }
-.toast.warn{ border-color:var(--orange);color:var(--orange); }
-.toast.err { border-color:var(--red);color:var(--red); }
-.toast.ok  { border-color:var(--green);color:var(--green); }
-.toast.out { transform:translateX(120%);opacity:0; }
+@keyframes toast-in{
+  from{transform:translateX(110%);opacity:0}
+  to{transform:translateX(0);opacity:1}
+}
+.toast-label{
+  font-family:'Lexend Deca','Segoe UI',sans-serif;
+  font-size:8px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
+  color:#2C4A2E;margin-bottom:4px;
+}
+.toast-msg{
+  font-family:'Manrope','Segoe UI',sans-serif;
+  font-size:11px;color:#1C1A14;line-height:1.5;
+}
+.toast.info{ border-left-color:#2C4A2E; }
+.toast.info .toast-label{ color:#2C4A2E; }
+.toast.warn{ border-left-color:#C85E0A; }
+.toast.warn .toast-label{ color:#C85E0A; }
+.toast.err { border-left-color:#A02010; }
+.toast.err  .toast-label{ color:#A02010; }
+.toast.ok  { border-left-color:#4E7C2F; }
+.toast.ok   .toast-label{ color:#4E7C2F; }
+.toast.out { animation:none;transform:translateX(110%);opacity:0;transition:transform .2s ease-in,opacity .2s ease-in; }
 
 /* ══════════════════════════════════════════
    BOTTOM TIMELINE BAR
@@ -2246,12 +2268,19 @@ function setSyncState(s) {
 // TOAST
 // ══════════════════════════════════════════════════════
 function toast(msg, type='info') {
-  const container = document.getElementById('toast-container');
-  const el = document.createElement('div');
+  const labels={info:'INFO',warn:'WARNING',err:'ERROR',ok:'DONE'};
+  const container=document.getElementById('toast-container');
+  const el=document.createElement('div');
   el.className='toast '+type;
-  el.textContent=msg;
+  const lbl=document.createElement('div');
+  lbl.className='toast-label';
+  lbl.textContent=labels[type]||'INFO';
+  const txt=document.createElement('div');
+  txt.className='toast-msg';
+  txt.textContent=msg;
+  el.appendChild(lbl); el.appendChild(txt);
   container.appendChild(el);
-  setTimeout(()=>{ el.classList.add('out'); setTimeout(()=>el.remove(),350); },2500);
+  setTimeout(()=>{ el.classList.add('out'); setTimeout(()=>el.remove(),220); },2800);
 }
 
 // HTML-escape helper — defined at the top of the script as `var esc`.
