@@ -646,10 +646,16 @@ canvas.path-mode{ cursor:cell; }
 .annotation-icon.wipe    { background:rgba(124,90,0,.1);border:1px solid rgba(124,90,0,.2); }
 .annotation-icon.note    { background:rgba(74,56,112,.1);border:1px solid rgba(74,56,112,.2); }
 .annotation-body{ flex:1;min-width:0; }
-.annotation-entry-header{ display:flex;align-items:baseline;gap:6px; }
-.annotation-title{ flex:1;font-size:11px;font-weight:600;color:var(--text);text-transform:uppercase;letter-spacing:.04em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
-.annotation-time{ font-family:var(--font-mono);font-size:9px;color:var(--muted);flex-shrink:0;letter-spacing:.04em;font-variant-numeric:tabular-nums; }
+.annotation-title{ font-size:11px;font-weight:600;color:var(--text);text-transform:uppercase;letter-spacing:.04em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.annotation-time{ font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:.04em;font-variant-numeric:tabular-nums;margin-top:2px; }
 .annotation-sub{ font-size:10px;color:var(--muted);margin-top:2px;line-height:1.4; }
+.annotation-undo-btn{
+  flex-shrink:0;align-self:center;width:24px;height:24px;border-radius:4px;
+  background:none;border:1px solid var(--border);color:var(--muted);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  transition:all .15s;font-size:13px;
+}
+.annotation-undo-btn:hover{ border-color:var(--red);color:var(--red); }
 
 .annotation-footer{
   padding:10px 14px;border-top:1px solid var(--border-dim);
@@ -4726,7 +4732,8 @@ function renderAnnotationLog(opts) {
   // ── Self Loss events ──
   annotations.filter(a=>a._ephemeral && a.id?.startsWith('local_loss_')).forEach(a=>{
     const name = a.title.replace(/ lost @ .+$/,'');
-    events.push({ time:a.time_seconds, type:'loss', title:`Lost — ${name}`, icon:'<iconify-icon icon="lucide:skull"></iconify-icon>', iconClass:'wipe', teamId:null, annId:a.id, undoable:true });
+    const player = matchPlayers.find(p=>p.name===name && p.time_of_loss===a.time_seconds);
+    events.push({ time:a.time_seconds, type:'loss', title:`Lost — ${name}`, icon:'<iconify-icon icon="lucide:skull"></iconify-icon>', iconClass:'wipe', teamId:null, annId:a.id, undoable:true, wx:player?.death_x, wy:player?.death_y });
   });
 
   // ── Self Elim events ──
@@ -4834,26 +4841,9 @@ function renderAnnotationLog(opts) {
     if(wasEmpty){ entry.classList.add('animate-in'); entry.style.animationDelay=`${animIdx*30}ms`; animIdx++; }
     entry.dataset.evTime=ev.time;
 
-    if(ev.isWipe) {
-      entry.onclick=()=>{ jumpToTime(ev.time); if(ev.wx!=null) zoomToWorld(ev.wx, ev.wy); };
-    } else if(ev.undoable && ev.annId) {
-      // Loss / Elim / MatchEnd — click jumps; second click shows undo
-      entry.onclick=()=>{
-        jumpToTime(ev.time);
-        const existing = entry.querySelector('.undo-btn');
-        if(existing){ existing.remove(); return; }
-        const btn=document.createElement('button');
-        btn.className='undo-btn';
-        btn.style.cssText='margin-top:4px;padding:3px 8px;background:none;border:1px solid var(--red);border-radius:4px;color:var(--red);font-family:var(--font-mono);font-size:9px;cursor:pointer;letter-spacing:1px;';
-        btn.textContent='↩ UNDO';
-        btn.onclick=(e)=>{ e.stopPropagation(); undoLogEvent(ev); };
-        entry.appendChild(btn);
-      };
-    } else if(ev.undoable && ev.isDbMatchEnd) {
-      entry.onclick=()=>{ jumpToTime(ev.time); markMatchEnd(); };
-    } else {
-      entry.onclick=()=>{ jumpToTime(ev.time); if(ev.wx!=null) zoomToWorld(ev.wx, ev.wy); };
-    }
+    // Tap entry → jump to its time and zoom the map to its marker (if it has one)
+    entry.onclick=()=>{ jumpToTime(ev.time); if(ev.wx!=null && ev.wy!=null) zoomToWorld(ev.wx, ev.wy); };
+
     const iconEl=document.createElement('div'); iconEl.className='annotation-icon '+ev.iconClass; iconEl.innerHTML=ev.icon;
     // Team color on icon background (multi-track), no dot in title
     if(ev.teamColor){
@@ -4861,13 +4851,22 @@ function renderAnnotationLog(opts) {
       if(state.multiTrackActive){ iconEl.style.cssText=`background:${ev.teamColor};border-color:${ev.teamColor};color:#fff`; }
     }
     const bodyEl=document.createElement('div'); bodyEl.className='annotation-body';
-    const headerEl=document.createElement('div'); headerEl.className='annotation-entry-header';
     const titleEl=document.createElement('div'); titleEl.className='annotation-title'; titleEl.textContent=ev.title;
     const timeEl=document.createElement('div'); timeEl.className='annotation-time'; timeEl.textContent=fmtTime(ev.time);
-    headerEl.appendChild(titleEl); headerEl.appendChild(timeEl);
-    bodyEl.appendChild(headerEl);
+    bodyEl.appendChild(titleEl); bodyEl.appendChild(timeEl);
     if(ev.body){ const subEl=document.createElement('div'); subEl.className='annotation-sub'; subEl.textContent=ev.body; bodyEl.appendChild(subEl); }
     entry.appendChild(iconEl); entry.appendChild(bodyEl);
+
+    // Undoable entries (Loss / Elim / MatchEnd) get a persistent undo button on the right
+    if(ev.undoable) {
+      const undoBtn=document.createElement('button');
+      undoBtn.className='annotation-undo-btn';
+      undoBtn.title='Undo';
+      undoBtn.innerHTML='<iconify-icon icon="lucide:undo-2"></iconify-icon>';
+      undoBtn.onclick=(e)=>{ e.stopPropagation(); if(ev.annId) undoLogEvent(ev); else if(ev.isDbMatchEnd) markMatchEnd(); };
+      entry.appendChild(undoBtn);
+    }
+
     container.appendChild(entry);
     if(isLit) lastLitEl=entry;
   });
