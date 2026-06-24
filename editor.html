@@ -588,13 +588,14 @@ canvas.path-mode{ cursor:cell; }
 .annotation-entry{
   display:flex;gap:10px;align-items:flex-start;padding:8px 10px;
   background:var(--bg-card);border:1px solid var(--border);border-radius:6px;
-  transition:opacity .2s;cursor:pointer;
+  transition:opacity .2s;cursor:pointer;will-change:opacity;
 }
 .annotation-entry.future{ opacity:.35; }
 .annotation-entry:hover{ border-color:var(--muted2); }
 .annotation-icon{
   width:28px;height:28px;border-radius:4px;display:flex;align-items:center;justify-content:center;
-  font-size:13px;flex-shrink:0;
+  font-size:13px;flex-shrink:0;transform:translateZ(0);
+  transition:background .25s ease,border-color .25s ease,color .25s ease;
 }
 .annotation-icon.zone    { background:rgba(44,74,46,.12);border:1px solid rgba(44,74,46,.25); }
 .annotation-icon.fight   { background:rgba(155,28,17,.1);border:1px solid rgba(155,28,17,.2); }
@@ -602,8 +603,9 @@ canvas.path-mode{ cursor:cell; }
 .annotation-icon.wipe    { background:rgba(124,90,0,.1);border:1px solid rgba(124,90,0,.2); }
 .annotation-icon.note    { background:rgba(74,56,112,.1);border:1px solid rgba(74,56,112,.2); }
 .annotation-body{ flex:1;min-width:0; }
-.annotation-title{ font-size:11px;font-weight:600;color:var(--text);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
-.annotation-time{ font-family:var(--font-mono);font-size:10px;color:var(--accent); }
+.annotation-entry-header{ display:flex;align-items:baseline;gap:6px; }
+.annotation-title{ flex:1;font-size:11px;font-weight:600;color:var(--text);text-transform:uppercase;letter-spacing:.04em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.annotation-time{ font-family:var(--font-mono);font-size:9px;color:var(--muted);flex-shrink:0;letter-spacing:.04em;font-variant-numeric:tabular-nums; }
 .annotation-sub{ font-size:10px;color:var(--muted);margin-top:2px;line-height:1.4; }
 
 .annotation-footer{
@@ -1024,6 +1026,7 @@ canvas.path-mode{ cursor:cell; }
   background:var(--bg);border:1px solid var(--border);border-radius:6px;
   cursor:pointer;transition:all .15s;
 }
+.mt-team-row.animate-in{ animation:team-row-in .2s ease both; }
 .mt-team-row:hover{ border-color:var(--forest); }
 .mt-team-row.checked{ border-color:var(--forest);background:rgba(44,74,46,.07); }
 .mt-checkbox{
@@ -3274,7 +3277,7 @@ async function _activateMatch(match, statusMsg) {
   const selfTeam   = matchTeams.find(t => t.is_self) || matchTeams[0];
   state.activeTeamId = selfTeam?.id || null;
 
-  // Update timeline duration and jump to match end
+  // Update timeline duration and sweep scrubber to match end
   if (match.duration_seconds) {
     const slider = document.getElementById('temporal-slider');
     if (slider) {
@@ -3283,8 +3286,15 @@ async function _activateMatch(match, statusMsg) {
       state.time = match.duration_seconds;
       document.getElementById('time-display').textContent = fmtTime(match.duration_seconds);
       const pct = (match.duration_seconds / +slider.max) * 100;
-      document.getElementById('track-fill').style.width = pct + '%';
-      document.getElementById('track-thumb').style.left = pct + '%';
+      const fill = document.getElementById('track-fill');
+      const thumb = document.getElementById('track-thumb');
+      fill.style.transition = 'width 1s cubic-bezier(.4,0,.2,1)';
+      thumb.style.transition = 'left 1s cubic-bezier(.4,0,.2,1)';
+      fill.style.width = '0%'; thumb.style.left = '0%';
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        fill.style.width = pct + '%'; thumb.style.left = pct + '%';
+        setTimeout(() => { fill.style.transition = ''; thumb.style.transition = ''; }, 1050);
+      }));
     }
   }
 
@@ -3381,8 +3391,14 @@ document.getElementById('sel-match').onchange=async function(){
       slider.value=m.duration_seconds; state.time=m.duration_seconds;
       document.getElementById('time-display').textContent=fmtTime(m.duration_seconds);
       const pct=(m.duration_seconds/+slider.max)*100;
-      document.getElementById('track-fill').style.width=pct+'%';
-      document.getElementById('track-thumb').style.left=pct+'%';
+      const fill=document.getElementById('track-fill'), thumb=document.getElementById('track-thumb');
+      fill.style.transition='width 1s cubic-bezier(.4,0,.2,1)';
+      thumb.style.transition='left 1s cubic-bezier(.4,0,.2,1)';
+      fill.style.width='0%'; thumb.style.left='0%';
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{
+        fill.style.width=pct+'%'; thumb.style.left=pct+'%';
+        setTimeout(()=>{ fill.style.transition=''; thumb.style.transition=''; },1050);
+      }));
     }
   } else {
     setMapDisplayMode(false);
@@ -4578,16 +4594,17 @@ function renderAnnotationLog(opts) {
       entry.onclick=()=>jumpToTime(ev.time);
     }
     const iconEl=document.createElement('div'); iconEl.className='annotation-icon '+ev.iconClass; iconEl.innerHTML=ev.icon;
+    // Team color on icon background (multi-track), no dot in title
+    if(ev.teamColor){
+      entry.dataset.teamColor=ev.teamColor;
+      if(state.multiTrackActive){ iconEl.style.cssText=`background:${ev.teamColor};border-color:${ev.teamColor};color:#fff`; }
+    }
     const bodyEl=document.createElement('div'); bodyEl.className='annotation-body';
+    const headerEl=document.createElement('div'); headerEl.className='annotation-entry-header';
     const titleEl=document.createElement('div'); titleEl.className='annotation-title'; titleEl.textContent=ev.title;
     const timeEl=document.createElement('div'); timeEl.className='annotation-time'; timeEl.textContent=fmtTime(ev.time);
-    // [E9] Team color dot in multi-track mode
-    if(state.multiTrackActive && ev.teamColor){
-      const dot=document.createElement('span');
-      dot.style.cssText=`display:inline-block;width:6px;height:6px;border-radius:50%;background:${ev.teamColor};margin-right:4px;vertical-align:middle;flex-shrink:0;`;
-      titleEl.prepend(dot);
-    }
-    bodyEl.appendChild(titleEl); bodyEl.appendChild(timeEl);
+    headerEl.appendChild(titleEl); headerEl.appendChild(timeEl);
+    bodyEl.appendChild(headerEl);
     if(ev.body){ const subEl=document.createElement('div'); subEl.className='annotation-sub'; subEl.textContent=ev.body; bodyEl.appendChild(subEl); }
     entry.appendChild(iconEl); entry.appendChild(bodyEl);
     container.appendChild(entry);
@@ -4676,8 +4693,26 @@ function toggleMultiTrack() {
     state.multiTrackTeams = [];
     document.getElementById('mt-log-filter').style.display = 'none';
   }
-  renderAnnotationLog();
+  updateAnnotationLogColors();
   draw();
+}
+
+function updateAnnotationLogColors() {
+  const container = document.getElementById('annotation-log');
+  container.querySelectorAll('.annotation-entry[data-team-color]').forEach(entry => {
+    const iconEl = entry.querySelector('.annotation-icon');
+    if (!iconEl) return;
+    const color = entry.dataset.teamColor;
+    if (state.multiTrackActive) {
+      iconEl.style.background = color;
+      iconEl.style.borderColor = color;
+      iconEl.style.color = '#fff';
+    } else {
+      iconEl.style.background = '';
+      iconEl.style.borderColor = '';
+      iconEl.style.color = '';
+    }
+  });
 }
 
 function renderMultiTrackPanel() {
@@ -4690,10 +4725,11 @@ function renderMultiTrackPanel() {
     return;
   }
 
-  matchTeams.forEach(team => {
+  matchTeams.forEach((team, i) => {
     const checked = state.multiTrackTeams.includes(team.id);
     const row = document.createElement('div');
-    row.className = 'mt-team-row' + (checked ? ' checked' : '');
+    row.className = 'mt-team-row animate-in' + (checked ? ' checked' : '');
+    row.style.animationDelay = `${i * 40}ms`;
     row.innerHTML = `
       <div class="mt-checkbox">${checked ? '✓' : ''}</div>
       <div class="mt-team-dot" style="background:${team.color}"></div>
