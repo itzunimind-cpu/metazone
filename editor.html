@@ -237,6 +237,12 @@ input[type="range"]{ flex:1;accent-color:var(--accent);height:3px;cursor:pointer
   from{opacity:.6;}
   to{opacity:1;}
 }
+@keyframes section-in{
+  from{opacity:0;transform:translateY(8px);}
+  to{opacity:1;transform:none;}
+}
+.sb-section.section-in{ animation:section-in .32s ease both; }
+#sidebar.await-reveal .sb-section{ opacity:0;pointer-events:none; }
 .team-row{
   display:flex;align-items:center;gap:4px;padding:4px 6px;
   background:var(--bg);border:1px solid var(--border);border-radius:6px;
@@ -1159,7 +1165,7 @@ canvas.path-mode{ cursor:cell; }
 <div id="app-body">
 
   <!-- ══ LEFT SIDEBAR ══════════════════════════════ -->
-  <div id="sidebar">
+  <div id="sidebar" class="await-reveal">
 
     <!-- TOURNAMENT -->
     <div class="sb-section">
@@ -1620,6 +1626,7 @@ let annotations  = [];   // local annotation array
 let matchPlayers = [];   // [E5/E6] match_players rows for current match
 let isAnnotationMode = true;
 let knownTeams = [];  // [FIX] autocomplete: preloaded from tournament_teams
+let _initialReveal = true; // gates coordinated sidebar entrance on first match load
 
 let state = {
   tournamentId: null,
@@ -1683,8 +1690,12 @@ window.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('auth-screen').classList.add('hidden');
     await loadAllData();
     initCanvas();
+    // Safety net: if _activateMatch never ran (no match to load), sidebar was already
+    // revealed inside loadAllData. If something unexpected prevented that, force-show now.
+    setTimeout(() => { const s=document.getElementById('sidebar'); if(s?.classList.contains('await-reveal')){s.classList.remove('await-reveal');} }, 6000);
   } else {
     initCanvas();
+    document.getElementById('sidebar')?.classList.remove('await-reveal');
   }
   sb.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session) {
@@ -1763,9 +1774,12 @@ async function loadAllData() {
     setSyncState('saved');
     refreshDropdowns();
     await applyUrlParams();
+    // If no match was activated (fresh editor, no URL params), reveal sidebar now
+    if (_initialReveal) _revealSidebar();
   } catch(e) {
     console.error(e); setSyncState('error');
     setStatus('DB ERROR: '+e.message, false);
+    if (_initialReveal) _revealSidebar();
   }
 }
 
@@ -2278,34 +2292,34 @@ function _loadMapRes(key, res, onload) {
 }
 
 function loadMapKey(key) {
-  if(key==='custom'){ document.getElementById('file-map').click(); return; }
+  if(key==='custom'){ document.getElementById('file-map').click(); return Promise.resolve(); }
   state.mapKey=key;
   localStorage.setItem('mz_map',key);
   document.getElementById('match-meta-map').textContent = key.charAt(0).toUpperCase()+key.slice(1);
   document.getElementById('sel-map').value = key;
 
-  // Check if multi-res files exist — if not, fall back to original
   const srcs = MAP_SRCS[key];
   if (!srcs) {
-    // Unknown map key — load directly
     const src = key+'.png';
-    const img = new Image(); img.crossOrigin='anonymous'; img.src=src;
-    img.onload=()=>{ mapImg=img; WORLD_W=img.naturalWidth||2048; WORLD_H=img.naturalHeight||2048; resetView(); draw(); if(_canvasReady) canvas.classList.add('map-ready'); };
-    img.onerror=()=>{ toast('MAP NOT FOUND: '+src,'warn'); };
-    return;
+    return new Promise(resolve => {
+      const img = new Image(); img.crossOrigin='anonymous'; img.src=src;
+      img.onload=()=>{ mapImg=img; WORLD_W=img.naturalWidth||2048; WORLD_H=img.naturalHeight||2048; resetView(); draw(); if(_canvasReady) canvas.classList.add('map-ready'); resolve(); };
+      img.onerror=()=>{ toast('MAP NOT FOUND: '+src,'warn'); resolve(); };
+    });
   }
 
-  // Load lo-res first for instant display
-  _loadMapRes(key, 'lo', (img) => {
-    mapImg = img;
-    WORLD_W = img.naturalWidth || 2048;
-    WORLD_H = img.naturalHeight || 2048;
-    resetView(); draw();
-    if (_canvasReady) canvas.classList.add('map-ready');
+  return new Promise(resolve => {
+    _loadMapRes(key, 'lo', (img) => {
+      mapImg = img;
+      WORLD_W = img.naturalWidth || 2048;
+      WORLD_H = img.naturalHeight || 2048;
+      resetView(); draw();
+      if (_canvasReady) canvas.classList.add('map-ready');
+      resolve();
+    });
+    _loadMapRes(key, 'mid');
+    _loadMapRes(key, 'hi');
   });
-  // Pre-load mid + hi in background so they're ready when zooming in
-  _loadMapRes(key, 'mid');
-  _loadMapRes(key, 'hi');
 }
 
 function selectMapFromDropdown(key) {
@@ -3274,14 +3288,8 @@ async function applyUrlParams() {
 
 // Shared match activation logic used by both deep-link and auto-load
 async function _activateMatch(match, statusMsg) {
-  // Load map
-  if (match.map_key) {
-    state.mapKey = match.map_key;
-    const mapSel = document.getElementById('sel-map');
-    if (mapSel) mapSel.value = match.map_key;
-    loadMapKey(match.map_key);
-  }
-  // Switch map section to display mode (name + delete, no dropdown)
+  // Kick off map + all data in parallel so everything is ready together
+  const mapReady = match.map_key ? loadMapKey(match.map_key) : Promise.resolve();
   setMapDisplayMode(true);
 
   // Set active team to SELF or first team
@@ -3289,7 +3297,33 @@ async function _activateMatch(match, statusMsg) {
   const selfTeam   = matchTeams.find(t => t.is_self) || matchTeams[0];
   state.activeTeamId = selfTeam?.id || null;
 
-  // Update timeline duration and sweep scrubber to match end
+  // All data loads in parallel alongside map image fetch
+  annotations = [];
+  await Promise.all([
+    sb && state.matchId ? loadShapesForMatch(state.matchId) : null,
+    loadAnnotations(state.matchId),
+    loadMatchPlayers(state.matchId),
+    state.tournamentId ? preloadKnownTeams(state.tournamentId) : null,
+    mapReady
+  ].filter(Boolean));
+
+  // [C3] If no players registered for this match yet → prompt to select squad.
+  // Guard is persisted to localStorage so revisiting an existing match across
+  // sessions never re-triggers the modal even if matchPlayers failed to load.
+  if(matchPlayers.length === 0 && state.tournamentId && !_apmIsShown(state.matchId)) {
+    _apmMarkShown(state.matchId);
+    openActivePlayersModal(state.matchId);
+  }
+
+  // Everything loaded — fire all UI at once
+  refreshDropdowns();
+  renderTeamList();
+  renderAnnotationLog();
+  renderTimelineTicks();
+  updateRightPanel();
+  draw();
+
+  // Scrubber sweep fires with the rest of the UI (not before data loads)
   if (match.duration_seconds) {
     const slider = document.getElementById('temporal-slider');
     if (slider) {
@@ -3310,31 +3344,26 @@ async function _activateMatch(match, statusMsg) {
     }
   }
 
-  // Load shapes & annotations
-  if (sb && state.matchId) await loadShapesForMatch(state.matchId);
-  annotations = [];
-  await loadAnnotations(state.matchId);
-  await loadMatchPlayers(state.matchId);
-  // [C3] If no players registered for this match yet → prompt to select squad.
-  // Guard is persisted to localStorage so revisiting an existing match across
-  // sessions never re-triggers the modal even if matchPlayers failed to load.
-  if(matchPlayers.length === 0 && state.tournamentId && !_apmIsShown(state.matchId)) {
-    _apmMarkShown(state.matchId);
-    openActivePlayersModal(state.matchId);
-  }
-  // [FIX] Preload known teams for autocomplete
-  if (state.tournamentId) await preloadKnownTeams(state.tournamentId);
-
-  // Refresh all UI
-  refreshDropdowns();
-  renderTeamList();
-  renderAnnotationLog();
-  renderTimelineTicks();
-  updateRightPanel();
-  draw();
+  // Stagger-reveal sidebar sections on initial page load
+  _revealSidebar();
 
   setStatus(statusMsg, true);
   setTimeout(() => setStatus('READY', true), 2000);
+}
+
+function _revealSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  if (!sidebar || !_initialReveal) return;
+  _initialReveal = false;
+  sidebar.classList.remove('await-reveal');
+  document.querySelectorAll('#sidebar .sb-section').forEach((sec, i) => {
+    sec.style.animationDelay = `${i * 42}ms`;
+    sec.classList.add('section-in');
+    sec.addEventListener('animationend', () => {
+      sec.classList.remove('section-in');
+      sec.style.animationDelay = '';
+    }, { once: true });
+  });
 }
 
 function _flashSelect(el){
