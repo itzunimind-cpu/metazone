@@ -2408,16 +2408,19 @@ function resetView() {
 
 function adjustZoom(delta) { zoomAt(canvas.width/2, canvas.height/2, delta); }
 
+function clampPan() {
+  const W=canvas.width, H=canvas.height;
+  const mw=WORLD_W*zoom, mh=WORLD_H*zoom;
+  panX = mw<=W ? (W-mw)/2 : Math.min(0, Math.max(W-mw, panX));
+  panY = mh<=H ? (H-mh)/2 : Math.min(0, Math.max(H-mh, panY));
+}
+
 function zoomAt(sx, sy, delta) {
   const minZoom=Math.min(canvas.width/WORLD_W, canvas.height/WORLD_H);
   const nz=Math.max(minZoom, Math.min(40, zoom*(1+delta)));
   const s=nz/zoom;
   panX=sx-s*(sx-panX); panY=sy-s*(sy-panY); zoom=nz;
-  // Snap to center when fully zoomed out
-  if(nz<=minZoom+0.001){
-    panX=(canvas.width-WORLD_W*nz)/2;
-    panY=(canvas.height-WORLD_H*nz)/2;
-  }
+  clampPan();
   updateZoomHud(); draw();
 }
 
@@ -2589,14 +2592,14 @@ function onPointerMove(e) {
     panX+=newMid.x-pinchMid0.x;
     panY+=newMid.y-pinchMid0.y;
     zoom=nz;
-    updateZoomHud(); draw(); return;
+    clampPan(); updateZoomHud(); draw(); return;
   }
 
   // E1: ignore moves when pinch active or two fingers
   if(e.touches&&e.touches.length>1) return;
 
   const {wx,wy,screenX,screenY}=evCoords(e);
-  if(isPanning){ panX=panPX+(screenX-panSX); panY=panPY+(screenY-panSY); draw(); return; }
+  if(isPanning){ panX=panPX+(screenX-panSX); panY=panPY+(screenY-panSY); clampPan(); draw(); return; }
   if(!drawing&&!pathDrawing&&!circleP1){
     const hit=hitTestPins(wx,wy);
     if(hit) showHoverTip(screenX,screenY,hit); else hideHoverTip();
