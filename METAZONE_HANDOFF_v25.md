@@ -1,5 +1,5 @@
 # METAZONE — Project Handoff & Continuity Document
-**Version:** v30 — Session 30. editor.html: multi-track to sidebar, timeline labels, event log overhaul, scrubber sweep, MATCH END to toolbar, zoom floor, sidebar width parity.
+**Version:** v31 — Session 31. editor.html: multi-track panel animation, event log header stability, coordinated load reveal, event log fully lit on open, dropdown pill slide animation.
 **Purpose:** Single source of truth across all chat sessions. Read this first in every new chat.
 
 ---
@@ -21,7 +21,7 @@
 | File | Version | Last changed | Notes |
 |------|---------|--------------|-------|
 | index.html | v9.5 | Session 26 | All sidebar + grid bugs fixed. Skeleton loader added. Card reveal animation. |
-| editor.html | v6.3 | Session 30 | Multi-track sidebar, timeline labels, event log overhaul, toolbar changes |
+| editor.html | v6.4 | Session 31 | Multi-track panel animation, coordinated load reveal, event log lit fix, dropdown pill slide |
 | tournament-create.html | v4.1 | Session 25 | VOD REVIEW nav link added |
 | tournament-editor.html | v1.4 | Session 25 | VOD REVIEW nav link added |
 | analytics.html | v2.3 | Session 25 | VOD REVIEW nav link added, active link fixed |
@@ -374,6 +374,12 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | 27 | **editor.html loading states removed** — all overlay HTML/CSS/JS deleted: `#map-loading-overlay`, `#canvas-empty-state`, `#match-loading-bar`, `#sidebar-loading`, `showMapLoading()`, `hideMapLoading()`, `setMatchLoading()`, `setCanvasEmptyState()`, `setSidebarLoading()`. All call sites scrubbed from loadAllData, loadShapesForMatch, resetLocalState, _activateMatch, and all 3 dropdown onchange handlers. |
 | 27 | **editor.html CSS shimmer** — `#canvas-wrap` now shows animated dark shimmer gradient background while map loads. `canvas` starts at `opacity:0`, gains `map-ready` class in image `onload` to fade in via `transition:opacity .4s`. No text, no spinner, no overlay. |
 | 27 | **editor.html map zoom bug fixed** — `loadMapKey()` was called inline in script body before `DOMContentLoaded`. On warm cache the image fired `onload` with `canvas.width=300` (HTML default), then `initCanvas()` resized canvas → double `resetView()` → map appeared to zoom in on reload. Fix: moved `loadMapKey(state.mapKey\|\|'erangel')` call to start of `initCanvas()` after `resizeCanvas()`. Removed inline call entirely. |
+| 31 | **editor.html multi-track panel expand/collapse animation** — `#multi-track-panel` switched from `display:none/flex` toggle to `max-height:0→600px` + `opacity:0→1` with `transition:.35s cubic-bezier(.4,0,.2,1)`. Panel now animates open AND closed. Teams section below slides up naturally as panel collapses — no JS needed. |
+| 31 | **editor.html event log header height stability** — `#mt-log-filter` (team filter select in annotation header) changed from `display:none/block` to `visibility:hidden/opacity:0` with `.visible` class toggle. Select always occupies space in the flex header so its height never changes when multi-track is toggled. `.annotation-header` gets `min-height:40px` as additional guard. |
+| 31 | **editor.html `loadMapKey()` returns a Promise** — resolves when lo-res image loads (or immediately if cached). Enables `_activateMatch()` to await map load in parallel with DB fetches. `custom` path resolves immediately. All existing call sites ignore the return value (backward-compatible). |
+| 31 | **editor.html coordinated load reveal** — `_activateMatch()` now runs map image load + all DB fetches (`loadShapesForMatch`, `loadAnnotations`, `loadMatchPlayers`, `preloadKnownTeams`) in a single `Promise.all()`. Everything is ready at the same moment. `initCanvas()` runs right after and sees `mapImg` already loaded → adds `map-ready` immediately. Teams, event log, dropdowns, scrubber, and canvas all appear in the same frame burst. |
+| 31 | **editor.html event log fully lit on match open** — root cause: `state.time` was being set inside the scrubber block which ran AFTER `renderAnnotationLog()`. All events appeared dimmed (`.future`) because `state.time` was still 0. Fix: split scrubber into two parts — (1) state setup (`state.time`, `slider.max`, `slider.value`, time display) runs BEFORE `renderAnnotationLog()`, (2) visual fill/thumb sweep animation runs after. Event log now builds with all entries lit when opening a finished match. |
+| 31 | **editor.html dropdown pill slide animation** — `sel-pop` keyframe upgraded from `opacity:0.6→1` (subtle fade) to `opacity:0,translateY(5px)→opacity:1,transform:none` — matching `team-row-in` style. Tournament, Day, Match selects animate in via `_flashSelect()` in `refreshDropdowns()`. Map select gets `_flashSelect()` explicitly in `_activateMatch()` after data loads. Sidebar itself stays visible throughout (no hiding). |
 
 ---
 
