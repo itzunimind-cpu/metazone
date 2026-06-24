@@ -2857,18 +2857,17 @@ function drawPinMarker(s, isPreview, teamColor, alphaMult) {
   const x=s.x, y=s.y;
   const dr=(isPreview?9:11)/zoom;
 
-  ctx.beginPath();
-  ctx.moveTo(x,y-dr); ctx.lineTo(x+dr,y); ctx.lineTo(x,y+dr); ctx.lineTo(x-dr,y);
-  ctx.closePath(); ctx.fillStyle=fillColor; ctx.fill();
-
   if(s.tag==='fight'||s.type==='fight'){
     // Fight: diamond + X only
+    ctx.beginPath();
+    ctx.moveTo(x,y-dr); ctx.lineTo(x+dr,y); ctx.lineTo(x,y+dr); ctx.lineTo(x-dr,y);
+    ctx.closePath(); ctx.fillStyle=fillColor; ctx.fill();
     const d=6/zoom;
     ctx.beginPath();
     ctx.moveTo(x-d,y-d); ctx.lineTo(x+d,y+d); ctx.moveTo(x+d,y-d); ctx.lineTo(x-d,y+d);
     ctx.strokeStyle=wh; ctx.lineWidth=2.2/zoom; ctx.lineCap='round'; ctx.stroke();
   } else {
-    // Loss/pin: small teal circle
+    // Pin: small teal circle only (no diamond background)
     const cr=6/zoom;
     ctx.beginPath(); ctx.arc(x,y,cr,0,Math.PI*2);
     ctx.fillStyle=`rgba(45,212,191,${(op*am*.85).toFixed(2)})`; ctx.fill();
@@ -2892,13 +2891,22 @@ function drawWipePin(x, y) {
 
 function drawDeathPin(x, y) {
   const op=+document.getElementById('sl-opacity').value;
-  const tc=`rgba(45,212,191,${op.toFixed(2)})`;
-  const d=7/zoom;
+  const dr=13/zoom;
+  const fc=`rgba(200,94,10,${(op*.68).toFixed(2)})`;
+  const wh='rgba(255,255,255,0.9)';
+  // Colored diamond background — same as fight marker
+  ctx.beginPath();
+  ctx.moveTo(x,y-dr); ctx.lineTo(x+dr,y); ctx.lineTo(x,y+dr); ctx.lineTo(x-dr,y);
+  ctx.closePath(); ctx.fillStyle=fc; ctx.fill();
+  // X mark
+  const d=6/zoom;
   ctx.beginPath();
   ctx.moveTo(x-d,y-d); ctx.lineTo(x+d,y+d); ctx.moveTo(x+d,y-d); ctx.lineTo(x-d,y+d);
-  ctx.strokeStyle=tc; ctx.lineWidth=2.2/zoom; ctx.lineCap='round'; ctx.stroke();
-  const od=12/zoom, os=4/zoom;
+  ctx.strokeStyle=wh; ctx.lineWidth=2.2/zoom; ctx.lineCap='round'; ctx.stroke();
+  // Outer bracket marks
+  const od=11/zoom, os=3.5/zoom;
   ctx.lineWidth=1.8/zoom; ctx.lineJoin='round'; ctx.lineCap='round';
+  ctx.strokeStyle=wh;
   ctx.beginPath(); ctx.moveTo(x-od,y-os); ctx.lineTo(x-od+os,y); ctx.lineTo(x-od,y+os); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(x+od,y-os); ctx.lineTo(x+od-os,y); ctx.lineTo(x+od,y+os); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(x-os,y-od); ctx.lineTo(x,y-od+os); ctx.lineTo(x+os,y-od); ctx.stroke();
