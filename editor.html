@@ -579,8 +579,16 @@ canvas.path-mode{ cursor:cell; }
 .annotation-header{
   display:flex;align-items:center;justify-content:space-between;
   padding:10px 14px;border-bottom:1px solid var(--border-dim);
+  min-height:40px;
 }
 .annotation-header-title{ font-size:11px;font-weight:600;color:var(--text);text-transform:uppercase;letter-spacing:.06em; }
+#mt-log-filter{
+  font-family:var(--font-mono);font-size:9px;letter-spacing:.04em;text-transform:uppercase;
+  background:var(--bg);border:1px solid var(--border);border-radius:4px;
+  color:var(--text);padding:3px 6px;cursor:pointer;
+  visibility:hidden;opacity:0;transition:opacity .2s ease,visibility .2s;
+}
+#mt-log-filter.visible{ visibility:visible;opacity:1; }
 #annotation-log{
   flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:8px;
   scrollbar-width:thin;scrollbar-color:var(--border) transparent;
@@ -1018,8 +1026,12 @@ canvas.path-mode{ cursor:cell; }
 }
 .btn-multi-track.active .btn-mt-indicator{ background:var(--forest); }
 
-#multi-track-panel{ display:none;flex-direction:column;gap:6px;margin-bottom:4px; }
-#multi-track-panel.show{ display:flex; }
+#multi-track-panel{
+  display:flex;flex-direction:column;gap:6px;
+  max-height:0;overflow:hidden;opacity:0;margin-bottom:0;
+  transition:max-height .35s cubic-bezier(.4,0,.2,1),opacity .28s ease,margin-bottom .35s;
+}
+#multi-track-panel.show{ max-height:600px;opacity:1;margin-bottom:4px; }
 
 .mt-team-row{
   display:flex;align-items:center;gap:8px;padding:6px 8px;
@@ -1407,7 +1419,7 @@ canvas.path-mode{ cursor:cell; }
     <button class="btn-add-annotation" id="btn-add-annotation" onclick="openAnnotationModal()">+ ADD NOTE AT CURRENT TIME</button>
     <div class="annotation-header">
       <div class="annotation-header-title">Event Log</div>
-      <select id="mt-log-filter" style="display:none" onchange="renderAnnotationLog()">
+      <select id="mt-log-filter" onchange="renderAnnotationLog()">
         <option value="ALL">ALL TEAMS</option>
       </select>
     </div>
@@ -1717,7 +1729,7 @@ function resetLocalState() {
   if(btn) btn.classList.remove('active');
   if(panel) panel.classList.remove('show');
   const logFilter=document.getElementById('mt-log-filter');
-  if(logFilter) logFilter.style.display='none';
+  if(logFilter) logFilter.classList.remove('visible');
   state.tournamentId=null; state.dayId=null; state.matchId=null; state.activeTeamId=null;
   refreshDropdowns(); renderTeamList(); updateRightPanel();
 }
@@ -4798,7 +4810,7 @@ function updateMtLogFilter(matchTeams) {
   });
   // Restore previous selection if still valid
   if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
-  sel.style.display = state.multiTrackActive ? 'block' : 'none';
+  sel.classList.toggle('visible', state.multiTrackActive);
 }
 </script>
 </body>
