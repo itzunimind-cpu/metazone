@@ -2454,7 +2454,8 @@ function zoomAt(sx, sy, delta) {
 }
 
 function updateZoomHud() {
-  document.getElementById('zoom-hud').textContent=zoom.toFixed(2)+'×';
+  const minZoom=Math.min(canvas.width/WORLD_W, canvas.height/WORLD_H);
+  document.getElementById('zoom-hud').textContent=(zoom/minZoom).toFixed(2)+'×';
 }
 
 function w2s(wx,wy){ return {x:wx*zoom+panX, y:wy*zoom+panY}; }
