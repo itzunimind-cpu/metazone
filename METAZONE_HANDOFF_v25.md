@@ -1,5 +1,5 @@
 # METAZONE — Project Handoff & Continuity Document
-**Version:** v29 — Session 29. editor.html: team/select animations, map zoom root fix (_canvasReady flag), map section simplified to always-visible select+delete.
+**Version:** v30 — Session 30. editor.html: multi-track to sidebar, timeline labels, event log overhaul, scrubber sweep, MATCH END to toolbar, zoom floor, sidebar width parity.
 **Purpose:** Single source of truth across all chat sessions. Read this first in every new chat.
 
 ---
@@ -21,7 +21,7 @@
 | File | Version | Last changed | Notes |
 |------|---------|--------------|-------|
 | index.html | v9.5 | Session 26 | All sidebar + grid bugs fixed. Skeleton loader added. Card reveal animation. |
-| editor.html | v6.2 | Session 29 | Animations, map zoom root fix, map section always-visible select+delete |
+| editor.html | v6.3 | Session 30 | Multi-track sidebar, timeline labels, event log overhaul, toolbar changes |
 | tournament-create.html | v4.1 | Session 25 | VOD REVIEW nav link added |
 | tournament-editor.html | v1.4 | Session 25 | VOD REVIEW nav link added |
 | analytics.html | v2.3 | Session 25 | VOD REVIEW nav link added, active link fixed |
@@ -215,9 +215,16 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | `_flashSelect(el)` | Brief opacity fade-in on a `<select>` after populate — resets animation via reflow trick |
 | `renderTeamList()` | Redraws sidebar team list; stagger-animates rows (`.animate-in`) only when container was empty |
 | `draw()` | Main canvas render loop |
-| `loadMapKey(key)` | Loads map at correct resolution. **Never add `map-ready` class directly here** — gated on `_canvasReady` flag so canvas is never revealed before `initCanvas()` has sized it |
-| `initCanvas()` | Sizes canvas, sets `_canvasReady=true`. If `mapImg` already loaded (from `_activateMatch` running before init), calls `resetView()+draw()+map-ready` immediately. Otherwise calls `loadMapKey()` to start the load. |
-| `setMapDisplayMode(hasMatch)` | Now just syncs `#sel-map` value to `state.mapKey`. No visibility toggling — map section is always a `sel-del-row`. |
+| `loadMapKey(key)` | Loads map at correct resolution. **Never add `map-ready` class here** — gated on `_canvasReady` flag so canvas never reveals before `initCanvas()` sizes it |
+| `initCanvas()` | Sizes canvas, sets `_canvasReady=true`. If `mapImg` already loaded (from `_activateMatch` before init) → `resetView()+draw()+map-ready` immediately. Else calls `loadMapKey()`. |
+| `setMapDisplayMode(hasMatch)` | Syncs `#sel-map` value to `state.mapKey` only. Map section is always a `sel-del-row` — no visibility toggling. |
+| `renderTimelineTicks()` | Renders event tick marks on the timeline track; calls `renderTimelineLabels()` at end |
+| `renderTimelineLabels(maxTime)` | Generates absolute-positioned 5-min interval labels in `#timeline-labels` from 0 to maxTime |
+| `updateAnnotationLogLit()` | **Scrub-path only** — toggles `.future` class on existing entries by reading `data-ev-time`. Zero DOM creation. Never call this when event list actually changes. |
+| `renderAnnotationLog(opts)` | Full DOM rebuild of event log. Call when events change (match load, new annotation). Stagger-animates entries if container was empty. |
+| `updateAnnotationLogColors()` | Loops over entries with `data-team-color`, sets/clears icon background to team color. Called by `toggleMultiTrack()` instead of `renderAnnotationLog()` — no DOM rebuild on toggle. |
+| `renderMultiTrackPanel()` | Builds multi-track team checklist with stagger animation; called when multi-track is activated |
+| `toggleMultiTrack()` | Toggles multi-track mode; calls `updateAnnotationLogColors()` (not `renderAnnotationLog`) for smooth icon fade |
 | `renderActiveSquadInline()` | Renders match_players inline below ACTIVE SQUAD button in right panel |
 | `toggleMetaCollapse()` | Toggles Match Metadata accordion in right panel |
 | `openInVOD()` | Navigates to vod.html with current tournament/day/match as URL params |
@@ -287,7 +294,7 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | Page | Status | Notes |
 |------|--------|-------|
 | index.html | ✅ Complete | v9.5 — all sidebar/grid bugs fixed, skeleton loader, card reveal animation |
-| editor.html | ✅ Complete | v6.2 — animations, map zoom fix, map section simplified |
+| editor.html | ✅ Complete | v6.3 — full UX polish pass, event log overhaul, toolbar reorganised |
 | tournament-create.html | ✅ Complete | Nav updated |
 | tournament-editor.html | ✅ Complete | Nav updated |
 | analytics.html | ✅ Complete | Nav updated, active link fixed |
@@ -342,6 +349,20 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | 29 | **editor.html select fade-in** — `_flashSelect(el)` helper. `refreshDropdowns()` calls it on each select that receives a non-empty value. `sel-pop` keyframe fades from 0.6→1 opacity over 0.45s ease-out. Starts at 0.6 (not 0) to avoid flicker. |
 | 29 | **editor.html map zoom root cause fixed** — `_canvasReady` flag (default false). `loadMapKey()` onload only adds `canvas.map-ready` when `_canvasReady` is true. `initCanvas()` sets flag after `resizeCanvas()`, then: if `mapImg` already loaded (from `_activateMatch` running before init) → `resetView()+draw()+map-ready` immediately with correct dims. Else → calls `loadMapKey()`. Canvas stays invisible until dims are guaranteed correct. |
 | 29 | **editor.html map section simplified** — removed two-state toggle (select vs display-row). Map always shows as `sel-del-row` with select + `✕` button (`.btn-del`), matching tournament/day/match pattern. `map-display-row`, `map-display-name` elements removed. `setMapDisplayMode()` reduced to one line: syncs select value only. |
+| 30 | **editor.html multi-track moved to left sidebar** — MULTI TRACK button+panel moved from right panel to left sidebar, between Shape Colors and Teams sections. Same IDs, no JS changes. |
+| 30 | **editor.html shape color active state** — `.btn-cm.active` changed from barely-tinted outline to solid `var(--forest)` fill with white text. Clear selected vs unselected. |
+| 30 | **editor.html timeline labels** — hardcoded flex labels (`08:45 / 17:30 / 26:15`) removed. `renderTimelineLabels(maxTime)` generates absolute-positioned labels at every 5 min interval. Called from `renderTimelineTicks()`. First and last labels are edge-aligned to avoid clipping. |
+| 30 | **editor.html event log scrub fix** — scrubbing calls `updateAnnotationLogLit()` (class toggle only, zero DOM creation) instead of `renderAnnotationLog()`. Full rebuild only on actual event changes. |
+| 30 | **editor.html event log animation** — `renderAnnotationLog()` stagger-animates entries (30ms per entry) when container was empty before call (match load / match switch). |
+| 30 | **editor.html time display stability** — `#time-display` gets `font-variant-numeric:tabular-nums; width:5ch` — all time values render identically wide, no layout shift while scrubbing. |
+| 30 | **editor.html scrubber sweeps to match end on load** — `_activateMatch()` and `sel-match.onchange` both animate fill+thumb from 0% to match-end position over 1s (cubic-bezier) using inline transitions that are cleaned up after. `state.time` is set immediately for correctness; only the visuals animate. |
+| 30 | **editor.html MATCH END to toolbar** — moved from bottom bar to top toolbar as `btn-tool-action btn-match-end-toolbar` with `lucide:square` icon. Red hover to signal finalising action. Bottom bar retains 4 CTA buttons: SELF ELIM (`lucide:zap`), SELF LOSS (`lucide:skull`), SELF WIPE (`lucide:shield-x`), ENEMY WIPE (`lucide:flag`). |
+| 30 | **editor.html zoom floor** — `zoomAt()` minimum changed from hardcoded `0.05` to `Math.min(canvas.width/WORLD_W, canvas.height/WORLD_H)` — map can never be zoomed smaller than fit-to-canvas. |
+| 30 | **editor.html sidebar width parity** — left sidebar width changed from 240px to 268px to match index.html dashboard. No layout shift on page transitions. |
+| 30 | **editor.html event log icon flicker fix** — `will-change:opacity` on `.annotation-entry` pre-allocates GPU compositing layer so Iconify shadow DOM doesn't repaint on opacity transition. `transform:translateZ(0)` on `.annotation-icon` isolates icon further. |
+| 30 | **editor.html event log time readability** — title and time moved into a flex `.annotation-entry-header` row. Time is right-aligned, 9px mono tabular-nums, muted — readable without competing with title. |
+| 30 | **editor.html multi-track team list animation** — `renderMultiTrackPanel()` applies `animate-in` + 40ms stagger per row on every open. |
+| 30 | **editor.html multi-track color on icon** — dot prepended to title text replaced by icon background color. Team color stored as `data-team-color` on each entry. `updateAnnotationLogColors()` sets/clears icon styles in-place without DOM rebuild. `toggleMultiTrack()` calls this instead of `renderAnnotationLog()`. CSS transition on `.annotation-icon` (background/border-color/color 0.25s) gives smooth fade. |
 | 27 | **editor.html emoji purge** — all emoji removed across entire file (HTML, JS strings, toast messages, modal titles, annotation log event data, multi-track stats). Annotation log icons converted from `textContent` emoji to `innerHTML` Iconify SVG strings. |
 | 27 | **editor.html left sidebar refactor** — Screenshot + Clear Team buttons moved from sidebar to top toolbar as `.btn-tool-action` buttons. MAP button removed from toolbar. OPEN IN VOD button added to sidebar below Map section (`.btn-open-vod` style, orange border, navigates via `openInVOD()`). |
 | 27 | **editor.html match status chip removed** — `#match-status-chip` HTML, its CSS, `updateMatchStatusChip()`, and `_matchStatusLevel()` all deleted. Status symbols (`✓`, `◐`) removed from match dropdown labels in `refreshDropdowns()`. |
