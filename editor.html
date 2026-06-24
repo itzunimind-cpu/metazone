@@ -2887,7 +2887,7 @@ function drawWipePin(x, y) {
   const dr=11/zoom;
   ctx.beginPath();
   ctx.moveTo(x,y-dr); ctx.lineTo(x+dr,y); ctx.lineTo(x,y+dr); ctx.lineTo(x-dr,y);
-  ctx.closePath(); ctx.fillStyle=`rgba(44,74,46,${(op*.7).toFixed(2)})`; ctx.fill();
+  ctx.closePath(); ctx.fillStyle=`rgba(45,212,191,${(op*.7).toFixed(2)})`; ctx.fill();
   ctx.beginPath(); ctx.arc(x,y-7/zoom,4/zoom,0,Math.PI*2);
   ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.lineWidth=2/zoom; ctx.stroke();
   const d=5/zoom;
@@ -2895,10 +2895,10 @@ function drawWipePin(x, y) {
   ctx.moveTo(x-d,y+5/zoom-d*.7); ctx.lineTo(x+d,y+5/zoom+d*.7);
   ctx.moveTo(x+d,y+5/zoom-d*.7); ctx.lineTo(x-d,y+5/zoom+d*.7);
   ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.lineWidth=2/zoom; ctx.lineCap='round'; ctx.stroke();
-  ctx.fillStyle=`rgba(44,74,46,${(op*.6).toFixed(2)})`;
+  ctx.fillStyle=`rgba(45,212,191,${(op*.6).toFixed(2)})`;
   ctx.fillRect(x-1.5/zoom,y+dr,3/zoom,28/zoom);
   ctx.beginPath(); ctx.arc(x,y+dr+28/zoom,4/zoom,0,Math.PI*2);
-  ctx.fillStyle=`rgba(44,74,46,${(op*.45).toFixed(2)})`; ctx.fill();
+  ctx.fillStyle=`rgba(45,212,191,${(op*.45).toFixed(2)})`; ctx.fill();
 }
 
 function drawDeathPin(x, y) {
