@@ -2862,14 +2862,11 @@ function drawMiniArrow(mx, my, angle, color) {
 }
 
 function drawPinMarker(s, isPreview, teamColor, alphaMult) {
-  const am=alphaMult??1;
-  const op=+document.getElementById('sl-opacity').value;
   let rgb;
   if(state.colorMode==='team'&&teamColor) rgb=hexRgb(teamColor);
   else rgb=tagRgb(s.tag);
   const [r,g,b]=rgb;
-  const fillColor=`rgba(${r},${g},${b},${(op*am*.68).toFixed(2)})`;
-  const wh='rgba(255,255,255,0.9)';
+  const fillColor=`rgb(${r},${g},${b})`;
   const x=s.x, y=s.y;
   const dr=mpx(isPreview?9:11);
 
@@ -2881,35 +2878,33 @@ function drawPinMarker(s, isPreview, teamColor, alphaMult) {
     const d=mpx(6);
     ctx.beginPath();
     ctx.moveTo(x-d,y-d); ctx.lineTo(x+d,y+d); ctx.moveTo(x+d,y-d); ctx.lineTo(x-d,y+d);
-    ctx.strokeStyle=wh; ctx.lineWidth=mpx(2.2); ctx.lineCap='round'; ctx.stroke();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=mpx(2.2); ctx.lineCap='round'; ctx.stroke();
   } else {
     // Pin: small teal circle only (no diamond background)
     const cr=mpx(6);
     ctx.beginPath(); ctx.arc(x,y,cr,0,Math.PI*2);
-    ctx.fillStyle=`rgba(45,212,191,${(op*am*.85).toFixed(2)})`; ctx.fill();
+    ctx.fillStyle='rgb(45,212,191)'; ctx.fill();
   }
 }
 
 function drawWipePin(x, y) {
-  const op=+document.getElementById('sl-opacity').value;
   const dr=mpx(11);
   ctx.beginPath();
   ctx.moveTo(x,y-dr); ctx.lineTo(x+dr,y); ctx.lineTo(x,y+dr); ctx.lineTo(x-dr,y);
-  ctx.closePath(); ctx.fillStyle=`rgba(45,212,191,${(op*.7).toFixed(2)})`; ctx.fill();
+  ctx.closePath(); ctx.fillStyle='rgb(45,212,191)'; ctx.fill();
   ctx.beginPath(); ctx.arc(x,y-mpx(7),mpx(4),0,Math.PI*2);
-  ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.lineWidth=mpx(2); ctx.stroke();
+  ctx.strokeStyle='#fff'; ctx.lineWidth=mpx(2); ctx.stroke();
   const d=mpx(5);
   ctx.beginPath();
   ctx.moveTo(x-d,y+mpx(5)-d*.7); ctx.lineTo(x+d,y+mpx(5)+d*.7);
   ctx.moveTo(x+d,y+mpx(5)-d*.7); ctx.lineTo(x-d,y+mpx(5)+d*.7);
-  ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.lineWidth=mpx(2); ctx.lineCap='round'; ctx.stroke();
+  ctx.strokeStyle='#fff'; ctx.lineWidth=mpx(2); ctx.lineCap='round'; ctx.stroke();
 }
 
 function drawDeathPin(x, y) {
-  const op=+document.getElementById('sl-opacity').value;
   const dr=mpx(13);
-  const fc=`rgba(200,94,10,${(op*.68).toFixed(2)})`;
-  const wh='rgba(255,255,255,0.9)';
+  const fc='rgb(200,94,10)';
+  const wh='#fff';
   ctx.beginPath();
   ctx.moveTo(x,y-dr); ctx.lineTo(x+dr,y); ctx.lineTo(x,y+dr); ctx.lineTo(x-dr,y);
   ctx.closePath(); ctx.fillStyle=fc; ctx.fill();
@@ -3920,11 +3915,12 @@ function eraseAtPosition(wx, wy) {
       }
     }
   }
-  // zones (match-level)
+  // zones (match-level) — only erase when clicking near the circumference
   const zones=zonesCache[state.matchId]||[];
   for(let i=zones.length-1;i>=0;i--){
     const s=zones[i]; if(s.time>state.time) continue;
-    if(Math.sqrt((s.cx-wx)**2+(s.cy-wy)**2)<s.r+8/zoom){
+    const dist=Math.sqrt((s.cx-wx)**2+(s.cy-wy)**2);
+    if(Math.abs(dist-s.r)<10/zoom){
       const [rm]=zones.splice(i,1);
       if(sb&&rm.id&&!String(rm.id).startsWith('local_')) sb.from('shapes').delete().eq('id',rm.id);
       draw(); renderAnnotationLog(); return;
