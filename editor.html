@@ -4777,9 +4777,9 @@ function renderAnnotationLog(opts) {
     const pos = wipePositions[team.id];
     const posLabel = pos ? ` — #${pos}` : '';
     if(team.is_self){
-      events.push({ time:team.time_of_wipe, type:'wipe', title:`SELF wiped${posLabel}`, icon:'<iconify-icon icon="lucide:skull"></iconify-icon>', iconClass:'wipe', teamId:team.id, teamColor:team.color, isWipe:true, isSelfWipe:true });
+      events.push({ time:team.time_of_wipe, type:'wipe', title:`SELF wiped${posLabel}`, icon:'<iconify-icon icon="lucide:skull"></iconify-icon>', iconClass:'wipe', teamId:team.id, teamColor:team.color, isWipe:true, isSelfWipe:true, wx:team.wipe_x, wy:team.wipe_y });
     } else {
-      events.push({ time:team.time_of_wipe, type:'wipe', title:`${team.name} wiped${posLabel}`, icon:'<iconify-icon icon="lucide:flag"></iconify-icon>', iconClass:'wipe', teamId:team.id, teamColor:team.color, isWipe:true, isSelfWipe:false });
+      events.push({ time:team.time_of_wipe, type:'wipe', title:`${team.name} wiped${posLabel}`, icon:'<iconify-icon icon="lucide:flag"></iconify-icon>', iconClass:'wipe', teamId:team.id, teamColor:team.color, isWipe:true, isSelfWipe:false, wx:team.wipe_x, wy:team.wipe_y });
     }
   });
 
@@ -4835,18 +4835,7 @@ function renderAnnotationLog(opts) {
     entry.dataset.evTime=ev.time;
 
     if(ev.isWipe) {
-      entry.onclick=()=>{
-        jumpToTime(ev.time);
-        const hint = entry.querySelector('.wipe-undo-hint');
-        if(!hint){
-          const h=document.createElement('div');
-          h.className='wipe-undo-hint';
-          h.style.cssText='font-family:var(--font-mono);font-size:9px;color:var(--orange);letter-spacing:1px;margin-top:3px;text-transform:uppercase;';
-          h.textContent=ev.isSelfWipe ? '↩ Press SELF WIPE to undo' : '↩ Press ENEMY WIPE again to undo';
-          entry.appendChild(h);
-          setTimeout(()=>h.remove(), 3000);
-        }
-      };
+      entry.onclick=()=>{ jumpToTime(ev.time); if(ev.wx!=null) zoomToWorld(ev.wx, ev.wy); };
     } else if(ev.undoable && ev.annId) {
       // Loss / Elim / MatchEnd — click jumps; second click shows undo
       entry.onclick=()=>{
