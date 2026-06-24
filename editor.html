@@ -2694,7 +2694,7 @@ function cancelPath() {
 // Markers are drawn in world-space (canvas is pre-scaled by zoom).
 // Returning base directly makes them scale exactly with the map.
 function mpx(base) {
-  return base;
+  return base * 0.05;
 }
 
 function draw() {
