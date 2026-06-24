@@ -1,5 +1,5 @@
 # METAZONE — Project Handoff & Continuity Document
-**Version:** v34 — Session 34. editor.html: full marker system rework — new parchment-palette canvas drawing functions for zone, rotation, movement, fight, loss, wipe, and death pins. Wipe/death CTA pins now render on canvas.
+**Version:** v35 — Session 35. editor.html: marker UX overhaul — pure world-space scaling, fully opaque, circumference-only zone erase, pan clamping, normalized zoom HUD, parchment toast redesign, event log zoom-to-marker.
 **Purpose:** Single source of truth across all chat sessions. Read this first in every new chat.
 
 ---
@@ -21,7 +21,7 @@
 | File | Version | Last changed | Notes |
 |------|---------|--------------|-------|
 | index.html | v9.5 | Session 26 | All sidebar + grid bugs fixed. Skeleton loader added. Card reveal animation. |
-| editor.html | v6.7 | Session 34 | Full marker system rework — parchment palette, new diamond pin shapes, wipe/death CTA pins rendered on canvas |
+| editor.html | v6.8 | Session 35 | Marker UX overhaul — world-space scaling, opaque colors, pan clamp, zoom HUD, toast redesign, event log zoom |
 | tournament-create.html | v4.1 | Session 25 | VOD REVIEW nav link added |
 | tournament-editor.html | v1.4 | Session 25 | VOD REVIEW nav link added |
 | analytics.html | v2.3 | Session 25 | VOD REVIEW nav link added, active link fixed |
@@ -222,6 +222,11 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | `drawPinMarker(s,isPreview,teamColor,alphaMult)` | Diamond pin marker. Branches on `s.tag`: `'fight'` → orange diamond + white X; `'pin'` → orange diamond + white X + `>X<` inward chevrons (loss marker). Respects `colorMode` for diamond fill. |
 | `drawWipePin(x,y)` | Forest diamond + white circle (top) + white X (bottom) + stem + ground dot. Called from `draw()` for each `team.wipe_x/wipe_y`. |
 | `drawDeathPin(x,y)` | Orange diamond + white X + `>X<` chevrons + stem + ground dot. Called from `draw()` for each `matchPlayers[].death_x/death_y`. |
+| `mpx(base)` | World-space marker size helper. Returns `base * 0.075` — pure world units so markers scale 1:1 with map zoom. All marker fill sizes AND stroke widths use this. No `/zoom` corrections in marker functions. |
+| `clampPan()` | Constrains `panX`/`panY` so map never leaves canvas. When map fits canvas (zoomed out): centers it. When map is larger (zoomed in): clamps to map edges. Called after every zoom and pan operation. |
+| `zoomToWorld(wx, wy)` | Centers the canvas on world coords `(wx, wy)` at 20× the fit-to-canvas zoom level. Called when clicking event log entries that have marker coordinates. |
+| `updateRedoBtn()` | Syncs redo button `disabled` state and opacity to `(redoStack[state.activeTeamId]||[]).length`. Called after every undo/redo. |
+| `eraseAtPosition(wx, wy)` | Hit-test based erase. Pins/fights: radius `12/zoom`. Paths: any point within `10/zoom`. Lines: endpoints or midpoint within `10/zoom`. Zones: `Math.abs(dist-r)<10/zoom` (circumference only). For DB shapes calls `sb.from('shapes').delete()`. |
 | `loadMapKey(key)` | Loads map at correct resolution. **Never add `map-ready` class here** — gated on `_canvasReady` flag so canvas never reveals before `initCanvas()` sizes it |
 | `initCanvas()` | Sizes canvas, sets `_canvasReady=true`. If `mapImg` already loaded (from `_activateMatch` before init) → `resetView()+draw()+map-ready` immediately. Else calls `loadMapKey()`. |
 | `setMapDisplayMode(hasMatch)` | Syncs `#sel-map` value to `state.mapKey` only. Map section is always a `sel-del-row` — no visibility toggling. |
@@ -405,6 +410,17 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | 34 | **Wipe CTA pin rendered on canvas** — `drawWipePin(x,y)` added. `draw()` now iterates match teams and draws forest diamond + white circle (top) + white X (bottom) + stem for any team with `wipe_x/wipe_y` set. |
 | 34 | **Death CTA pin rendered on canvas** — `drawDeathPin(x,y)` added. `loadMatchPlayers` now fetches `death_x, death_y` and maps them into `matchPlayers`. `draw()` renders orange diamond + `>X<` + stem for each player with `death_x/death_y` set. |
 | 34 | **`drawMiniArrow` helper** — zoom-aware filled triangle (`6/zoom`). Used by `drawPath` at segment midpoints. |
+| 35 | **Self loss marker colour unified** — loss marker (`tag:'pin'`) now uses orange (#C85E0A) matching the fight marker. Diamond removed from plain pin marker — only fight/loss markers use the diamond. |
+| 35 | **Erase fixed for pre-session DB markers** — old `shapes.pop()` always removed last element with no DB call. Replaced with `eraseAtPosition(wx,wy)`: hit-tests click position, splices correct index, calls `sb.from('shapes').delete()` for any shape with a non-local DB id. |
+| 35 | **Redo button dynamic state** — redo button was hardcoded `disabled` in HTML. Added `updateRedoBtn()` which reads `redoStack[state.activeTeamId]` length and sets `disabled`/`opacity`/`cursor`. Called after every undo/redo operation. |
+| 35 | **Zone erase circumference-only** — zone hit test changed from `dist < r + 8/zoom` (anywhere inside circle) to `Math.abs(dist - r) < 10/zoom` (only near the circle edge). Prevents accidental zone deletion when clicking inside a large zone. |
+| 35 | **Markers — pure world-space scaling** — `mpx(base)` simplified to `return base * 0.075`. Canvas is pre-scaled by `ctx.scale(zoom,zoom)` so markers scale exactly 1:1 with map zoom. No floor/cap clamping. All stroke `lineWidth` values also use `mpx()` (previously used `/zoom` = constant screen pixels which made markers look bloated when zoomed out). |
+| 35 | **Markers — fully opaque** — all `rgba()` fill/stroke colors in `drawPinMarker`, `drawWipePin`, `drawDeathPin` replaced with `rgb()`. Opacity slider no longer affects marker appearance. |
+| 35 | **Pan clamping** — added `clampPan()`. Map can never be dragged outside the canvas boundary. When map fits canvas (zoom at minimum): always centered. When zoomed in: pan constrained to map edges. Called from `zoomAt()`, pan `onMove`, and pinch-zoom handler. |
+| 35 | **Zoom HUD normalized** — `updateZoomHud()` now displays `(zoom / minZoom).toFixed(2)+'×'` so 1.00× always means map fits canvas, regardless of canvas/world size ratio. |
+| 35 | **Toast redesign — design handoff palette** — toasts rebuilt to match the parchment design language: `#F2EDE4` background, `#C9BFA8` warm border, 3px left accent bar per type (forest/orange/red/olive), Lexend Deca 8px ALL CAPS type label in accent colour, Manrope 11px `#1C1A14` message body, warm box-shadow, slide-in from right animation. |
+| 35 | **Event log — zoom to marker on click** — `zoomToWorld(wx, wy)` added. All clickable event log entries now call `jumpToTime` + `zoomToWorld` together. Shape events (pin, fight, rotation line/path, zone circle) pass their world coordinates into the event object at render time. Wipe events pass `team.wipe_x / team.wipe_y`. Zoom level: 20× the fit-to-canvas minimum. |
+| 35 | **Event log — wipe hint removed** — the overlapping inline hint text ("↩ Press SELF WIPE to undo") that appeared on wipe entry click replaced by the same jump+zoom behavior as all other entries. |
 
 ---
 
