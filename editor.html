@@ -1104,6 +1104,22 @@ canvas.path-mode{ cursor:cell; }
 .sq-player-role{ font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase; }
 .sq-player-kills{ font-family:var(--font-mono);font-size:10px;font-weight:700;color:var(--accent); }
 .sq-empty-note{ font-family:var(--font-mono);font-size:9px;color:var(--muted);padding:6px 0;letter-spacing:.04em; }
+.sq-replace-btn{
+  background:none;border:none;cursor:pointer;padding:0 2px;margin-left:auto;
+  color:var(--muted);font-size:13px;line-height:1;opacity:0;transition:opacity .15s;flex-shrink:0;
+}
+.sq-player-row:hover .sq-replace-btn{ opacity:.75; }
+.sq-replace-btn:hover{ color:var(--accent);opacity:1 !important; }
+.sq-replace-drop{
+  margin-top:2px;background:var(--bg-panel);border:1px solid var(--border);
+  border-radius:5px;overflow:hidden;font-family:var(--font-mono);font-size:10px;
+}
+.sq-replace-opt{
+  padding:6px 10px;cursor:pointer;color:var(--text);letter-spacing:.03em;
+  transition:background .1s;
+}
+.sq-replace-opt:hover{ background:var(--bg); }
+.sq-replace-hint{ padding:5px 10px;color:var(--muted);font-size:9px;letter-spacing:.04em; }
 
 /* ══ TOOLBAR ACTION BUTTONS ══ */
 .btn-tool-action{
@@ -1841,6 +1857,7 @@ async function loadAnnotations(matchId) {
 // [E5/E6] Load match_players (with player name) for current match
 async function loadMatchPlayers(matchId) {
   matchPlayers = [];
+  _sqReplaceOpen = null; // close any open swap picker when squad reloads
   if(!sb||!matchId||!currentUser) return;
   try {
     // STEP 1: get match_players (no embedded join — robust to FK/RLS issues)
@@ -2082,12 +2099,11 @@ function _renderApmPlayers() {
 
 async function confirmActivePlayers() {
   if(_apmSelectedIds.size < 4) { toast('Select at least 4 players.', 'warn'); return; }
+  const selectedIds = [..._apmSelectedIds]; // capture before closeActivePlayersModal() resets the Set
   closeActivePlayersModal();
 
   const mid = state.matchId;
   if(!sb||!mid||!currentUser) return;
-
-  const selectedIds = [..._apmSelectedIds];
   try {
     // Reconcile with existing match_players: only insert NEW ones, delete REMOVED ones.
     // This way the user can edit the active squad without duplicate-key issues
@@ -4652,6 +4668,55 @@ function updateRightPanel() {
   renderActiveSquadInline();
 }
 
+// ── Squad player swap ──
+let _sqReplaceOpen = null;   // match_players row id with picker open
+let _sqReplaceAvail = [];    // [{id,name,role}] available replacements; null = loading
+
+async function openSqReplace(rowId) {
+  if (_sqReplaceOpen === rowId) {
+    _sqReplaceOpen = null;
+    renderActiveSquadInline();
+    return;
+  }
+  _sqReplaceOpen = rowId;
+  _sqReplaceAvail = null; // loading state
+  renderActiveSquadInline();
+
+  if (!sb || !state.tournamentId || !currentUser) { _sqReplaceAvail = []; renderActiveSquadInline(); return; }
+  const currentPids = new Set(matchPlayers.map(p => p.player_id));
+  try {
+    let { data: tpData } = await sb.from('tournament_players')
+      .select('player_id').eq('tournament_id', state.tournamentId).eq('user_id', currentUser.id);
+    if (!tpData || !tpData.length) {
+      const fb = await sb.from('tournament_players').select('player_id').eq('tournament_id', state.tournamentId);
+      if (!fb.error && fb.data) tpData = fb.data;
+    }
+    const availPids = [...new Set((tpData||[]).map(r=>r.player_id).filter(Boolean))].filter(id=>!currentPids.has(id));
+    if (!availPids.length) { _sqReplaceAvail = []; renderActiveSquadInline(); return; }
+    const { data: pData } = await sb.from('players').select('id, name, role').in('id', availPids);
+    _sqReplaceAvail = pData || [];
+  } catch(e) {
+    _sqReplaceAvail = [];
+  }
+  renderActiveSquadInline();
+}
+
+async function doReplacePlayer(oldRowId, newPlayerId) {
+  if (!sb || !currentUser) return;
+  _sqReplaceOpen = null;
+  _sqReplaceAvail = [];
+  try {
+    const { error } = await sb.from('match_players').update({ player_id: newPlayerId }).eq('id', oldRowId);
+    if (error) throw error;
+    await loadMatchPlayers(state.matchId);
+    renderActiveSquadInline();
+    toast('Player swapped — stats carried over.', 'ok');
+  } catch(e) {
+    toast('Swap failed: ' + (e.message||e), 'err');
+    renderActiveSquadInline();
+  }
+}
+
 function renderActiveSquadInline() {
   const container = document.getElementById('active-squad-inline');
   if (!container) return;
@@ -4662,14 +4727,37 @@ function renderActiveSquadInline() {
   container.innerHTML = '';
   matchPlayers.forEach(p => {
     const isDead = p.time_of_loss != null;
+    const isOpen = _sqReplaceOpen === p.id;
     const row = document.createElement('div');
     row.className = 'sq-player-row' + (isDead ? ' sq-dead' : '');
     row.innerHTML = `
       <span class="sq-player-name">${esc(p.name)}</span>
       ${p.role ? `<span class="sq-player-role">${esc(p.role)}</span>` : ''}
       ${(p.kills||0) > 0 ? `<span class="sq-player-kills">${p.kills}K</span>` : ''}
+      <button class="sq-replace-btn" title="Swap player" onclick="event.stopPropagation();openSqReplace('${p.id}')">
+        <iconify-icon icon="lucide:repeat-2"></iconify-icon>
+      </button>
     `;
     container.appendChild(row);
+
+    if (isOpen) {
+      const drop = document.createElement('div');
+      drop.className = 'sq-replace-drop';
+      if (_sqReplaceAvail === null) {
+        drop.innerHTML = '<div class="sq-replace-hint">Loading…</div>';
+      } else if (!_sqReplaceAvail.length) {
+        drop.innerHTML = '<div class="sq-replace-hint">No other players in tournament roster.</div>';
+      } else {
+        _sqReplaceAvail.forEach(pl => {
+          const opt = document.createElement('div');
+          opt.className = 'sq-replace-opt';
+          opt.textContent = pl.name + (pl.role ? ` · ${pl.role}` : '');
+          opt.onclick = () => doReplacePlayer(p.id, pl.id);
+          drop.appendChild(opt);
+        });
+      }
+      container.appendChild(drop);
+    }
   });
 }
 
