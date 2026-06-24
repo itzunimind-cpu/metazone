@@ -1671,6 +1671,7 @@ let shapesCache  = {};   // teamId → shape[]
 let overlayState = {};   // teamId → { visible, filters:{} }
 let annotations  = [];   // local annotation array
 let matchPlayers = [];   // [E5/E6] match_players rows for current match
+let selfElims    = [];   // self_elims rows for current match — survives refresh (event log source)
 let isAnnotationMode = true;
 let knownTeams = [];  // [FIX] autocomplete: preloaded from tournament_teams
 
@@ -1775,7 +1776,7 @@ async function signOut() { if (sb) await sb.auth.signOut(); }
 
 function resetLocalState() {
   tournaments=[]; days=[]; matches=[]; teams=[];
-  shapesCache={}; zonesCache={}; overlayState={}; annotations=[]; matchPlayers=[];
+  shapesCache={}; zonesCache={}; overlayState={}; annotations=[]; matchPlayers=[]; selfElims=[];
   knownTeams=[];
   state.multiTrackActive=false; state.multiTrackTeams=[];
   const btn=document.getElementById('btn-multi-track');
@@ -1889,6 +1890,15 @@ async function loadAnnotations(matchId) {
   } catch(e) {
     annotations=[]; renderAnnotationLog();
   }
+}
+
+// Load self_elims rows for current match — DB-backed, survives refresh (event log source)
+async function loadSelfElims(matchId) {
+  if(!sb||!matchId||String(matchId).startsWith('local_')) { selfElims=[]; return; }
+  try {
+    const {data,error} = await sb.from('self_elims').select('*').eq('match_id',matchId).order('time_seconds');
+    selfElims = error ? [] : (data||[]);
+  } catch(e) { selfElims=[]; }
 }
 
 // [E5/E6] Load match_players (with player name) for current match
@@ -3301,7 +3311,7 @@ async function deleteSelected(type) {
         matches=matches.filter(m=>!dIds2.includes(m.day_id));
         teams=teams.filter(tm=>!mIds2.includes(tm.match_id));
         shapesCache={}; zonesCache={}; state.tournamentId=null; state.dayId=null; state.matchId=null; state.activeTeamId=null;
-        overlayState={}; annotations=[];
+        overlayState={}; annotations=[]; selfElims=[];
         refreshDropdowns(); renderTeamList(); draw(); updateRightPanel(); setMapDisplayMode(false);
         toast('Tournament deleted','ok');
       }, 'DELETE TOURNAMENT');
@@ -3333,7 +3343,7 @@ async function deleteSelected(type) {
           const {data}=await sb.from('days').select('*').eq('tournament_id',state.tournamentId).order('order_index');
           if(data){ days=days.filter(d2=>d2.tournament_id!==state.tournamentId); days.push(...data); }
         }
-        overlayState={}; annotations=[];
+        overlayState={}; annotations=[]; selfElims=[];
         refreshDropdowns(); renderTeamList(); draw(); updateRightPanel(); setMapDisplayMode(false);
         toast('Day deleted','ok');
       }, 'DELETE DAY');
@@ -3361,7 +3371,7 @@ async function deleteSelected(type) {
           const {data}=await sb.from('matches').select('*').eq('day_id',state.dayId).order('created_at');
           if(data){ matches=matches.filter(m2=>m2.day_id!==state.dayId); matches.push(...data); }
         }
-        overlayState={}; annotations=[];
+        overlayState={}; annotations=[]; selfElims=[];
         refreshDropdowns(); renderTeamList(); draw(); updateRightPanel(); setMapDisplayMode(false);
         toast('Match deleted','ok');
       }, 'DELETE MATCH');
@@ -3440,6 +3450,7 @@ async function _activateMatch(match, statusMsg) {
     sb && state.matchId ? loadShapesForMatch(state.matchId) : null,
     loadAnnotations(state.matchId),
     loadMatchPlayers(state.matchId),
+    loadSelfElims(state.matchId),
     state.tournamentId ? preloadKnownTeams(state.tournamentId) : null,
     mapReady
   ].filter(Boolean));
@@ -3534,7 +3545,7 @@ document.getElementById('sel-tournament').onchange=async function(){
   } else {
     knownTeams=[];
   }
-  refreshDropdowns(); renderTeamList(); draw(); updateRightPanel(); annotations=[]; renderAnnotationLog();
+  refreshDropdowns(); renderTeamList(); draw(); updateRightPanel(); annotations=[]; selfElims=[]; renderAnnotationLog();
   setMapDisplayMode(false);
 };
 document.getElementById('sel-day').onchange=async function(){
@@ -3544,7 +3555,7 @@ document.getElementById('sel-day').onchange=async function(){
     const {data,error}=await sb.from('matches').select('*').eq('day_id',state.dayId).order('created_at');
     if(!error){ matches=matches.filter(m=>m.day_id!==state.dayId); matches.push(...data); }
   }
-  refreshDropdowns(); renderTeamList(); draw(); updateRightPanel(); annotations=[]; renderAnnotationLog();
+  refreshDropdowns(); renderTeamList(); draw(); updateRightPanel(); annotations=[]; selfElims=[]; renderAnnotationLog();
   setMapDisplayMode(false);
 };
 document.getElementById('sel-match').onchange=async function(){
@@ -3578,6 +3589,7 @@ document.getElementById('sel-match').onchange=async function(){
   }
   await loadAnnotations(state.matchId);
   await loadMatchPlayers(state.matchId);
+  await loadSelfElims(state.matchId);
   // Render after all async data (matchPlayers, annotations) is fully loaded
   renderTeamList(); draw(); updateRightPanel();
   renderAnnotationLog();
@@ -4117,31 +4129,28 @@ async function confirmSelfElim() {
   const finishes = Math.max(1, parseInt(document.getElementById('sem-finish-count').value, 10) || 1);
   closeSelfElimModal();
 
+  let elimRow = { id:'local_elim_'+Date.now(), match_id:state.matchId, player_id:player.player_id, time_seconds:state.time, finish_count:finishes };
+
   // Save to self_elims with finish_count
   if (sb && currentUser && !String(state.matchId).startsWith('local_')) {
     try {
-      await sb.from('self_elims').insert({
+      const {data,error} = await sb.from('self_elims').insert({
         match_id: state.matchId,
         player_id: player.player_id,
         user_id: currentUser.id,
         time_seconds: state.time,
         finish_count: finishes,
-      });
+      }).select().single();
+      if(!error && data) elimRow = data;
       // Increment kills on match_players by finish_count
       player.kills = (player.kills||0) + finishes;
       await sb.from('match_players').update({ kills: player.kills }).eq('id', player.id);
     } catch(e) { toast('SAVE ERROR: '+e.message,'err'); }
+  } else {
+    player.kills = (player.kills||0) + finishes;
   }
 
-  // Log entry
-  annotations.push({
-    time_seconds: state.time,
-    title: `${player.name} secured elim @ ${fmtTime(state.time)}`,
-    body: '',
-    _ephemeral: true,
-    _finishes: finishes,
-    id: 'local_elim_'+Date.now(),
-  });
+  selfElims.push(elimRow);
   renderAnnotationLog({scrollToTop:true});
   toast(`${player.name} — ${finishes} finish${finishes!==1?'es':''} @ ${fmtTime(state.time)}`,'ok');
 }
@@ -4410,14 +4419,6 @@ async function confirmSelfLoss() {
     } catch(e) { toast('SAVE ERROR: '+e.message,'err'); }
   }
 
-  // Log entry
-  annotations.push({
-    time_seconds: state.time,
-    title: `${player.name} lost @ ${fmtTime(state.time)}`,
-    body: '',
-    _ephemeral: true,
-    id: 'local_loss_'+Date.now(),
-  });
   renderAnnotationLog({scrollToTop:true});
   const killedByTeam = killedByTeamId ? teams.find(t=>t.id===killedByTeamId) : null;
   toast(`${player.name} down${killedByTeam ? ` — killed by ${killedByTeam.name}` : ''}`, 'ok');
@@ -4645,38 +4646,23 @@ function openAnnotationModal() {
 function closeAnnotationModal(){ document.getElementById('annotation-modal').classList.remove('show'); }
 
 async function undoLogEvent(ev) {
-  if(ev.type === 'loss' && ev.annId) {
-    // Find which player this was and clear time_of_loss
-    const ann = annotations.find(a=>a.id===ev.annId);
-    if(ann) {
-      const name = ann.title.replace(/ lost @ .+$/,'');
-      const mp = matchPlayers.find(p=>p.name===name && p.time_of_loss!=null);
-      if(mp) {
-        mp.time_of_loss = null;
-        if(sb&&!String(mp.id).startsWith('local_')) await sb.from('match_players').update({time_of_loss:null,killed_by_team_id:null}).eq('id',mp.id);
-      }
-    }
-    annotations = annotations.filter(a=>a.id!==ev.annId);
+  if(ev.type === 'loss' && ev._player) {
+    const mp = ev._player;
+    mp.time_of_loss = null; mp.death_x = null; mp.death_y = null;
+    if(sb&&!String(mp.id).startsWith('local_')) await sb.from('match_players').update({time_of_loss:null,death_x:null,death_y:null,killed_by_team_id:null}).eq('id',mp.id);
+    draw();
     renderAnnotationLog({scrollToTop:true});
     toast('Loss undone','ok');
 
-  } else if(ev.type === 'elim' && ev.annId) {
-    const ann = annotations.find(a=>a.id===ev.annId);
-    if(ann) {
-      const name = ann.title.replace(/ secured elim @ .+$/,'');
-      const finishes = ann._finishes || 1;
-      const mp = matchPlayers.find(p=>p.name===name);
-      if(mp) {
-        mp.kills = Math.max(0, (mp.kills||0) - finishes);
-        if(sb&&!String(mp.id).startsWith('local_')) await sb.from('match_players').update({kills:mp.kills}).eq('id',mp.id);
-        // Delete the self_elim row (most recent for this player)
-        if(sb&&mp.player_id&&state.matchId){
-          const {data:rows} = await sb.from('self_elims').select('id').eq('match_id',state.matchId).eq('player_id',mp.player_id).order('created_at',{ascending:false}).limit(1);
-          if(rows&&rows.length) await sb.from('self_elims').delete().eq('id',rows[0].id);
-        }
-      }
+  } else if(ev.type === 'elim' && ev._elim) {
+    const row = ev._elim;
+    const mp = matchPlayers.find(p=>p.player_id===row.player_id);
+    if(mp) {
+      mp.kills = Math.max(0, (mp.kills||0) - (row.finish_count||1));
+      if(sb&&!String(mp.id).startsWith('local_')) await sb.from('match_players').update({kills:mp.kills}).eq('id',mp.id);
     }
-    annotations = annotations.filter(a=>a.id!==ev.annId);
+    if(sb && row.id && !String(row.id).startsWith('local_')) await sb.from('self_elims').delete().eq('id',row.id);
+    selfElims = selfElims.filter(r=>r!==row);
     renderAnnotationLog({scrollToTop:true});
     toast('Elim undone','ok');
 
@@ -4757,18 +4743,17 @@ function renderAnnotationLog(opts) {
     events.push({ time:a.time_seconds, type:'note', title:a.title, body:a.body, icon:'<iconify-icon icon="lucide:sticky-note"></iconify-icon>', iconClass:'note', teamId:null });
   });
 
-  // ── Self Loss events ──
-  annotations.filter(a=>a._ephemeral && a.id?.startsWith('local_loss_')).forEach(a=>{
-    const name = a.title.replace(/ lost @ .+$/,'');
-    const player = matchPlayers.find(p=>p.name===name && p.time_of_loss===a.time_seconds);
-    events.push({ time:a.time_seconds, type:'loss', title:`Lost — ${name}`, icon:'<iconify-icon icon="lucide:skull"></iconify-icon>', iconClass:'wipe', teamId:null, annId:a.id, undoable:true, wx:player?.death_x, wy:player?.death_y });
+  // ── Self Loss events — sourced from matchPlayers (DB-backed, survives refresh) ──
+  matchPlayers.filter(p=>p.time_of_loss!=null).forEach(p=>{
+    events.push({ time:p.time_of_loss, type:'loss', title:`Lost — ${p.name}`, icon:'<iconify-icon icon="lucide:skull"></iconify-icon>', iconClass:'wipe', teamId:null, undoable:true, wx:p.death_x, wy:p.death_y, _player:p });
   });
 
-  // ── Self Elim events ──
-  annotations.filter(a=>a._ephemeral && a.id?.startsWith('local_elim_')).forEach(a=>{
-    const name = a.title.replace(/ secured elim @ .+$/,'');
-    const finishes = a._finishes || 1;
-    events.push({ time:a.time_seconds, type:'elim', title:`${name} — ${finishes} finish${finishes!==1?'es':''}`, icon:'<iconify-icon icon="lucide:zap"></iconify-icon>', iconClass:'fight', teamId:null, annId:a.id, undoable:true, _ann:a });
+  // ── Self Elim events — sourced from selfElims (DB-backed, survives refresh) ──
+  selfElims.forEach(row=>{
+    const mp = matchPlayers.find(p=>p.player_id===row.player_id);
+    const name = mp?.name || 'Unknown';
+    const finishes = row.finish_count || 1;
+    events.push({ time:row.time_seconds, type:'elim', title:`${name} — ${finishes} finish${finishes!==1?'es':''}`, icon:'<iconify-icon icon="lucide:zap"></iconify-icon>', iconClass:'fight', teamId:null, undoable:true, _elim:row });
   });
 
   // ── Match End event ──
