@@ -567,7 +567,10 @@ canvas.path-mode{ cursor:cell; }
 }
 
 .rp-section{ padding:14px;border-bottom:1px solid var(--border-dim); }
-.meta-title{ font-family:var(--font-mono);font-size:9px;font-weight:700;color:var(--accent);letter-spacing:.14em;text-transform:uppercase;margin-bottom:10px;display:block; }
+.meta-toggle{ display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:none;cursor:pointer;padding:0;margin-bottom:0; }
+.meta-toggle iconify-icon{ color:var(--muted2);font-size:13px;transition:transform .2s;flex-shrink:0; }
+.meta-toggle.open iconify-icon{ transform:rotate(180deg); }
+.meta-title{ font-family:var(--font-mono);font-size:9px;font-weight:700;color:var(--accent);letter-spacing:.14em;text-transform:uppercase;display:block; }
 .meta-card{ background:var(--bg);border:1px solid var(--border-dim);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;margin-bottom:10px; }
 .meta-item{ min-width:0; }
 .meta-lbl{ font-family:var(--font-mono);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;display:block;margin-bottom:2px; }
@@ -1406,8 +1409,11 @@ canvas.path-mode{ cursor:cell; }
 
     <!-- Match Metadata -->
     <div class="rp-section">
-      <span class="meta-title">MATCH</span>
-      <div class="meta-card">
+      <button class="meta-toggle" id="meta-toggle-btn" onclick="toggleMetaCard()">
+        <span class="meta-title">MATCH</span>
+        <iconify-icon icon="lucide:chevron-down" id="meta-toggle-icon"></iconify-icon>
+      </button>
+      <div class="meta-card" id="meta-card" style="display:none;margin-top:10px">
         <div class="meta-item">
           <span class="meta-lbl">Tournament</span>
           <div class="meta-val" id="match-meta-tournament">—</div>
@@ -2685,10 +2691,10 @@ function cancelPath() {
 // DRAW ENGINE
 // ══════════════════════════════════════════════════════
 
-// Marker pixel helper: caps screen size at `base` px when zoomed in (zoom≥1),
-// and scales it down proportionally when zoomed out to reduce visual clutter.
+// Marker size helper: world-space scaling so markers shrink/grow with the map.
+// Screen size ≈ base*zoom between zoom 0.45–1.5; clamped outside that range.
 function mpx(base) {
-  return base * Math.min(1, Math.max(0.5, zoom)) / zoom;
+  return base * Math.max(0.45, Math.min(1.5, zoom)) / zoom;
 }
 
 function draw() {
@@ -4837,6 +4843,14 @@ function renderAnnotationLog(opts) {
 // ══════════════════════════════════════════════════════
 // RIGHT PANEL UPDATE
 // ══════════════════════════════════════════════════════
+function toggleMetaCard() {
+  const card=document.getElementById('meta-card');
+  const btn=document.getElementById('meta-toggle-btn');
+  const isOpen=card.style.display!=='none';
+  card.style.display=isOpen?'none':'';
+  btn.classList.toggle('open',!isOpen);
+}
+
 function updateRightPanel() {
   const tour=tournaments.find(t=>t.id===state.tournamentId);
   document.getElementById('match-meta-tournament').textContent=tour?.name||'—';
