@@ -2691,10 +2691,10 @@ function cancelPath() {
 // DRAW ENGINE
 // ══════════════════════════════════════════════════════
 
-// Marker size helper: pure world-space sizing so markers shrink with the map.
-// Screen size = base*zoom (proportional to zoom) up to zoom=1.5, then capped.
+// Markers are drawn in world-space (canvas is pre-scaled by zoom).
+// Returning base directly makes them scale exactly with the map.
 function mpx(base) {
-  return Math.min(1, 1.5 / zoom) * base;
+  return base;
 }
 
 function draw() {
