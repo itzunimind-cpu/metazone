@@ -346,20 +346,9 @@ input[type="range"]{ flex:1;accent-color:var(--accent);height:3px;cursor:pointer
 
 /* ── Canvas wrap ── */
 #canvas-wrap{
-  flex:1;position:relative;overflow:hidden;
-  background:linear-gradient(120deg,#06101d 0%,#0c1e35 50%,#06101d 100%);
-  background-size:200% 100%;
-  animation:canvas-shimmer 2.2s ease-in-out infinite;
+  flex:1;position:relative;overflow:hidden;background:#050a10;
 }
-@keyframes canvas-shimmer{
-  0%{ background-position:200% center; }
-  100%{ background-position:-200% center; }
-}
-canvas{
-  display:block;touch-action:none;position:absolute;top:0;left:0;cursor:crosshair;
-  opacity:0;transition:opacity .4s ease;
-}
-canvas.map-ready{ opacity:1; }
+canvas{ display:block;touch-action:none;position:absolute;top:0;left:0;cursor:crosshair; }
 canvas.panning{ cursor:grab; }
 canvas.panning-active{ cursor:grabbing; }
 canvas.path-mode{ cursor:cell; }
@@ -2270,27 +2259,31 @@ function loadMapKey(key) {
   state.mapKey=key;
   localStorage.setItem('mz_map',key);
   document.getElementById('match-meta-map').textContent = key.charAt(0).toUpperCase()+key.slice(1);
+  // Refresh display row if visible
   const dispEl = document.getElementById('map-display-row');
   if(dispEl && dispEl.style.display!=='none') {
     document.getElementById('map-display-name').textContent = key.charAt(0).toUpperCase()+key.slice(1);
   }
 
+  // Check if multi-res files exist — if not, fall back to original
   const srcs = MAP_SRCS[key];
   if (!srcs) {
+    // Unknown map key — load directly
     const src = key+'.png';
     const img = new Image(); img.crossOrigin='anonymous'; img.src=src;
-    img.onload=()=>{ mapImg=img; WORLD_W=img.naturalWidth||2048; WORLD_H=img.naturalHeight||2048; resetView(); draw(); canvas.classList.add('map-ready'); };
+    img.onload=()=>{ mapImg=img; WORLD_W=img.naturalWidth||2048; WORLD_H=img.naturalHeight||2048; resetView(); draw(); };
     img.onerror=()=>{ toast('MAP NOT FOUND: '+src,'warn'); };
     return;
   }
 
+  // Load lo-res first for instant display
   _loadMapRes(key, 'lo', (img) => {
     mapImg = img;
     WORLD_W = img.naturalWidth || 2048;
     WORLD_H = img.naturalHeight || 2048;
     resetView(); draw();
-    canvas.classList.add('map-ready');
   });
+  // Pre-load mid + hi in background so they're ready when zooming in
   _loadMapRes(key, 'mid');
   _loadMapRes(key, 'hi');
 }
@@ -2306,7 +2299,7 @@ document.getElementById('file-map').onchange=e=>{
   const reader=new FileReader();
   reader.onload=ev=>{
     const img=new Image();
-    img.onload=()=>{ mapImg=img; WORLD_W=img.naturalWidth; WORLD_H=img.naturalHeight; resetView(); draw(); canvas.classList.add('map-ready'); };
+    img.onload=()=>{ mapImg=img; WORLD_W=img.naturalWidth; WORLD_H=img.naturalHeight; resetView(); draw(); };
     img.src=ev.target.result;
     state.mapKey='custom';
     document.getElementById('sel-map').value='custom';
@@ -2363,6 +2356,8 @@ function _dwmConfirm() {
   closeDeleteWarning();
   if(typeof _dwmCallback === 'function') _dwmCallback();
 }
+
+loadMapKey('erangel');
 
 // ══════════════════════════════════════════════════════
 // ZOOM / PAN
@@ -2441,7 +2436,6 @@ function getTouchMid(t1,t2,rect,scaleX,scaleY){
 // ══════════════════════════════════════════════════════
 function initCanvas() {
   resizeCanvas();
-  loadMapKey(state.mapKey || 'erangel');
   window.addEventListener('resize', resizeCanvas);
   wrap.addEventListener('wheel', onWheel, {passive:false});
   canvas.addEventListener('mousedown',  onPointerDown);
@@ -2668,6 +2662,8 @@ function draw() {
     ctx.drawImage(mapImg,0,0,WORLD_W,WORLD_H);
   } else {
     ctx.fillStyle='#050a10'; ctx.fillRect(0,0,WORLD_W,WORLD_H);
+    ctx.fillStyle='#1e3a5f'; ctx.font=`${14/zoom}px JetBrains Mono,monospace`;
+    ctx.fillText('SELECT A MAP',40/zoom,60/zoom);
   }
 
   // Zone circles — match-level, always cyan, visible regardless of active team
