@@ -1,5 +1,5 @@
 # METAZONE — Project Handoff & Continuity Document
-**Version:** v27 — Session 27. editor.html full UI overhaul: emoji purge, sidebar refactor, right panel redesign, CSS shimmer loading, map zoom bug fixed.
+**Version:** v28 — Session 28. editor.html layout stability: sidebar scrollbar always reserved, right panel empty states pre-populated in HTML.
 **Purpose:** Single source of truth across all chat sessions. Read this first in every new chat.
 
 ---
@@ -21,7 +21,7 @@
 | File | Version | Last changed | Notes |
 |------|---------|--------------|-------|
 | index.html | v9.5 | Session 26 | All sidebar + grid bugs fixed. Skeleton loader added. Card reveal animation. |
-| editor.html | v6.0 | Session 27 | Full UI overhaul — see Section 8 Session 27 changelog |
+| editor.html | v6.1 | Session 28 | Layout stability fixes — sidebar scrollbar, pre-populated empty states |
 | tournament-create.html | v4.1 | Session 25 | VOD REVIEW nav link added |
 | tournament-editor.html | v1.4 | Session 25 | VOD REVIEW nav link added |
 | analytics.html | v2.3 | Session 25 | VOD REVIEW nav link added, active link fixed |
@@ -285,7 +285,7 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | Page | Status | Notes |
 |------|--------|-------|
 | index.html | ✅ Complete | v9.5 — all sidebar/grid bugs fixed, skeleton loader, card reveal animation |
-| editor.html | ✅ Complete | v6.0 — full UI overhaul, emoji purge, sidebar/right panel refactor, map zoom fix |
+| editor.html | ✅ Complete | v6.1 — full UI overhaul + layout stability fixes |
 | tournament-create.html | ✅ Complete | Nav updated |
 | tournament-editor.html | ✅ Complete | Nav updated |
 | analytics.html | ✅ Complete | Nav updated, active link fixed |
@@ -333,6 +333,9 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | 26 | **index.html: skeleton loader** — warm parchment shimmer animation. Left button slot is green-tinted (matching EDITOR button). Add Match card always present during loading. |
 | 26 | **index.html: card reveal animation** — staggered `cardReveal` fade+slide-up (0.28s, 60ms stagger) triggered only after load, not on selectMatch re-renders. |
 | 26 | **editor.html bug audit** — all 10 bugs from BUGSTOFIX verified in code. None fixed yet. See Section 9 for fix order. |
+| 28 | **editor.html loading states reverted** — shimmer overlay + canvas opacity fade-in from Sessions 27 removed. Returned to d8002f1 (post-UI-overhaul, pre-loading-states). No loading indicators on editor page. |
+| 28 | **editor.html sidebar scrollbar stability** — `#sidebar` changed from `overflow-y:auto` to `overflow-y:scroll`. Scrollbar lane always reserved so dropdown/input width never changes when teams load and make the list scrollable. |
+| 28 | **editor.html right panel pre-populated empty states** — `#active-squad-inline` and `#annotation-log` now ship with their empty state HTML in the markup (`No squad registered…` and `NO EVENTS YET`). `renderActiveSquadInline()` and `renderAnnotationLog()` overwrite on first call. Right panel height is stable before any data loads — no layout shift. |
 | 27 | **editor.html emoji purge** — all emoji removed across entire file (HTML, JS strings, toast messages, modal titles, annotation log event data, multi-track stats). Annotation log icons converted from `textContent` emoji to `innerHTML` Iconify SVG strings. |
 | 27 | **editor.html left sidebar refactor** — Screenshot + Clear Team buttons moved from sidebar to top toolbar as `.btn-tool-action` buttons. MAP button removed from toolbar. OPEN IN VOD button added to sidebar below Map section (`.btn-open-vod` style, orange border, navigates via `openInVOD()`). |
 | 27 | **editor.html match status chip removed** — `#match-status-chip` HTML, its CSS, `updateMatchStatusChip()`, and `_matchStatusLevel()` all deleted. Status symbols (`✓`, `◐`) removed from match dropdown labels in `refreshDropdowns()`. |
