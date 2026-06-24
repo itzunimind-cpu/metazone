@@ -193,7 +193,7 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
   border-radius:6px;font-family:var(--font-mono);font-size:10px;cursor:pointer;
   text-align:center;transition:all .15s;line-height:1.4;font-weight:500;
 }
-.btn-cm.active{ border-color:var(--forest);color:var(--forest);background:rgba(44,74,46,.08); }
+.btn-cm.active{ border-color:var(--forest);color:var(--bg);background:var(--forest); }
 .btn-cm:hover{ border-color:var(--accent);color:var(--accent); }
 
 /* ── Filter buttons ── */
@@ -243,6 +243,7 @@ input[type="range"]{ flex:1;accent-color:var(--accent);height:3px;cursor:pointer
   min-height:28px;position:relative;transition:border-color .15s;
 }
 .team-row.animate-in{ animation:team-row-in .2s ease both; }
+.annotation-entry.animate-in{ animation:team-row-in .18s ease both; }
 .team-row.is-editing{ border-color:var(--accent); }
 .mz-select.sel-pop{ animation:sel-pop .45s ease-out both; }
 .tr-dot{ width:8px;height:8px;border-radius:50%;flex-shrink:0;cursor:pointer; }
@@ -487,6 +488,7 @@ canvas.path-mode{ cursor:cell; }
 .timeline-time-label{ font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase; }
 #time-display{
   font-family:var(--font-mono);font-size:24px;font-weight:700;color:var(--accent);letter-spacing:.05em;line-height:1;
+  font-variant-numeric:tabular-nums;width:5ch;text-align:center;
 }
 
 .timeline-track{
@@ -526,9 +528,9 @@ canvas.path-mode{ cursor:cell; }
 
 /* Time labels */
 .timeline-labels{
-  display:flex;justify-content:space-between;
+  position:relative;height:14px;
 }
-.tl-label{ font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:.03em; }
+.tl-label{ font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:.03em;position:absolute;top:0;transform:translateX(-50%); }
 
 /* Timeline action buttons */
 .timeline-actions{ display:flex;flex-direction:column;gap:4px;flex-shrink:0; }
@@ -1224,6 +1226,18 @@ canvas.path-mode{ cursor:cell; }
       </div>
     </div>
 
+    <!-- MULTI-TRACK -->
+    <div class="sb-section">
+      <button class="btn-multi-track" id="btn-multi-track" onclick="toggleMultiTrack()">
+        <div class="btn-mt-indicator"></div>
+        MULTI TRACK
+      </button>
+      <div id="multi-track-panel">
+        <div id="mt-team-select"></div>
+        <div id="mt-stats-section" class="mt-stats-wrap"></div>
+      </div>
+    </div>
+
     <!-- TEAMS -->
     <div class="sb-section">
       <span class="sb-label">Teams</span>
@@ -1334,13 +1348,7 @@ canvas.path-mode{ cursor:cell; }
           </div>
           <div class="track-thumb" id="track-thumb" style="left:0%"></div>
         </div>
-        <div class="timeline-labels">
-          <span class="tl-label">00:00</span>
-          <span class="tl-label">08:45</span>
-          <span class="tl-label">17:30</span>
-          <span class="tl-label">26:15</span>
-          <span class="tl-label" id="tl-label-end">35:00</span>
-        </div>
+        <div class="timeline-labels" id="timeline-labels"></div>
       </div>
 
       <div class="timeline-actions">
@@ -1387,18 +1395,6 @@ canvas.path-mode{ cursor:cell; }
         <iconify-icon icon="lucide:pencil" style="font-size:11px;opacity:.6"></iconify-icon>
       </button>
       <div id="active-squad-inline"><div class="sq-empty-note">No squad registered — click ACTIVE SQUAD to set.</div></div>
-    </div>
-
-    <!-- Multi-Track [E9] -->
-    <div class="rp-section">
-      <button class="btn-multi-track" id="btn-multi-track" onclick="toggleMultiTrack()">
-        <div class="btn-mt-indicator"></div>
-        MULTI TRACK
-      </button>
-      <div id="multi-track-panel">
-        <div id="mt-team-select"></div>
-        <div id="mt-stats-section" class="mt-stats-wrap"></div>
-      </div>
     </div>
 
     <!-- Event Annotation Log -->
@@ -3578,7 +3574,7 @@ document.getElementById('temporal-slider').addEventListener('input', function(){
   document.getElementById('track-fill').style.width=pct+'%';
   document.getElementById('track-thumb').style.left=pct+'%';
   draw();
-  renderAnnotationLog({scrubSync:true});
+  updateAnnotationLogLit();
   updateSelfButtonState();
   if(state.multiTrackActive) renderMultiTrackStats();
 });
@@ -3624,6 +3620,38 @@ function renderTimelineTicks() {
     tick.style.background=color;
     container.appendChild(tick);
   });
+  renderTimelineLabels(maxTime);
+}
+
+function renderTimelineLabels(maxTime) {
+  const container = document.getElementById('timeline-labels');
+  if (!container) return;
+  container.innerHTML = '';
+  const interval = 300; // every 5 min
+  for (let t = 0; t <= maxTime; t += interval) {
+    const pct = (t / maxTime) * 100;
+    const span = document.createElement('span');
+    span.className = 'tl-label';
+    // First label: left-align from edge; last label: right-align from edge; others: centered
+    if (t === 0)       { span.style.left = '0'; span.style.transform = 'none'; }
+    else if (pct >= 98){ span.style.left = 'auto'; span.style.right = '0'; span.style.transform = 'none'; }
+    else               { span.style.left = pct + '%'; }
+    span.textContent = fmtTime(t);
+    container.appendChild(span);
+  }
+}
+
+function updateAnnotationLogLit() {
+  const container = document.getElementById('annotation-log');
+  const t = state.time;
+  let lastLitEl = null;
+  container.querySelectorAll('.annotation-entry[data-ev-time]').forEach(el => {
+    const evTime = +el.dataset.evTime;
+    const isLit = evTime <= t;
+    el.classList.toggle('future', !isLit);
+    if (isLit) lastLitEl = el;
+  });
+  if (lastLitEl) lastLitEl.scrollIntoView({block:'start',behavior:'instant'});
 }
 
 function jumpToTime(t) {
@@ -3634,7 +3662,7 @@ function jumpToTime(t) {
   const pct=(state.time/slider.max)*100;
   document.getElementById('track-fill').style.width=pct+'%';
   document.getElementById('track-thumb').style.left=pct+'%';
-  draw(); renderAnnotationLog({scrubSync:true});
+  draw(); updateAnnotationLogLit();
 }
 
 // ══════════════════════════════════════════════════════
@@ -4378,8 +4406,8 @@ async function saveAnnotation() {
 
 function renderAnnotationLog(opts) {
   // opts.scrollToTop — force scroll to top (new entry added)
-  // opts.scrubSync   — scroll so last lit entry is visible at top
   const container=document.getElementById('annotation-log');
+  const wasEmpty = !container.querySelector('.annotation-entry');
   container.innerHTML='';
 
   // [E9] Active team filter from mt-log-filter dropdown
@@ -4493,10 +4521,12 @@ function renderAnnotationLog(opts) {
   const reversed=[...events].reverse();
 
   let lastLitEl=null;
+  let animIdx=0;
   reversed.forEach(ev=>{
     const entry=document.createElement('div');
     const isLit = ev.time<=state.time;
     entry.className='annotation-entry'+(isLit?'':' future')+(ev.isWipe?' wipe-entry':'');
+    if(wasEmpty){ entry.classList.add('animate-in'); entry.style.animationDelay=`${animIdx*30}ms`; animIdx++; }
     entry.dataset.evTime=ev.time;
 
     if(ev.isWipe) {
