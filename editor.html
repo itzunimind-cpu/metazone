@@ -2439,7 +2439,7 @@ function adjustZoom(delta) { zoomAt(canvas.width/2, canvas.height/2, delta); }
 
 function zoomToWorld(wx, wy) {
   const minZoom=Math.min(canvas.width/WORLD_W, canvas.height/WORLD_H);
-  zoom=minZoom*4;
+  zoom=minZoom*8;
   panX=canvas.width/2 - wx*zoom;
   panY=canvas.height/2 - wy*zoom;
   clampPan(); updateZoomHud(); draw();
