@@ -2440,7 +2440,9 @@ function onWheel(e) {
   const rect=canvas.getBoundingClientRect();
   const sx=(e.clientX-rect.left)*(canvas.width/rect.width);
   const sy=(e.clientY-rect.top)*(canvas.height/rect.height);
-  zoomAt(sx,sy, e.deltaY<0?0.15:-0.13);
+  const zoomingIn=e.deltaY<0;
+  // Zoom in anchors to cursor; zoom out anchors to canvas center so map re-centers
+  zoomAt(zoomingIn?sx:canvas.width/2, zoomingIn?sy:canvas.height/2, zoomingIn?0.15:-0.13);
 }
 
 function onKeyDown(e) {
