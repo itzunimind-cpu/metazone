@@ -4691,6 +4691,34 @@ async function undoLogEvent(ev) {
     document.getElementById('match-meta-duration').textContent='—';
     renderAnnotationLog({scrollToTop:true});
     toast('Match end undone','ok');
+
+  } else if(ev.type === 'wipe' && ev._team) {
+    const team = ev._team;
+    team.time_of_wipe=null; team.wipe_x=null; team.wipe_y=null; team.confirmed_position=null;
+    if(sb&&!String(team.id).startsWith('local_')){
+      await sb.from('teams').update({time_of_wipe:null,wipe_x:null,wipe_y:null,confirmed_position:null}).eq('id',team.id);
+    }
+    draw(); renderTimelineTicks(); updateSelfButtonState();
+    renderAnnotationLog({scrollToTop:true});
+    toast('Wipe undone','ok');
+
+  } else if(ev.type === 'circle' && ev._zone) {
+    const zones = zonesCache[state.matchId]||[];
+    const idx = zones.indexOf(ev._zone);
+    if(idx>-1) zones.splice(idx,1);
+    if(sb && ev._zone.id && !String(ev._zone.id).startsWith('local_')) await sb.from('shapes').delete().eq('id',ev._zone.id);
+    draw();
+    renderAnnotationLog({scrollToTop:true});
+    toast('Zone undone','ok');
+
+  } else if(ev._shape && ev.teamId) {
+    const shapes = shapesCache[ev.teamId]||[];
+    const idx = shapes.indexOf(ev._shape);
+    if(idx>-1) shapes.splice(idx,1);
+    if(sb && ev._shape.id && !String(ev._shape.id).startsWith('local_')) await sb.from('shapes').delete().eq('id',ev._shape.id);
+    draw();
+    renderAnnotationLog({scrollToTop:true});
+    toast(`${ev.type==='fight'?'Fight':ev.type==='pin'?'Pin':'Rotation'} marker undone`,'ok');
   }
 }
 
@@ -4763,7 +4791,7 @@ function renderAnnotationLog(opts) {
 
   // ── Zone circles — match-level, always shown ──
   (zonesCache[state.matchId]||[]).forEach(s=>{
-    events.push({ time:s.time||0, type:'circle', title:`Zone ${s.zone_phase||''}`, icon:'<iconify-icon icon="lucide:circle"></iconify-icon>', iconClass:'zone', teamId:null, wx:s.cx, wy:s.cy });
+    events.push({ time:s.time||0, type:'circle', title:`Zone ${s.zone_phase||''}`, icon:'<iconify-icon icon="lucide:circle"></iconify-icon>', iconClass:'zone', teamId:null, wx:s.cx, wy:s.cy, undoable:true, _zone:s });
   });
 
   // ── Pre-compute wipe positions (sorted by time → highest position = wiped latest) ──
@@ -4784,9 +4812,9 @@ function renderAnnotationLog(opts) {
     const pos = wipePositions[team.id];
     const posLabel = pos ? ` — #${pos}` : '';
     if(team.is_self){
-      events.push({ time:team.time_of_wipe, type:'wipe', title:`SELF wiped${posLabel}`, icon:'<iconify-icon icon="lucide:skull"></iconify-icon>', iconClass:'wipe', teamId:team.id, teamColor:team.color, isWipe:true, isSelfWipe:true, wx:team.wipe_x, wy:team.wipe_y });
+      events.push({ time:team.time_of_wipe, type:'wipe', title:`SELF wiped${posLabel}`, icon:'<iconify-icon icon="lucide:skull"></iconify-icon>', iconClass:'wipe', teamId:team.id, teamColor:team.color, isWipe:true, isSelfWipe:true, wx:team.wipe_x, wy:team.wipe_y, undoable:true, _team:team });
     } else {
-      events.push({ time:team.time_of_wipe, type:'wipe', title:`${team.name} wiped${posLabel}`, icon:'<iconify-icon icon="lucide:flag"></iconify-icon>', iconClass:'wipe', teamId:team.id, teamColor:team.color, isWipe:true, isSelfWipe:false, wx:team.wipe_x, wy:team.wipe_y });
+      events.push({ time:team.time_of_wipe, type:'wipe', title:`${team.name} wiped${posLabel}`, icon:'<iconify-icon icon="lucide:flag"></iconify-icon>', iconClass:'wipe', teamId:team.id, teamColor:team.color, isWipe:true, isSelfWipe:false, wx:team.wipe_x, wy:team.wipe_y, undoable:true, _team:team });
     }
   });
 
@@ -4819,7 +4847,7 @@ function renderAnnotationLog(opts) {
       } else {
         return;
       }
-      events.push({ time:s.time||0, type:s.type, title, icon, iconClass, teamId:team.id, teamColor:team.color, wx, wy });
+      events.push({ time:s.time||0, type:s.type, title, icon, iconClass, teamId:team.id, teamColor:team.color, wx, wy, undoable:true, _shape:s });
     });
   });
 
@@ -4863,7 +4891,7 @@ function renderAnnotationLog(opts) {
       undoBtn.className='annotation-undo-btn';
       undoBtn.title='Undo';
       undoBtn.innerHTML='<iconify-icon icon="lucide:undo-2"></iconify-icon>';
-      undoBtn.onclick=(e)=>{ e.stopPropagation(); if(ev.annId) undoLogEvent(ev); else if(ev.isDbMatchEnd) markMatchEnd(); };
+      undoBtn.onclick=(e)=>{ e.stopPropagation(); if(ev.isDbMatchEnd) markMatchEnd(); else undoLogEvent(ev); };
       entry.appendChild(undoBtn);
     }
 
