@@ -2413,6 +2413,11 @@ function zoomAt(sx, sy, delta) {
   const nz=Math.max(minZoom, Math.min(40, zoom*(1+delta)));
   const s=nz/zoom;
   panX=sx-s*(sx-panX); panY=sy-s*(sy-panY); zoom=nz;
+  // Snap to center when fully zoomed out
+  if(nz<=minZoom+0.001){
+    panX=(canvas.width-WORLD_W*nz)/2;
+    panY=(canvas.height-WORLD_H*nz)/2;
+  }
   updateZoomHud(); draw();
 }
 
@@ -2440,9 +2445,7 @@ function onWheel(e) {
   const rect=canvas.getBoundingClientRect();
   const sx=(e.clientX-rect.left)*(canvas.width/rect.width);
   const sy=(e.clientY-rect.top)*(canvas.height/rect.height);
-  const zoomingIn=e.deltaY<0;
-  // Zoom in anchors to cursor; zoom out anchors to canvas center so map re-centers
-  zoomAt(zoomingIn?sx:canvas.width/2, zoomingIn?sy:canvas.height/2, zoomingIn?0.15:-0.13);
+  zoomAt(sx, sy, e.deltaY<0?0.15:-0.13);
 }
 
 function onKeyDown(e) {
