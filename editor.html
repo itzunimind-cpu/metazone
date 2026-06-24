@@ -234,15 +234,9 @@ input[type="range"]{ flex:1;accent-color:var(--accent);height:3px;cursor:pointer
   to{opacity:1;transform:none;}
 }
 @keyframes sel-pop{
-  from{opacity:.6;}
-  to{opacity:1;}
-}
-@keyframes section-in{
-  from{opacity:0;transform:translateY(8px);}
+  from{opacity:0;transform:translateY(5px);}
   to{opacity:1;transform:none;}
 }
-.sb-section.section-in{ animation:section-in .32s ease both; }
-#sidebar.await-reveal .sb-section{ opacity:0;pointer-events:none; }
 .team-row{
   display:flex;align-items:center;gap:4px;padding:4px 6px;
   background:var(--bg);border:1px solid var(--border);border-radius:6px;
@@ -1165,7 +1159,7 @@ canvas.path-mode{ cursor:cell; }
 <div id="app-body">
 
   <!-- ══ LEFT SIDEBAR ══════════════════════════════ -->
-  <div id="sidebar" class="await-reveal">
+  <div id="sidebar">
 
     <!-- TOURNAMENT -->
     <div class="sb-section">
@@ -1626,7 +1620,6 @@ let annotations  = [];   // local annotation array
 let matchPlayers = [];   // [E5/E6] match_players rows for current match
 let isAnnotationMode = true;
 let knownTeams = [];  // [FIX] autocomplete: preloaded from tournament_teams
-let _initialReveal = true; // gates coordinated sidebar entrance on first match load
 
 let state = {
   tournamentId: null,
@@ -1690,12 +1683,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('auth-screen').classList.add('hidden');
     await loadAllData();
     initCanvas();
-    // Safety net: if _activateMatch never ran (no match to load), sidebar was already
-    // revealed inside loadAllData. If something unexpected prevented that, force-show now.
-    setTimeout(() => { const s=document.getElementById('sidebar'); if(s?.classList.contains('await-reveal')){s.classList.remove('await-reveal');} }, 6000);
   } else {
     initCanvas();
-    document.getElementById('sidebar')?.classList.remove('await-reveal');
   }
   sb.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session) {
@@ -1774,12 +1763,9 @@ async function loadAllData() {
     setSyncState('saved');
     refreshDropdowns();
     await applyUrlParams();
-    // If no match was activated (fresh editor, no URL params), reveal sidebar now
-    if (_initialReveal) _revealSidebar();
   } catch(e) {
     console.error(e); setSyncState('error');
     setStatus('DB ERROR: '+e.message, false);
-    if (_initialReveal) _revealSidebar();
   }
 }
 
@@ -3315,7 +3301,19 @@ async function _activateMatch(match, statusMsg) {
     openActivePlayersModal(state.matchId);
   }
 
-  // Everything loaded — fire all UI at once
+  // Set time state BEFORE rendering so event log reflects match-end (all events lit)
+  const matchDur = match.duration_seconds;
+  if (matchDur) {
+    const slider = document.getElementById('temporal-slider');
+    if (slider) {
+      slider.max = Math.max(matchDur + 60, 2100);
+      slider.value = matchDur;
+      state.time = matchDur;
+      document.getElementById('time-display').textContent = fmtTime(matchDur);
+    }
+  }
+
+  // Fire all UI at once (state.time already at match end — event log starts fully lit)
   refreshDropdowns();
   renderTeamList();
   renderAnnotationLog();
@@ -3323,15 +3321,15 @@ async function _activateMatch(match, statusMsg) {
   updateRightPanel();
   draw();
 
-  // Scrubber sweep fires with the rest of the UI (not before data loads)
-  if (match.duration_seconds) {
+  // Flash map select to slide in with the same animation as other dropdown pills
+  const mapSel = document.getElementById('sel-map');
+  if (mapSel?.value) _flashSelect(mapSel);
+
+  // Scrubber visual sweep — purely cosmetic, state is already correct above
+  if (matchDur) {
     const slider = document.getElementById('temporal-slider');
     if (slider) {
-      slider.max = Math.max(match.duration_seconds + 60, 2100);
-      slider.value = match.duration_seconds;
-      state.time = match.duration_seconds;
-      document.getElementById('time-display').textContent = fmtTime(match.duration_seconds);
-      const pct = (match.duration_seconds / +slider.max) * 100;
+      const pct = (matchDur / +slider.max) * 100;
       const fill = document.getElementById('track-fill');
       const thumb = document.getElementById('track-thumb');
       fill.style.transition = 'width 1s cubic-bezier(.4,0,.2,1)';
@@ -3344,26 +3342,8 @@ async function _activateMatch(match, statusMsg) {
     }
   }
 
-  // Stagger-reveal sidebar sections on initial page load
-  _revealSidebar();
-
   setStatus(statusMsg, true);
   setTimeout(() => setStatus('READY', true), 2000);
-}
-
-function _revealSidebar() {
-  const sidebar = document.getElementById('sidebar');
-  if (!sidebar || !_initialReveal) return;
-  _initialReveal = false;
-  sidebar.classList.remove('await-reveal');
-  document.querySelectorAll('#sidebar .sb-section').forEach((sec, i) => {
-    sec.style.animationDelay = `${i * 42}ms`;
-    sec.classList.add('section-in');
-    sec.addEventListener('animationend', () => {
-      sec.classList.remove('section-in');
-      sec.style.animationDelay = '';
-    }, { once: true });
-  });
 }
 
 function _flashSelect(el){
