@@ -100,16 +100,41 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 .btn-logout{font-family:var(--font-mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:5px 11px;background:none;border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.6);border-radius:3px;cursor:pointer;transition:all .15s;}
 .btn-logout:hover{border-color:rgba(255,255,255,.5);color:#fff;}
 
-/* ── VOD TOOLBAR ── */
-#vod-toolbar{
-  min-height:50px;background:var(--bg-panel);border-bottom:1px solid var(--border);
-  display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 14px;flex-shrink:0;
+/* ── VOD LEFT FLOATING TOOLBAR ── */
+#vod-left-tools{
+  position:absolute;left:14px;top:50%;transform:translateY(-50%);z-index:15;
+  display:flex;flex-direction:column;align-items:center;gap:5px;
+  background:var(--bg-panel);border:1px solid var(--border);border-radius:14px;
+  padding:10px 7px;box-shadow:0 4px 20px rgba(12,10,7,.28);
 }
-.toolbar-group{ display:flex;align-items:center;gap:6px;flex-wrap:nowrap; }
-.toolbar-group-label{
-  font-family:var(--font-mono);font-size:9px;color:var(--muted);font-weight:600;
-  letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;margin-right:2px;
+.vlt-divider{ width:22px;height:1px;background:var(--border-mid);margin:3px 0;flex-shrink:0; }
+.vlt-btn{
+  width:36px;height:36px;border-radius:9px;background:var(--bg);border:1px solid var(--border);
+  color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;
+  transition:all .15s;font-size:16px;flex-shrink:0;
 }
+.vlt-btn:hover{ border-color:var(--muted2);color:var(--text); }
+.vlt-btn:disabled{ opacity:.35;cursor:not-allowed; }
+.vlt-btn.vlt-start{ border-color:rgba(44,74,46,.4);color:var(--accent);background:rgba(44,74,46,.08); }
+.vlt-btn.vlt-start:hover:not(:disabled){ background:rgba(44,74,46,.16); }
+.vlt-btn.vlt-end{ border-color:rgba(155,28,17,.4);color:var(--red);background:rgba(155,28,17,.08); }
+.vlt-btn.vlt-end:hover:not(:disabled){ background:rgba(155,28,17,.16); }
+
+/* ── Drawing team select (floating, top-left under context chip) ── */
+#vlt-team-select-wrap{
+  position:absolute;top:58px;left:14px;z-index:14;
+}
+#vlt-team-select-wrap .tb-select{ height:28px;font-size:10px; }
+
+/* ── Log Event popover ── */
+.sp-card-header .icon-btn-sm{ display:flex;align-items:center;gap:4px;height:auto;padding:3px 8px; }
+#log-event-popover{
+  position:relative;
+}
+.lep-menu{
+  display:none;flex-direction:column;gap:4px;margin-top:6px;
+}
+.lep-menu.open{ display:flex; }
 .tb-select{
   height:30px;padding:0 8px;background:var(--bg);color:var(--text);border:1px solid var(--border);
   border-radius:6px;font-family:var(--font-body);font-size:11px;font-weight:500;outline:none;
@@ -117,7 +142,6 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 }
 .tb-select:focus{ border-color:var(--accent); }
 .tb-select.active-team{ min-width:120px;border-color:var(--accent);color:var(--accent); }
-.tb-divider{ width:1px;height:24px;background:var(--border-mid);flex-shrink:0; }
 .map-align-label{ font-size:10px;color:var(--muted);white-space:nowrap; }
 .map-align-input{
   width:48px;height:22px;background:var(--bg);color:var(--text);border:1px solid var(--border);
@@ -141,28 +165,21 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 .tb-btn:hover{ border-color:var(--muted2);color:var(--text); }
 .tb-btn.active{ border-color:var(--accent);color:var(--accent);background:var(--accent-dim); }
 .tb-btn.danger{ border-color:var(--red);color:var(--red);background:rgba(155,28,17,.08); }
-.btn-start-match{
-  height:30px;padding:0 16px;background:var(--accent);color:var(--bg);border:none;
-  border-radius:6px;font-family:var(--font-display);font-size:12px;font-weight:800;cursor:pointer;
-  transition:opacity .15s;letter-spacing:.04em;white-space:nowrap;flex-shrink:0;
-}
-.btn-start-match:hover{ opacity:.88; }
-.btn-start-match:disabled{ opacity:.4;cursor:not-allowed; }
 .tb-time{
   font-family:var(--font-mono);font-size:16px;font-weight:700;color:var(--accent);
   letter-spacing:.04em;min-width:56px;text-align:center;flex-shrink:0;
 }
 .tb-mode-pill{
-  height:30px;padding:0 10px;background:var(--bg);color:var(--muted);border:1px solid var(--border);
-  border-radius:6px;font-family:var(--font-mono);font-size:10px;cursor:pointer;transition:all .15s;
-  display:flex;align-items:center;gap:5px;letter-spacing:.04em;flex-shrink:0;
+  width:36px;height:36px;background:var(--bg);color:var(--muted);border:1px solid var(--border);
+  border-radius:9px;font-family:var(--font-mono);font-size:16px;cursor:pointer;transition:all .15s;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
 }
 .tb-mode-pill:hover{ border-color:var(--muted2);color:var(--text); }
 .tb-mode-pill.active[data-mode="zone"]    { background:rgba(44,74,46,.1);color:var(--accent);border-color:var(--accent); }
 .tb-mode-pill.active[data-mode="path"]    { background:rgba(78,124,47,.1);color:var(--green);border-color:var(--green); }
 .tb-mode-pill.active[data-mode="pin"]     { background:rgba(200,94,10,.1);color:var(--orange);border-color:var(--orange); }
+.tb-mode-pill.active[data-mode="rotation"]{ background:rgba(78,124,47,.1);color:var(--green);border-color:var(--green); }
 .tb-mode-pill.active[data-mode="erase"]   { background:rgba(155,28,17,.08);color:var(--red);border-color:var(--red); }
-.tb-spacer{ flex:1; }
 .tb-zoom-cluster{ display:flex;align-items:center;gap:2px;flex-shrink:0; }
 .tb-zoom-btn{ width:26px;height:26px;background:var(--bg);border:1px solid var(--border);color:var(--muted);border-radius:5px;cursor:pointer;font-size:13px;transition:all .15s;display:flex;align-items:center;justify-content:center; }
 .tb-zoom-btn:hover{ border-color:var(--muted2);color:var(--text); }
@@ -174,7 +191,6 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 
 /* ── MAP OPACITY SLIDER ── */
 .map-opacity-cluster{ display:flex;align-items:center;gap:5px;flex-shrink:0;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:0 8px;height:30px; }
-.map-opacity-label{ font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap; }
 .map-opacity-slider{ -webkit-appearance:none;appearance:none;width:72px;height:3px;background:var(--border);border-radius:2px;outline:none;cursor:pointer; }
 .map-opacity-slider::-webkit-slider-thumb{ -webkit-appearance:none;appearance:none;width:12px;height:12px;border-radius:50%;background:var(--accent);cursor:pointer;transition:transform .15s; }
 .map-opacity-slider::-webkit-slider-thumb:hover{ transform:scale(1.25); }
@@ -261,14 +277,27 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 }
 .pb-skip:hover{ border-color:var(--red);color:#F08A80; }
 
-/* ── SQUAD PANEL ── */
+/* ── SQUAD PANEL (floating, top-right over canvas) ── */
 #squad-panel{
-  width:280px;min-width:280px;background:var(--bg-panel);border-left:1px solid var(--border);
+  position:absolute;top:14px;right:14px;z-index:15;
+  width:280px;max-height:calc(100% - 28px);
+  background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;
   display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;
+  box-shadow:0 4px 20px rgba(12,10,7,.28);
   scrollbar-width:thin;scrollbar-color:var(--border) transparent;
 }
 .sp-section{ padding:12px 12px 8px;border-bottom:1px solid var(--border-dim); }
+.sp-section:first-child{ padding-top:14px; }
 .sp-section.no-grow{ flex:0; }
+.sp-card-header.collapsible{ cursor:pointer; }
+.sp-card-header.collapsible iconify-icon.sp-chevron{ color:var(--muted2);font-size:13px;transition:transform .2s; }
+.sp-card-header.collapsible.open iconify-icon.sp-chevron{ transform:rotate(180deg); }
+.sp-count-badge{
+  font-family:var(--font-mono);font-size:9px;color:var(--muted);background:var(--bg);
+  border:1px solid var(--border);border-radius:8px;padding:1px 6px;margin-left:6px;
+}
+#sp-enemy-list{ display:none; }
+#sp-enemy-list.open{ display:block; }
 .sp-card{ background:var(--bg);border:1px solid var(--border-dim);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:8px; }
 .sp-log-section{ flex:1;display:flex;flex-direction:column;min-height:0; }
 .sp-log-card{ flex:1;min-height:0; }
@@ -287,6 +316,7 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
   transition:all .15s;
 }
 .icon-btn-sm:hover{ border-color:var(--accent);color:var(--accent); }
+.icon-btn-sm.active{ border-color:var(--accent);color:var(--accent);background:var(--accent-dim); }
 .sp-label{ font-family:var(--font-mono);font-size:9px;font-weight:600;color:var(--forest);letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px;display:block; }
 .sp-self-header{
   display:flex;align-items:center;gap:8px;margin-bottom:8px;
@@ -323,14 +353,6 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 .sp-event-btn.wipe:not(:disabled):hover{ background:rgba(155,28,17,.2); }
 .sp-event-btn.ewipe{ background:rgba(200,94,10,.1);color:var(--orange);border-color:rgba(200,94,10,.4); }
 .sp-event-btn.ewipe:not(:disabled):hover{ background:rgba(200,94,10,.2); }
-.sp-match-end-btn{
-  width:100%;margin-top:6px;padding:7px;background:none;border:1px dashed var(--muted2);
-  border-radius:6px;font-family:var(--font-mono);font-size:9px;color:var(--muted);cursor:pointer;
-  transition:all .15s;letter-spacing:.08em;text-transform:uppercase;
-}
-.sp-match-end-btn:hover{ border-color:var(--red);color:var(--red); }
-.sp-match-end-btn:disabled{ opacity:.35;cursor:not-allowed; }
-
 /* Enemy teams */
 .sp-enemy-team{
   display:flex;align-items:center;gap:7px;padding:6px 8px;
@@ -356,14 +378,17 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 .vel-time{ font-family:var(--font-mono);font-size:9px;color:var(--muted);margin-top:1px; }
 .vel-entry.lit{ border-left-color:var(--accent);background:var(--hover-tint); }
 
-/* ── TIMELINE ── */
+/* ── BOTTOM BAR ── */
 #vod-timeline{
-  height:44px;min-height:44px;background:var(--bg-panel);border-top:1px solid var(--border);
-  display:flex;align-items:center;padding:0 12px;gap:10px;flex-shrink:0;
+  height:52px;min-height:52px;background:var(--bg-panel);border-top:1px solid var(--border);
+  display:flex;align-items:center;padding:0 14px;gap:12px;flex-shrink:0;
 }
+.vtb-transport{ display:flex;align-items:center;gap:4px;flex-shrink:0; }
+.vtb-transport .tb-btn{ width:32px;height:32px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px; }
 .tl-label{ font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:.06em;white-space:nowrap; }
+.vtb-scrub-wrap{ flex:1;display:flex;flex-direction:column;gap:3px; }
 #tl-track{
-  flex:1;position:relative;height:6px;background:var(--border-dim);border-radius:3px;cursor:pointer;
+  position:relative;height:6px;background:var(--border-dim);border-radius:3px;cursor:pointer;
 }
 #tl-fill{ position:absolute;left:0;top:0;height:100%;background:var(--accent);border-radius:3px;pointer-events:none; }
 #tl-events{ position:absolute;inset:0;pointer-events:none; }
@@ -373,9 +398,20 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 }
 .tl-marker:hover{ transform:translateX(-50%) scaleY(1.3); }
 #tl-thumb{ position:absolute;top:50%;width:12px;height:12px;background:var(--accent);border-radius:50%;border:2px solid var(--bg);transform:translate(-50%,-50%);pointer-events:none; }
-.tl-time{ font-family:var(--font-mono);font-size:11px;color:var(--accent);min-width:42px;letter-spacing:.04em; }
+.tl-time{ font-family:var(--font-mono);font-size:11px;color:var(--accent);min-width:42px;letter-spacing:.04em;flex-shrink:0; }
 .tl-time-dur{ color:var(--muted); }
-.tl-sep{ font-family:var(--font-mono);font-size:9px;color:var(--muted); }
+.tl-sep{ font-family:var(--font-mono);font-size:9px;color:var(--muted);flex-shrink:0; }
+.vtb-legend{ display:flex;align-items:center;gap:12px; }
+.vtb-legend-item{ display:flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:8px;color:var(--muted);letter-spacing:.06em; }
+.vtb-legend-dot{ width:6px;height:6px;border-radius:50%;flex-shrink:0; }
+.vtb-speed-wrap{ position:relative;flex-shrink:0; }
+.vtb-speed-wrap .speed-cluster{
+  position:absolute;bottom:36px;left:50%;transform:translateX(-50%);
+  display:none;flex-direction:column;gap:3px;background:var(--bg-panel);border:1px solid var(--border);
+  border-radius:8px;padding:6px;box-shadow:0 4px 16px rgba(12,10,7,.25);
+}
+.vtb-speed-wrap .speed-cluster.open{ display:flex; }
+#btn-speed-pill{ width:44px;justify-content:center; }
 
 /* ══ MODALS ══ */
 .modal-backdrop{
@@ -622,13 +658,18 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 .vid-state[data-vs="lost"]    { border-color:rgba(155,28,17,.4); }
 .vid-state[data-vs="lost"]    .vsd-label{ color:var(--red); }
 
-/* ══ MATCH CONTEXT BAR ══ */
-#match-context-bar{
-  height:28px;min-height:28px;flex-shrink:0;
-  background:var(--bg-card);border-bottom:1px solid var(--border-dim);
-  display:flex;align-items:center;gap:0;padding:0 14px;overflow:hidden;
+/* ══ CANVAS CONTEXT CHIP (read-only, top-left over canvas) ══ */
+#vod-context-chip{
+  position:absolute;top:14px;left:14px;z-index:14;
+  display:flex;align-items:center;gap:0;padding:6px 12px;overflow:hidden;
+  background:var(--overlay-dark);border:1px solid var(--border);border-radius:8px;
+  backdrop-filter:blur(4px);max-width:60%;
 }
-#match-context-bar.hidden{ display:none; }
+#vod-context-chip.hidden{ display:none; }
+#vod-context-chip .tb-match-status,
+#vod-context-chip .vid-state,
+#vod-context-chip .tb-time{ margin-left:10px; }
+#vod-context-chip .tb-time{ font-size:13px;min-width:auto; }
 .mcb-crumb{
   font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:.05em;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
@@ -640,26 +681,9 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
   font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;
   background:var(--bg-card);white-space:nowrap;flex-shrink:0;
 }
-.mcb-status{
-  margin-left:8px;display:flex;align-items:center;gap:4px;padding:1px 7px;
-  border-radius:4px;border:1px solid var(--border);background:var(--bg-card);
-  font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;flex-shrink:0;
-}
-.mcb-status-dot{ width:5px;height:5px;border-radius:50%;flex-shrink:0; }
-.mcb-spacer{ flex:1; }
-.mcb-refresh{
-  height:20px;padding:0 8px;background:none;border:1px solid var(--border);
-  color:var(--muted);border-radius:4px;font-family:var(--font-mono);font-size:9px;
-  cursor:pointer;transition:all .15s;white-space:nowrap;letter-spacing:.05em;flex-shrink:0;
-}
-.mcb-refresh:hover{ border-color:var(--accent);color:var(--accent); }
-.mcb-open-editor{
-  height:20px;padding:0 8px;background:none;border:1px solid var(--border);
-  color:var(--muted);border-radius:4px;font-family:var(--font-mono);font-size:9px;
-  cursor:pointer;transition:all .15s;white-space:nowrap;letter-spacing:.05em;
-  text-decoration:none;display:flex;align-items:center;flex-shrink:0;margin-left:5px;
-}
-.mcb-open-editor:hover{ border-color:var(--purple);color:var(--purple); }
+.lmm-context-row{ display:flex;align-items:center;gap:0;padding:8px 10px;background:var(--bg);border:1px solid var(--border-dim);border-radius:6px; }
+.lmm-context-row .mcb-map{ margin-left:auto; }
+.lmm-align-row{ display:flex;align-items:center;gap:10px;flex-wrap:wrap; }
 
 /* ══ FIRST-TIME SETUP FLOW DIALOG ══ */
 #setup-flow-dialog{
@@ -854,101 +878,6 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 <!-- ══ VOD APP ══ -->
 <div id="vod-app">
 
-  <!-- VOD Toolbar -->
-  <div id="vod-toolbar">
-    <!-- Match controls -->
-    <div class="toolbar-group" data-group="match">
-      <div class="tb-match-status hidden" id="tb-match-status">
-        <div class="tms-dot" id="tms-dot"></div>
-        <span class="tms-label" id="tms-label">—</span>
-        <span class="tms-vod hidden" id="tms-vod"><iconify-icon icon="lucide:check"></iconify-icon> VOD</span>
-      </div>
-      <input class="tb-input" id="vod-url-input" placeholder="Paste YouTube URL…" onkeydown="if(event.key==='Enter')loadVideo()">
-      <button class="tb-btn" onclick="loadVideo()"><iconify-icon icon="lucide:play"></iconify-icon> LOAD</button>
-      <button class="btn-start-match" id="btn-start-match" onclick="toggleMatchActive()" disabled><iconify-icon icon="lucide:play"></iconify-icon> START MATCH</button>
-      <div class="vid-state" id="vid-state" data-vs="idle">
-        <div class="vsd-dot"></div>
-        <span class="vsd-label" id="vsd-label">NO VIDEO</span>
-      </div>
-      <div class="tb-time" id="tb-match-time">—:——</div>
-    </div>
-
-    <div class="tb-divider"></div>
-
-    <!-- Map alignment -->
-    <div class="toolbar-group" data-group="map-align">
-      <span class="toolbar-group-label">MAP ALIGN</span>
-      <label class="map-align-label">X <input type="number" id="map-offset-x" value="0" step="1" class="map-align-input" oninput="updateMapOffset()"></label>
-      <label class="map-align-label">Y <input type="number" id="map-offset-y" value="0" step="1" class="map-align-input" oninput="updateMapOffset()"></label>
-      <label class="map-align-label">SCALE <input type="number" id="map-scale-f" value="1.00" step="0.01" min="0.1" max="3" class="map-align-input wide" oninput="updateMapOffset()"></label>
-      <button class="tb-btn" onclick="resetMapOffset()" title="Reset map alignment"><iconify-icon icon="lucide:rotate-ccw"></iconify-icon> RESET</button>
-      <button class="tb-btn cal-mode-btn" id="btn-calibrate" onclick="toggleCalibration()" title="2-point map calibration"><iconify-icon icon="lucide:crosshair"></iconify-icon> CALIBRATE</button>
-    </div>
-
-    <div class="tb-divider"></div>
-
-    <!-- Draw tools -->
-    <div class="toolbar-group" data-group="draw">
-      <select class="tb-select active-team" id="sel-active-team" onchange="setActiveTeam(this.value)" title="Drawing team">
-        <option value="">— Team —</option>
-      </select>
-      <button class="tb-mode-pill" data-mode="zone"  onclick="setMode('zone')"  title="Zone Circle (drag)"><iconify-icon icon="lucide:circle"></iconify-icon> ZONE</button>
-      <button class="tb-mode-pill" data-mode="path"  onclick="setMode('path')"  title="Path — click waypoints, RIGHT-CLICK to finish"><iconify-icon icon="lucide:spline"></iconify-icon> PATH</button>
-      <button class="tb-mode-pill" data-mode="pin"   onclick="setMode('pin')"   title="Pin"><iconify-icon icon="lucide:map-pin"></iconify-icon> PIN</button>
-      <button class="tb-mode-pill" data-mode="erase" onclick="setMode('erase')" title="Erase shape"><iconify-icon icon="lucide:eraser"></iconify-icon> ERASE</button>
-      <button class="tb-btn" onclick="undo()" title="Undo (Ctrl+Z)"><iconify-icon icon="lucide:undo-2"></iconify-icon> UNDO</button>
-    </div>
-
-    <div class="tb-divider"></div>
-
-    <!-- Overlay / playback -->
-    <div class="toolbar-group" data-group="playback">
-      <button class="tb-btn active" id="btn-overlay" onclick="toggleOverlayCanvas()" title="Toggle map overlay (Z)"><iconify-icon icon="lucide:eye"></iconify-icon> MAP</button>
-      <div class="map-opacity-cluster" id="map-opacity-cluster" title="Map opacity">
-        <span class="map-opacity-label">MAP α</span>
-        <input type="range" class="map-opacity-slider" id="map-opacity-slider" min="0" max="100" value="62" oninput="setMapOpacity(this.value)">
-        <span class="map-opacity-val" id="map-opacity-val">62%</span>
-      </div>
-      <button class="tb-btn" id="btn-play-pause" onclick="togglePlayPause()" title="Play/Pause video (P key)"><iconify-icon icon="lucide:play-circle"></iconify-icon> PLAY</button>
-      <div class="tb-zoom-cluster">
-        <button class="tb-zoom-btn" onclick="adjustZoom(-.15)">−</button>
-        <span class="tb-zoom-val" id="zoom-hud-tb">1.00×</span>
-        <button class="tb-zoom-btn" onclick="adjustZoom(.15)">+</button>
-      </div>
-      <div class="speed-cluster" id="speed-cluster">
-        <button class="speed-btn" onclick="setSpeed(.25)">0.25×</button>
-        <button class="speed-btn" onclick="setSpeed(.5)">0.5×</button>
-        <button class="speed-btn active" onclick="setSpeed(1)">1×</button>
-        <button class="speed-btn" onclick="setSpeed(1.5)">1.5×</button>
-        <button class="speed-btn" onclick="setSpeed(2)">2×</button>
-      </div>
-    </div>
-
-    <div class="tb-spacer"></div>
-
-    <!-- Save -->
-    <div class="toolbar-group" data-group="save">
-      <button class="tb-btn" id="btn-save" onclick="manualSave()"><iconify-icon icon="lucide:save"></iconify-icon> SAVE</button>
-    </div>
-  </div>
-
-  <!-- ══ MATCH CONTEXT BAR ══ -->
-  <div id="match-context-bar" class="hidden">
-    <span class="mcb-crumb" id="mcb-tournament">—</span>
-    <span class="mcb-sep">›</span>
-    <span class="mcb-crumb" id="mcb-day">—</span>
-    <span class="mcb-sep">›</span>
-    <span class="mcb-crumb mcb-match" id="mcb-match">—</span>
-    <span class="mcb-map hidden" id="mcb-map"></span>
-    <div class="mcb-status hidden" id="mcb-status">
-      <div class="mcb-status-dot" id="mcb-status-dot"></div>
-      <span id="mcb-status-label">—</span>
-    </div>
-    <div class="mcb-spacer"></div>
-    <button class="mcb-refresh" onclick="refreshMatchData()" title="Re-fetch match data from DB"><iconify-icon icon="lucide:rotate-ccw"></iconify-icon> REFRESH DATA</button>
-    <a class="mcb-open-editor" id="mcb-open-editor" href="editor.html" title="Open this match in Editor"><iconify-icon icon="lucide:pencil"></iconify-icon> OPEN IN EDITOR</a>
-  </div>
-
   <!-- VOD Body -->
   <div id="vod-body">
 
@@ -959,7 +888,7 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
       <button class="btn-stb-dismiss" onclick="dismissSkipBanner()">DISMISS</button>
     </div>
 
-    <!-- ── VOD STAGE (video + canvas) ── -->
+    <!-- ── VOD STAGE (video + canvas + floating chrome) ── -->
     <div id="vod-stage">
       <div id="yt-player-wrap"><div id="yt-player"></div></div>
 
@@ -984,10 +913,74 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
           <button class="pb-skip" onclick="cancelPlacement()">SKIP</button>
         </div>
       </div>
-    </div>
 
-    <!-- ── SQUAD PANEL ── -->
+      <!-- ══ READ-ONLY CONTEXT CHIP ══ -->
+      <div id="vod-context-chip" class="hidden">
+        <span class="mcb-crumb" id="mcb-tournament">—</span>
+        <span class="mcb-sep">›</span>
+        <span class="mcb-crumb" id="mcb-day">—</span>
+        <span class="mcb-sep">›</span>
+        <span class="mcb-crumb mcb-match" id="mcb-match">—</span>
+        <span class="mcb-map hidden" id="mcb-map"></span>
+        <div class="tb-match-status hidden" id="tb-match-status">
+          <div class="tms-dot" id="tms-dot"></div>
+          <span class="tms-label" id="tms-label">—</span>
+          <span class="tms-vod hidden" id="tms-vod"><iconify-icon icon="lucide:check"></iconify-icon> VOD</span>
+        </div>
+        <div class="vid-state" id="vid-state" data-vs="idle">
+          <div class="vsd-dot"></div>
+          <span class="vsd-label" id="vsd-label">NO VIDEO</span>
+        </div>
+        <div class="tb-time" id="tb-match-time">—:——</div>
+      </div>
+
+      <!-- ══ DRAWING TEAM SELECT ══ -->
+      <div id="vlt-team-select-wrap">
+        <select class="tb-select active-team" id="sel-active-team" onchange="setActiveTeam(this.value)" title="Drawing team">
+          <option value="">— Team —</option>
+        </select>
+      </div>
+
+      <!-- ══ LEFT FLOATING TOOLBAR ══ -->
+      <div id="vod-left-tools">
+        <button class="tb-mode-pill" data-mode="zone"  onclick="setMode('zone')"  title="Zone Circle (drag)"><iconify-icon icon="lucide:circle"></iconify-icon></button>
+        <button class="tb-mode-pill" data-mode="path"  onclick="setMode('path')"  title="Path — click waypoints, RIGHT-CLICK to finish"><iconify-icon icon="lucide:spline"></iconify-icon></button>
+        <button class="tb-mode-pill" data-mode="pin"   onclick="setMode('pin')"   title="Pin"><iconify-icon icon="lucide:map-pin"></iconify-icon></button>
+        <button class="tb-mode-pill" data-mode="rotation" onclick="setMode('rotation')" title="Arrow — drag to draw rotation"><iconify-icon icon="lucide:arrow-right"></iconify-icon></button>
+
+        <div class="vlt-divider"></div>
+
+        <button class="tb-mode-pill" data-mode="erase" onclick="setMode('erase')" title="Erase shape"><iconify-icon icon="lucide:eraser"></iconify-icon></button>
+        <button class="vlt-btn" onclick="undo()" title="Undo (Ctrl+Z)"><iconify-icon icon="lucide:undo-2"></iconify-icon></button>
+
+        <div class="vlt-divider"></div>
+
+        <button class="vlt-btn" onclick="openLoadMatchModal()" title="Load match / VOD link"><iconify-icon icon="lucide:folder-open"></iconify-icon></button>
+        <button class="vlt-btn cal-mode-btn" id="btn-calibrate" onclick="toggleCalibration()" title="2-point map calibration"><iconify-icon icon="lucide:crosshair"></iconify-icon></button>
+        <button class="vlt-btn" id="btn-save" onclick="manualSave()" title="Save"><iconify-icon icon="lucide:save"></iconify-icon></button>
+
+        <div class="vlt-divider"></div>
+
+        <button class="vlt-btn vlt-start" id="btn-start-match" onclick="toggleMatchActive()" disabled title="Start Match"><iconify-icon icon="lucide:play"></iconify-icon></button>
+        <button class="vlt-btn vlt-end" id="btn-match-end" onclick="openEndMatchConfirm()" disabled title="End Match"><iconify-icon icon="lucide:square"></iconify-icon></button>
+      </div>
+
+    <!-- ── SQUAD PANEL (floating, top-right over canvas) ── -->
     <div id="squad-panel">
+
+      <!-- Map Opacity -->
+      <div class="sp-section no-grow">
+        <div class="sp-card">
+          <div class="sp-card-header">
+            <span class="sp-label">Map Opacity</span>
+            <button class="icon-btn-sm active" id="btn-overlay" onclick="toggleOverlayCanvas()" title="Toggle map overlay (Z)"><iconify-icon icon="lucide:eye"></iconify-icon></button>
+          </div>
+          <div class="map-opacity-cluster" id="map-opacity-cluster" title="Map opacity">
+            <input type="range" class="map-opacity-slider" id="map-opacity-slider" min="0" max="100" value="62" oninput="setMapOpacity(this.value)" style="flex:1;">
+            <span class="map-opacity-val" id="map-opacity-val">62%</span>
+          </div>
+        </div>
+      </div>
 
       <!-- Self Team -->
       <div class="sp-section" id="sp-self-section">
@@ -1004,26 +997,12 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
         </div>
       </div>
 
-      <!-- Event Buttons -->
-      <div class="sp-section">
-        <div class="sp-card">
-          <span class="sp-label">Log Event</span>
-          <div class="sp-event-grid">
-            <button class="sp-event-btn elim"  id="btn-ev-elim"  onclick="startEvent('elim')"  disabled><iconify-icon icon="lucide:zap"></iconify-icon> SELF ELIM</button>
-            <button class="sp-event-btn loss"  id="btn-ev-loss"  onclick="startEvent('loss')"  disabled><iconify-icon icon="lucide:skull"></iconify-icon> SELF LOSS</button>
-            <button class="sp-event-btn wipe"  id="btn-ev-wipe"  onclick="startEvent('wipe')"  disabled><iconify-icon icon="lucide:shield-x"></iconify-icon> SELF WIPE</button>
-            <button class="sp-event-btn ewipe" id="btn-ev-ewipe" onclick="startEvent('ewipe')" disabled><iconify-icon icon="lucide:flag"></iconify-icon> ENEMY WIPE</button>
-          </div>
-          <button class="sp-match-end-btn" id="btn-match-end" onclick="markMatchEnd()" disabled><iconify-icon icon="lucide:square"></iconify-icon> MARK MATCH END</button>
-        </div>
-      </div>
-
-      <!-- Enemy Teams -->
+      <!-- Enemy Teams (collapsible, collapsed by default) -->
       <div class="sp-section no-grow">
         <div class="sp-card">
-          <div class="sp-card-header">
-            <span class="sp-label">Enemy Teams</span>
-            <button class="icon-btn-sm" onclick="refreshMatchData()" title="Refresh match data"><iconify-icon icon="lucide:rotate-ccw"></iconify-icon></button>
+          <div class="sp-card-header collapsible" id="sp-enemy-toggle" onclick="toggleEnemyTeams()">
+            <span class="sp-label" style="margin-bottom:0;">Enemy Teams<span class="sp-count-badge" id="sp-enemy-count">0</span></span>
+            <iconify-icon icon="lucide:chevron-down" class="sp-chevron"></iconify-icon>
           </div>
           <div id="sp-enemy-list">
             <div class="sp-empty-note">No teams loaded</div>
@@ -1034,30 +1013,118 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
       <!-- Event Log -->
       <div class="sp-section sp-log-section">
         <div class="sp-card sp-log-card">
-          <span class="sp-label">Event Log</span>
+          <div id="log-event-popover">
+            <div class="sp-card-header">
+              <span class="sp-label" style="margin-bottom:0;">Event Log</span>
+              <button class="icon-btn-sm" id="btn-log-event" onclick="toggleLogEventMenu()" title="Log event"><iconify-icon icon="lucide:plus"></iconify-icon> LOG EVENT</button>
+            </div>
+            <div class="lep-menu" id="lep-menu">
+              <div class="sp-event-grid">
+                <button class="sp-event-btn elim"  id="btn-ev-elim"  onclick="startEvent('elim')"  disabled><iconify-icon icon="lucide:zap"></iconify-icon> SELF ELIM</button>
+                <button class="sp-event-btn loss"  id="btn-ev-loss"  onclick="startEvent('loss')"  disabled><iconify-icon icon="lucide:skull"></iconify-icon> SELF LOSS</button>
+                <button class="sp-event-btn wipe"  id="btn-ev-wipe"  onclick="startEvent('wipe')"  disabled><iconify-icon icon="lucide:shield-x"></iconify-icon> SELF WIPE</button>
+                <button class="sp-event-btn ewipe" id="btn-ev-ewipe" onclick="startEvent('ewipe')" disabled><iconify-icon icon="lucide:flag"></iconify-icon> ENEMY WIPE</button>
+              </div>
+            </div>
+          </div>
           <div id="vod-event-log"></div>
         </div>
       </div>
 
     </div>
+    <!-- end #squad-panel -->
   </div>
+  <!-- end #vod-stage -->
+  </div>
+  <!-- end #vod-body -->
 
-  <!-- ── VOD TIMELINE ── -->
+  <!-- ── VOD BOTTOM BAR ── -->
   <div id="vod-timeline">
-    <span class="tl-label">00:00</span>
-    <div id="tl-track" onclick="onTimelineClick(event)">
-      <div id="tl-fill" style="width:0%"></div>
-      <div id="tl-events"></div>
-      <div id="tl-thumb" style="left:0%"></div>
+    <div class="vtb-transport">
+      <button class="tb-zoom-btn" onclick="skipBack()" title="Back 10s"><iconify-icon icon="lucide:rotate-ccw"></iconify-icon></button>
+      <button class="tb-btn" id="btn-play-pause" onclick="togglePlayPause()" title="Play/Pause video (P key)"><iconify-icon icon="lucide:play-circle"></iconify-icon></button>
+      <button class="tb-zoom-btn" onclick="skipForward()" title="Forward 10s"><iconify-icon icon="lucide:rotate-cw"></iconify-icon></button>
     </div>
     <div class="tl-time" id="tl-time-cur">00:00</div>
     <span class="tl-sep">/</span>
     <div class="tl-time tl-time-dur" id="tl-time-dur">—:——</div>
+
+    <div class="vtb-speed-wrap">
+      <button class="tb-btn" id="btn-speed-pill" onclick="toggleSpeedPopover()" title="Playback speed">1×</button>
+      <div class="speed-cluster" id="speed-cluster">
+        <button class="speed-btn" onclick="setSpeed(.25)">0.25×</button>
+        <button class="speed-btn" onclick="setSpeed(.5)">0.5×</button>
+        <button class="speed-btn active" onclick="setSpeed(1)">1×</button>
+        <button class="speed-btn" onclick="setSpeed(1.5)">1.5×</button>
+        <button class="speed-btn" onclick="setSpeed(2)">2×</button>
+      </div>
+    </div>
+
+    <div class="vtb-scrub-wrap">
+      <div id="tl-track" onclick="onTimelineClick(event)">
+        <div id="tl-fill" style="width:0%"></div>
+        <div id="tl-events"></div>
+        <div id="tl-thumb" style="left:0%"></div>
+      </div>
+      <div class="vtb-legend">
+        <span class="vtb-legend-item"><span class="vtb-legend-dot" style="background:#D9A404;"></span>ELIM</span>
+        <span class="vtb-legend-item"><span class="vtb-legend-dot" style="background:var(--red);"></span>WIPE</span>
+        <span class="vtb-legend-item"><span class="vtb-legend-dot" style="background:var(--accent);"></span>ZONE</span>
+      </div>
+    </div>
+
+    <div class="tb-zoom-cluster">
+      <button class="tb-zoom-btn" onclick="adjustZoom(-.15)">−</button>
+      <span class="tb-zoom-val" id="zoom-hud-tb">1.00×</span>
+      <button class="tb-zoom-btn" onclick="adjustZoom(.15)">+</button>
+    </div>
+    <button class="tb-zoom-btn" onclick="toggleStageFullscreen()" title="Fullscreen"><iconify-icon icon="lucide:maximize"></iconify-icon></button>
   </div>
 
 </div><!-- end #vod-app -->
 
 <!-- ══ MODALS ══ -->
+
+<!-- LOAD MATCH Modal -->
+<div class="modal-backdrop" id="load-match-modal">
+  <div class="modal-box modal-lg modal-accent">
+    <div class="modal-title"><iconify-icon icon="lucide:folder-open"></iconify-icon> LOAD MATCH</div>
+    <div class="modal-label">CURRENT CONTEXT (DASHBOARD-MANAGED)</div>
+    <div class="lmm-context-row">
+      <span class="mcb-crumb" id="lmm-tournament">—</span>
+      <span class="mcb-sep">›</span>
+      <span class="mcb-crumb" id="lmm-day">—</span>
+      <span class="mcb-sep">›</span>
+      <span class="mcb-crumb mcb-match" id="lmm-match">—</span>
+      <span class="mcb-map" id="lmm-map">—</span>
+    </div>
+    <div class="modal-label modal-label-spaced">VOD URL</div>
+    <input class="tb-input" id="vod-url-input" placeholder="Paste YouTube URL…" style="width:100%;" onkeydown="if(event.key==='Enter')lmmLoadVideo()">
+    <div class="modal-label modal-label-spaced">MAP ALIGNMENT (FINE-TUNE)</div>
+    <div class="lmm-align-row">
+      <label class="map-align-label">X <input type="number" id="map-offset-x" value="0" step="1" class="map-align-input" oninput="updateMapOffset()"></label>
+      <label class="map-align-label">Y <input type="number" id="map-offset-y" value="0" step="1" class="map-align-input" oninput="updateMapOffset()"></label>
+      <label class="map-align-label">SCALE <input type="number" id="map-scale-f" value="1.00" step="0.01" min="0.1" max="3" class="map-align-input wide" oninput="updateMapOffset()"></label>
+      <button class="tb-btn" onclick="resetMapOffset()" title="Reset map alignment"><iconify-icon icon="lucide:rotate-ccw"></iconify-icon> RESET</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closeLoadMatchModal()">CLOSE</button>
+      <button class="btn-modal-confirm" style="background:var(--accent);" onclick="lmmLoadVideo()"><iconify-icon icon="lucide:play"></iconify-icon> LOAD VIDEO</button>
+    </div>
+  </div>
+</div>
+
+<!-- END MATCH Confirmation Modal -->
+<div class="modal-backdrop" id="end-match-modal">
+  <div class="modal-box modal-sm modal-red">
+    <div class="modal-title"><iconify-icon icon="lucide:square"></iconify-icon> END MATCH</div>
+    <div class="modal-sub">This marks the match as ended at the current timecode and locks in the result. You can undo it by pressing End Match again before leaving this page — once you navigate away, treat it as final.</div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closeModal('end-match-modal')">CANCEL</button>
+      <button class="btn-modal-confirm" style="background:var(--red);" onclick="confirmEndMatch()"><iconify-icon icon="lucide:square"></iconify-icon> END MATCH</button>
+    </div>
+  </div>
+</div>
 
 <!-- ELIM Modal -->
 <div class="modal-backdrop" id="elim-modal">
@@ -1655,6 +1722,26 @@ function loadVideo() {
 function setSpeed(rate) {
   if (ytPlayer && typeof ytPlayer.setPlaybackRate === 'function') ytPlayer.setPlaybackRate(rate);
   document.querySelectorAll('.speed-btn').forEach(b => b.classList.toggle('active', parseFloat(b.textContent)===rate));
+  const pill = document.getElementById('btn-speed-pill');
+  if (pill) pill.textContent = rate + '×';
+  closeSpeedPopover();
+}
+function toggleSpeedPopover() {
+  document.getElementById('speed-cluster').classList.toggle('open');
+}
+function closeSpeedPopover() {
+  document.getElementById('speed-cluster').classList.remove('open');
+}
+
+// ── Skip back/forward (bottom bar transport) ──
+function skipBack()    { seekToMatchTime(Math.max(0, state.time - 10)); }
+function skipForward() { seekToMatchTime(state.time + 10); }
+
+// ── Fullscreen toggle on the video/canvas stage ──
+function toggleStageFullscreen() {
+  const stageEl = document.getElementById('vod-stage');
+  if (!document.fullscreenElement) stageEl.requestFullscreen?.();
+  else document.exitFullscreen?.();
 }
 
 function seekVideoTo(videoSeconds) {
@@ -1851,6 +1938,7 @@ function startEvent(eventType) {
     if (!selfTeam) { toast('No self team found','warn'); return; }
   }
 
+  closeLogEventMenu();
   pendingEventType = eventType;
   pendingEventCoords = null;
 
@@ -1953,7 +2041,7 @@ async function confirmElim() {
     } catch(e) { toast('Save error: '+e.message,'err'); }
   }
 
-  addEventLog({ icon:'<iconify-icon icon="lucide:zap"></iconify-icon>', title:`${player.name} — ${finishes} finish${finishes!==1?'es':''}`, time:t, color:'var(--accent)' });
+  addEventLog({ icon:'<iconify-icon icon="lucide:zap"></iconify-icon>', title:`${player.name} — ${finishes} finish${finishes!==1?'es':''}`, time:t, color:'#D9A404' });
   toast(`${player.name} — ${finishes} finish${finishes!==1?'es':''} @ ${fmtTime(t)}`, 'ok');
   renderTimelineMarkers(); draw();
   pendingEventCoords = null;
@@ -2161,6 +2249,18 @@ async function markMatchEnd() {
   toast(`Match ended @ ${fmtTime(dur)}`,'ok');
   renderTimelineMarkers();
   await showResultsPanel();
+}
+
+// ── End Match confirmation (only shown when actually ending, not when undoing) ──
+function openEndMatchConfirm() {
+  if (!state.matchId) { toast('Select a match first','warn'); return; }
+  const m = matches.find(x=>x.id===state.matchId);
+  if (m?.duration_seconds!=null) { markMatchEnd(); return; }
+  document.getElementById('end-match-modal').classList.add('show');
+}
+function confirmEndMatch() {
+  document.getElementById('end-match-modal').classList.remove('show');
+  markMatchEnd();
 }
 
 // ══════════════════════════════════════════════════════
@@ -2387,6 +2487,8 @@ function renderSquadPanel() {
 
   // Enemy teams
   const enemyList = document.getElementById('sp-enemy-list');
+  const enemyCountEl = document.getElementById('sp-enemy-count');
+  if (enemyCountEl) enemyCountEl.textContent = enemyTeams.length;
   enemyList.innerHTML = '';
   if (!enemyTeams.length) {
     enemyList.innerHTML = '<div class="sp-empty-note">No enemies loaded</div>';
@@ -2620,7 +2722,7 @@ function setVideoState(vs, labelOverride) {
 
 // ── Match Context Bar ──
 function updateMatchContextBar() {
-  const bar = document.getElementById('match-context-bar');
+  const bar = document.getElementById('vod-context-chip');
   if (!bar) return;
   if (!state.matchId) { bar.classList.add('hidden'); return; }
 
@@ -2637,51 +2739,39 @@ function updateMatchContextBar() {
   const mapEl = document.getElementById('mcb-map');
   if (m.map_key) { mapEl.textContent = m.map_key.toUpperCase(); mapEl.classList.remove('hidden'); }
   else { mapEl.classList.add('hidden'); }
-
-  // status chip
-  const matchTeams = teams.filter(tt=>tt.match_id===state.matchId);
-  const hasWipes   = matchTeams.some(tt=>tt.time_of_wipe!=null);
-  const hasDur     = m.duration_seconds!=null;
-  const hasTeams   = matchTeams.length > 0;
-  const statusEl   = document.getElementById('mcb-status');
-  const dotEl      = document.getElementById('mcb-status-dot');
-  const lblEl      = document.getElementById('mcb-status-label');
-  statusEl.classList.remove('hidden');
-  if (hasDur && hasWipes)   { dotEl.style.background='var(--green)';  lblEl.textContent='COMPLETE'; }
-  else if (hasTeams)        { dotEl.style.background='var(--yellow)'; lblEl.textContent='IN PROGRESS'; }
-  else                      { dotEl.style.background='var(--muted2)'; lblEl.textContent='NO DATA'; }
-
-  // open-in-editor link — carry match context via URL
-  const editorLink = document.getElementById('mcb-open-editor');
-  if (editorLink) {
-    const p = new URLSearchParams();
-    if (state.tournamentId) p.set('tournamentId', state.tournamentId);
-    if (state.dayId)        p.set('dayId',        state.dayId);
-    if (state.matchId)      p.set('matchId',      state.matchId);
-    editorLink.href = 'editor.html?' + p.toString();
-  }
 }
 
-// ── Refresh match data from DB (fixes stale-tab scenario) ──
-async function refreshMatchData() {
-  if (!sb || !state.matchId) { toast('No match selected','warn'); return; }
-  toast('Refreshing…','ok');
-  try {
-    // Reload teams for this match
-    const {data:tData} = await sb.from('teams').select('*').eq('match_id',state.matchId);
-    if (tData) {
-      teams = teams.filter(t=>t.match_id!==state.matchId);
-      teams.push(...tData);
-    }
-    await loadMatchPlayers(state.matchId);
-    if (sb) await loadShapesForMatch(state.matchId);
-    updateMatchContextBar();
-    updateVodMatchStatus();
-    renderSquadPanel();
-    renderTimelineMarkers();
-    draw();
-    toast('Match data refreshed ✓','ok');
-  } catch(e) { toast('Refresh failed: '+e.message,'err'); }
+// ── Log Event popover (squad panel) ──
+function toggleLogEventMenu() {
+  document.getElementById('lep-menu').classList.toggle('open');
+}
+function closeLogEventMenu() {
+  document.getElementById('lep-menu').classList.remove('open');
+}
+
+// ── Enemy Teams collapsible section (collapsed by default) ──
+function toggleEnemyTeams() {
+  document.getElementById('sp-enemy-toggle').classList.toggle('open');
+  document.getElementById('sp-enemy-list').classList.toggle('open');
+}
+
+// ── Load Match modal: VOD URL editable, T/D/M/Map + map-align read context ──
+function openLoadMatchModal() {
+  const m = matches.find(x=>x.id===state.matchId);
+  const d = days.find(x=>x.id===state.dayId);
+  const t = tournaments.find(x=>x.id===state.tournamentId);
+  document.getElementById('lmm-tournament').textContent = t?.name || '—';
+  document.getElementById('lmm-day').textContent        = d?.name || '—';
+  document.getElementById('lmm-match').textContent      = m?.name || '—';
+  document.getElementById('lmm-map').textContent        = m?.map_key ? m.map_key.toUpperCase() : '—';
+  document.getElementById('load-match-modal').classList.add('show');
+}
+function closeLoadMatchModal() {
+  document.getElementById('load-match-modal').classList.remove('show');
+}
+function lmmLoadVideo() {
+  loadVideo();
+  closeLoadMatchModal();
 }
 
 // ── Setup flow dialog: load video from inline URL input ──
@@ -2984,6 +3074,11 @@ function onPointerDown(e) {
     if(!circleP1){ circleP1={x:wx,y:wy}; drawing=true; }
     return;
   }
+  if(state.mode==='rotation'){
+    if(!shapes){ toast('Select a match first','warn'); return; }
+    drawing=true; dSX=wx; dSY=wy;
+    return;
+  }
 }
 
 function onPointerMove(e) {
@@ -3010,6 +3105,10 @@ function onPointerMove(e) {
   if(circleP1){
     const p1=circleP1, cx=(p1.x+wx)/2, cy=(p1.y+wy)/2, r=Math.sqrt((wx-p1.x)**2+(wy-p1.y)**2)/2;
     preview={type:'circle',cx,cy,r,tag:'zone',time:state.time,_p1:p1,_p2:{x:wx,y:wy}};
+    draw(); return;
+  }
+  if(drawing&&state.mode==='rotation'){
+    preview={type:'line',x1:dSX,y1:dSY,x2:wx,y2:wy,tag:'rotation',time:state.time};
     draw(); return;
   }
 }
@@ -3041,6 +3140,18 @@ function onPointerUp(e) {
     if(!zonesCache[state.matchId]) zonesCache[state.matchId]=[];
     zonesCache[state.matchId].push(shape);
     queueForSave(shape);
+    preview=null; draw(); renderTimelineMarkers(); return;
+  }
+  if(state.mode==='rotation'&&drawing){
+    drawing=false;
+    const dx=wx-dSX, dy=wy-dSY, dist=Math.sqrt(dx*dx+dy*dy);
+    if(dist<4/zoom){ preview=null; draw(); return; }
+    const shapes=getActiveShapes();
+    if(shapes){
+      const rotIdx=getNextRotationIndex(state.activeTeamId);
+      const shape={type:'line',x1:dSX,y1:dSY,x2:wx,y2:wy,tag:'rotation',time:state.time,rotation_index:rotIdx};
+      shapes.push(shape); queueForSave(shape);
+    }
     preview=null; draw(); renderTimelineMarkers(); return;
   }
   drawing=false;
@@ -3355,7 +3466,8 @@ function toggleOverlayCanvas() {
   canvas.style.display = overlayVisible ? 'block' : 'none';
   const btn = document.getElementById('btn-overlay');
   btn.classList.toggle('active', overlayVisible);
-  btn.innerHTML = overlayVisible ? '<iconify-icon icon="lucide:eye"></iconify-icon> MAP' : '<iconify-icon icon="lucide:eye-off"></iconify-icon> MAP OFF';
+  btn.title = overlayVisible ? 'Toggle map overlay (Z)' : 'Map hidden — click to show';
+  btn.innerHTML = overlayVisible ? '<iconify-icon icon="lucide:eye"></iconify-icon>' : '<iconify-icon icon="lucide:eye-off"></iconify-icon>';
   document.getElementById('map-opacity-cluster').style.opacity = overlayVisible ? '1' : '0.35';
   if(overlayVisible) draw();
 }
