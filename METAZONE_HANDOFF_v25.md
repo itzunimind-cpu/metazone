@@ -298,9 +298,18 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | `_calInverse(wx, wy)` | World → corrected world coords for calibrated map |
 | `updateMapOffset()` | Reads X/Y/scale toolbar inputs, redraws |
 | `resetMapOffset()` | Zeros manual alignment |
-| `setSpeed(rate)` | YT playback rate |
-| `setMode(mode)` | Drawing tool mode |
+| `setSpeed(rate)` | YT playback rate. Session 41: also updates `#btn-speed-pill` label text and closes the speed popover. |
+| `setMode(mode)` | Drawing tool mode. Session 41: now also accepts `'rotation'` (Arrow tool). |
 | `manualSave()` / `queueForSave(shape)` | Shape persistence |
+| `updateMatchContextBar()` | Session 41: retargeted from the removed `#match-context-bar` breadcrumb to the new `#vod-context-chip` (canvas overlay). No longer touches a status sub-chip — `mcb-status`/`mcb-status-dot`/`mcb-status-label` were dropped, not relocated. |
+| **`refreshMatchData()` — REMOVED Session 41.** | Was only called from the now-deleted REFRESH DATA button (`#match-context-bar`) and an icon button in the Enemy Teams card header. Both call sites dropped per this session's decision; function deleted as dead code. **Do not re-add a call to this name — it no longer exists.** |
+| `openLoadMatchModal()` / `closeLoadMatchModal()` / `lmmLoadVideo()` | Session 41, new. Left toolbar's folder icon opens `#load-match-modal` (pre-fills read-only Tournament/Day/Match/Map). `lmmLoadVideo()` just calls the existing `loadVideo()` then closes the modal — the actual `#vod-url-input` element was relocated into this modal, same id, not duplicated. |
+| `toggleLogEventMenu()` / `closeLogEventMenu()` | Session 41, new. Squad panel's "+ LOG EVENT" button toggles `#lep-menu` open/closed (houses the original 4 event buttons — elim/loss/wipe/ewipe — unchanged ids/onclicks). `closeLogEventMenu()` is called from inside `startEvent()` so the popover closes the moment an event type is picked. |
+| `toggleEnemyTeams()` | Session 41, new. Toggles `.open` on `#sp-enemy-toggle` + `#sp-enemy-list` — Enemy Teams card is collapsed by default now. `renderSquadPanel()` was extended to update `#sp-enemy-count` (badge) alongside its existing enemy-list render. |
+| `skipBack()` / `skipForward()` | Session 41, new. Bottom bar's transport buttons — `seekToMatchTime(state.time ∓ 10)`. |
+| `toggleStageFullscreen()` | Session 41, new. Fullscreen API on `#vod-stage` (video + canvas only, not the floating chrome's containing element — chrome is positioned inside `#vod-stage` so it fullscreens too). |
+| `toggleSpeedPopover()` / `closeSpeedPopover()` | Session 41, new. Bottom bar's speed pill (`#btn-speed-pill`) toggles `.open` on `#speed-cluster`, now a popover instead of 5 inline buttons. `setSpeed()` calls `closeSpeedPopover()` after applying the rate. |
+| `openEndMatchConfirm()` / `confirmEndMatch()` | Session 41, new. Left toolbar's End Match icon no longer calls `markMatchEnd()` directly. `openEndMatchConfirm()` checks `matches.find(...).duration_seconds` — if already set (i.e. this would be the *undo* path), skips the modal and calls `markMatchEnd()` straight through since that's reversible; otherwise shows `#end-match-modal` (`modal-red`). `confirmEndMatch()` closes the modal then calls `markMatchEnd()`. `markMatchEnd()` itself is unchanged. |
 
 ---
 
@@ -570,3 +579,4 @@ VOD ✓ badge = match.vod_start_offset != null
 | history.html not built | 🟡 Deferred |
 | applyUrlParams on VOD: fast-boot path only runs applyUrlParams in the `if (session)` branch of getSession, not in onAuthStateChange. If magic link auth fires onAuthStateChange, applyUrlParams is also called there (both branches covered). | ✅ Handled |
 | _pendingSkipOffset: if user switches match before video loads, stale offset could fire. Cleared on onMatchChange. | ✅ Handled — onMatchChange sets `_pendingSkipOffset = null` via banner dismiss |
+| vod.html Session 41 redesign (floating toolbar/panel/chip/bottom bar) was verified by div-balance check, inline-`<script>` parse check, and grep for dangling element-id references only — **no live browser render was done** (no Playwright/chromium-cli in that sandbox, real UI is behind Supabase magic-link auth). First person to open it live should sanity-check: floating panel doesn't overflow on narrow viewports, the team-select dropdown (`#vlt-team-select-wrap`, top-left under the context chip) doesn't visually collide with the context chip above it, and the Arrow tool's drag-to-draw feels right. | 🟡 Needs a real look |
