@@ -287,6 +287,13 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
   box-shadow:0 4px 20px rgba(12,10,7,.28);
   scrollbar-width:thin;scrollbar-color:var(--border) transparent;
 }
+#sp-match-data{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px;border-bottom:1px solid var(--border-dim);
+  border-radius:12px 12px 0 0;background:var(--bg-card);flex-shrink:0;
+}
+.sp-md-label{ font-family:var(--font-mono);font-size:9px;font-weight:600;color:var(--forest);letter-spacing:.12em;text-transform:uppercase; }
+#sp-match-data .tb-time{ font-size:14px;min-width:auto; }
 .sp-section{ padding:12px 12px 8px;border-bottom:1px solid var(--border-dim); }
 .sp-section:first-child{ padding-top:14px; }
 .sp-section.no-grow{ flex:0; }
@@ -622,28 +629,6 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 body.cal-phase1-active #yt-player-wrap{ filter:none; }
 body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 
-/* ══ VIDEO STATE INDICATOR ══ */
-.vid-state{
-  display:flex;align-items:center;gap:5px;padding:3px 9px;
-  border:1px solid var(--border);border-radius:5px;background:var(--bg);
-  font-family:var(--font-mono);font-size:9px;letter-spacing:.07em;white-space:nowrap;flex-shrink:0;
-  transition:border-color .3s;
-}
-.vsd-dot{
-  width:7px;height:7px;border-radius:50%;flex-shrink:0;transition:background .3s;
-}
-.vsd-label{ color:var(--muted);transition:color .3s; }
-.vid-state[data-vs="idle"]   .vsd-dot{ background:var(--muted2); }
-.vid-state[data-vs="loading"] .vsd-dot{ background:var(--yellow);animation:pulse 1s infinite; }
-.vid-state[data-vs="ready"]   .vsd-dot{ background:var(--green); }
-.vid-state[data-vs="ready"]   { border-color:rgba(78,124,47,.25); }
-.vid-state[data-vs="synced"]  .vsd-dot{ background:var(--accent); }
-.vid-state[data-vs="synced"]  { border-color:rgba(44,74,46,.25); }
-.vid-state[data-vs="synced"]  .vsd-label{ color:var(--accent); }
-.vid-state[data-vs="lost"]    .vsd-dot{ background:var(--red);animation:pulse .6s infinite; }
-.vid-state[data-vs="lost"]    { border-color:rgba(155,28,17,.4); }
-.vid-state[data-vs="lost"]    .vsd-label{ color:var(--red); }
-
 /* ══ CANVAS CONTEXT CHIP (read-only, top-left over canvas) ══ */
 #vod-context-chip{
   position:absolute;top:14px;left:14px;z-index:14;
@@ -652,10 +637,6 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
   backdrop-filter:blur(4px);max-width:60%;
 }
 #vod-context-chip.hidden{ display:none; }
-#vod-context-chip .tb-match-status,
-#vod-context-chip .vid-state,
-#vod-context-chip .tb-time{ margin-left:10px; }
-#vod-context-chip .tb-time{ font-size:13px;min-width:auto; }
 .mcb-crumb{
   font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:.05em;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
@@ -732,17 +713,6 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
   transition:all .15s;letter-spacing:.04em;
 }
 .btn-sfd-skip:hover{ border-color:var(--muted);color:var(--text); }
-
-/* ══ MATCH STATUS CHIP (toolbar) ══ */
-.tb-match-status{
-  display:flex;align-items:center;gap:5px;padding:3px 8px;
-  border:1px solid var(--border);border-radius:5px;background:var(--bg-card);
-  font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;white-space:nowrap;flex-shrink:0;
-}
-.tb-match-status.hidden{ display:none; }
-.tms-dot{ width:6px;height:6px;border-radius:50%;flex-shrink:0; }
-.tms-label{ color:var(--muted); }
-.tms-vod{ font-size:8px;padding:1px 5px;border-radius:3px;background:rgba(44,74,46,.1);color:var(--accent);border:1px solid rgba(44,74,46,.25);margin-left:3px; }
 
 /* ══ SKIP TO MATCH START BANNER ══ */
 #skip-to-start-banner{
@@ -908,16 +878,6 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
         <span class="mcb-sep">›</span>
         <span class="mcb-crumb mcb-match" id="mcb-match">—</span>
         <span class="mcb-map hidden" id="mcb-map"></span>
-        <div class="tb-match-status hidden" id="tb-match-status">
-          <div class="tms-dot" id="tms-dot"></div>
-          <span class="tms-label" id="tms-label">—</span>
-          <span class="tms-vod hidden" id="tms-vod"><iconify-icon icon="lucide:check"></iconify-icon> VOD</span>
-        </div>
-        <div class="vid-state" id="vid-state" data-vs="idle">
-          <div class="vsd-dot"></div>
-          <span class="vsd-label" id="vsd-label">NO VIDEO</span>
-        </div>
-        <div class="tb-time" id="tb-match-time">—:——</div>
       </div>
 
       <!-- ══ DRAWING TEAM SELECT ══ -->
@@ -960,6 +920,12 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 
     <!-- ── SQUAD PANEL (floating, top-right over canvas) ── -->
     <div id="squad-panel">
+
+      <!-- Match Data (timer) -->
+      <div id="sp-match-data">
+        <span class="sp-md-label">MATCH TIME</span>
+        <div class="tb-time" id="tb-match-time">—:——</div>
+      </div>
 
       <!-- Map Opacity -->
       <div class="sp-section no-grow">
@@ -1546,7 +1512,6 @@ function _createYTPlayer(videoId) {
     window.addEventListener('message', _onYTMessage);
   }
   _ytPlayerReady = false;
-  setVideoState('loading');
   const origin = encodeURIComponent(location.origin);
   iframe.src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1&rel=0&modestbranding=1&origin=${origin}`;
 
@@ -1557,7 +1522,6 @@ function _createYTPlayer(videoId) {
   window._ytReadyFallback = setTimeout(() => {
     if (!_ytPlayerReady) {
       _ytPlayerReady = true;
-      setVideoState('ready');
       toast('Video ready — scrub to match start, then press START MATCH', 'ok');
       const btn = document.getElementById('btn-start-match');
       if (btn) btn.disabled = !state.matchId;
@@ -1604,7 +1568,6 @@ function _onYTMessage(event) {
   if (data.event === 'onReady') {
     _ytPlayerReady = true;
     _ytRealOnReadyFired = true;  // fix 1.1: real onReady, not fallback
-    setVideoState('ready');
     // Ask YT iframe to start pushing infoDelivery updates (works even when paused)
     const ifrm = document.getElementById('yt-iframe');
     if (ifrm && ifrm.contentWindow) {
@@ -1749,7 +1712,6 @@ function startPolling() {
         _setSyncLost(true);
       } else {
         _setSyncLost(false);
-        setVideoState('synced', 'SYNCED ' + fmtTime(state.time));
       }
     } catch(e) {}
   }, 250);
@@ -1759,7 +1721,6 @@ let _syncLostActive = false;
 function _setSyncLost(lost) {
   if (lost === _syncLostActive) return; // no change
   _syncLostActive = lost;
-  setVideoState(lost ? 'lost' : 'synced');
   const el = document.getElementById('tb-match-time');
   if (el) {
     el.style.color = lost ? 'var(--red)' : '';
@@ -1860,7 +1821,6 @@ async function _doStartMatch() {
     document.getElementById('btn-start-match').style.background = 'var(--muted2)';
     document.getElementById('btn-start-match').style.color = 'var(--text)';
     document.getElementById('skip-to-start-banner').classList.remove('show');
-    updateVodMatchStatus();
     // fix 5.5: confirmation toast listing what synced
     const matchTeams = teams.filter(t=>t.match_id===state.matchId);
     const syncedTeams = matchTeams.length;
@@ -2547,7 +2507,6 @@ async function onMatchChange(val) {
   _seekInProgress = false;                        // clear any seek lock
   _lastTimeUpdate = 0;                            // reset sync tracker
   _syncLostActive = false;                        // reset sync-lost display
-  setVideoState('idle');                          // reset video state indicator
   const timeEl = document.getElementById('tb-match-time');
   if (timeEl) { timeEl.style.color=''; timeEl.title=''; }
 
@@ -2557,7 +2516,6 @@ async function onMatchChange(val) {
   // Always hide banners/dialogs on match change
   document.getElementById('skip-to-start-banner').classList.remove('show');
   document.getElementById('editor-data-dialog').classList.remove('show');
-  updateVodMatchStatus();
 
   if (state.matchId) {
     const m = matches.find(x=>x.id===state.matchId);
@@ -2588,13 +2546,11 @@ async function onMatchChange(val) {
 
     // Post-load: check for editor data and decide what dialog to show
     await _postMatchLoadDialogs(m);
-    updateVodMatchStatus();
   }
   stopPolling(); matchActive=false; matchTime=0; state.time=0;
   document.getElementById('btn-start-match').innerHTML='<iconify-icon icon="lucide:play"></iconify-icon> START MATCH';
   document.getElementById('btn-start-match').style.background='';
   document.getElementById('btn-start-match').style.color='';
-  setVideoState('idle');
   updateEventButtons(); updateMatchTimeDisplay();
   renderSquadPanel(); renderTimelineMarkers(); draw();
   updateMatchContextBar();
@@ -2689,16 +2645,6 @@ function startFreshVodSession() {
   toast('Fresh VOD session — scrub to match start and press START MATCH', 'ok');
 }
 
-// ── Video State Indicator ──
-function setVideoState(vs, labelOverride) {
-  const el = document.getElementById('vid-state');
-  const lb = document.getElementById('vsd-label');
-  if (!el || !lb) return;
-  el.dataset.vs = vs;
-  const labels = { idle:'NO VIDEO', loading:'LOADING…', ready:'READY', synced:'SYNCED', lost:'SYNC LOST' };
-  lb.textContent = labelOverride || labels[vs] || vs;
-}
-
 // ── Match Context Bar ──
 function updateMatchContextBar() {
   const bar = document.getElementById('vod-context-chip');
@@ -2768,31 +2714,6 @@ function sfdLoadVideo() {
       setTimeout(() => { btn.style.boxShadow = ''; }, 5000);
     }
   }, 800);
-}
-
-// ── VOD Match Status Chip ──
-function updateVodMatchStatus() {
-  const chip = document.getElementById('tb-match-status');
-  const dot = document.getElementById('tms-dot');
-  const label = document.getElementById('tms-label');
-  const vodBadge = document.getElementById('tms-vod');
-  if (!chip) return;
-  if (!state.matchId) { chip.classList.add('hidden'); return; }
-  const m = matches.find(x=>x.id===state.matchId);
-  if (!m) { chip.classList.add('hidden'); return; }
-  const matchTeams = teams.filter(t=>t.match_id===state.matchId);
-  const hasWipes = matchTeams.some(t=>t.time_of_wipe!=null);
-  const hasDuration = m.duration_seconds != null;
-  const hasTeams = matchTeams.length > 0;
-  let level, txt, color;
-  if (hasDuration && hasWipes) { level='complete'; txt='DATA COMPLETE'; color='var(--green)'; }
-  else if (hasTeams) { level='partial'; txt='IN PROGRESS'; color='var(--yellow)'; }
-  else { level='empty'; txt='NO DATA YET'; color='var(--muted2)'; }
-  chip.classList.remove('hidden');
-  dot.style.background = color;
-  label.textContent = txt;
-  if (m.vod_start_offset != null) { vodBadge.classList.remove('hidden'); }
-  else { vodBadge.classList.add('hidden'); }
 }
 
 // ── Lightweight confirm dialog (returns Promise<bool>) ──
