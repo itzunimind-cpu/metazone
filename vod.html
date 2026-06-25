@@ -128,12 +128,6 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 .vlt-btn.vlt-ev-wipe:hover:not(:disabled){ background:rgba(155,28,17,.16); }
 .vlt-btn.vlt-ev-ewipe:hover:not(:disabled){ background:rgba(200,94,10,.16); }
 
-/* ── Drawing team select (floating, top-left under context chip) ── */
-#vlt-team-select-wrap{
-  position:absolute;top:58px;left:14px;z-index:14;
-}
-#vlt-team-select-wrap .tb-select{ height:28px;font-size:10px; }
-
 /* ── Log Event popover ── */
 .sp-card-header .icon-btn-sm{ display:flex;align-items:center;gap:4px;height:auto;padding:3px 8px; }
 .tb-select{
@@ -304,8 +298,9 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
   font-family:var(--font-mono);font-size:9px;color:var(--muted);background:var(--bg);
   border:1px solid var(--border);border-radius:8px;padding:1px 6px;margin-left:6px;
 }
-#sp-enemy-list{ display:none; }
-#sp-enemy-list.open{ display:block; }
+.sp-collapse-body{ display:none; }
+.sp-collapse-body.open{ display:block; }
+#sp-self-body > *:not(:first-child){ margin-top:8px; }
 .sp-card{ background:var(--bg);border:1px solid var(--border-dim);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:8px; }
 .sp-log-section{ flex:1;display:flex;flex-direction:column;min-height:0; }
 .sp-log-card{ flex:1;min-height:0; }
@@ -629,13 +624,7 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 body.cal-phase1-active #yt-player-wrap{ filter:none; }
 body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 
-/* ══ CANVAS CONTEXT CHIP (read-only, top-left over canvas) ══ */
-#vod-context-chip{
-  position:absolute;top:14px;left:14px;z-index:14;
-  display:flex;align-items:center;gap:0;padding:6px 12px;overflow:hidden;
-  background:var(--overlay-dark);border:1px solid var(--border);border-radius:8px;
-  backdrop-filter:blur(4px);max-width:60%;
-}
+/* ══ MATCH INFO (read-only T/D/M/Map, in squad panel) ══ */
 #vod-context-chip.hidden{ display:none; }
 .mcb-crumb{
   font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:.05em;
@@ -870,23 +859,6 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
         </div>
       </div>
 
-      <!-- ══ READ-ONLY CONTEXT CHIP ══ -->
-      <div id="vod-context-chip" class="hidden">
-        <span class="mcb-crumb" id="mcb-tournament">—</span>
-        <span class="mcb-sep">›</span>
-        <span class="mcb-crumb" id="mcb-day">—</span>
-        <span class="mcb-sep">›</span>
-        <span class="mcb-crumb mcb-match" id="mcb-match">—</span>
-        <span class="mcb-map hidden" id="mcb-map"></span>
-      </div>
-
-      <!-- ══ DRAWING TEAM SELECT ══ -->
-      <div id="vlt-team-select-wrap">
-        <select class="tb-select active-team" id="sel-active-team" onchange="setActiveTeam(this.value)" title="Drawing team">
-          <option value="">— Team —</option>
-        </select>
-      </div>
-
       <!-- ══ LEFT FLOATING TOOLBAR ══ -->
       <div id="vod-left-tools">
         <button class="tb-mode-pill" data-mode="zone"  onclick="setMode('zone')"  title="Zone Circle (drag)"><iconify-icon icon="lucide:circle"></iconify-icon></button>
@@ -927,6 +899,36 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
         <div class="tb-time" id="tb-match-time">—:——</div>
       </div>
 
+      <!-- Drawing Team -->
+      <div class="sp-section no-grow">
+        <div class="sp-card">
+          <span class="sp-label">Drawing Team</span>
+          <select class="tb-select active-team" id="sel-active-team" onchange="setActiveTeam(this.value)" title="Drawing team" style="width:100%;">
+            <option value="">— Team —</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Match Info (collapsible, collapsed by default) -->
+      <div class="sp-section no-grow" id="vod-context-chip">
+        <div class="sp-card">
+          <div class="sp-card-header collapsible" id="sp-match-info-toggle" onclick="toggleMatchInfo()">
+            <span class="sp-label" style="margin-bottom:0;">Match Info</span>
+            <iconify-icon icon="lucide:chevron-down" class="sp-chevron"></iconify-icon>
+          </div>
+          <div class="sp-collapse-body" id="sp-match-info-body">
+            <div class="lmm-context-row">
+              <span class="mcb-crumb" id="mcb-tournament">—</span>
+              <span class="mcb-sep">›</span>
+              <span class="mcb-crumb" id="mcb-day">—</span>
+              <span class="mcb-sep">›</span>
+              <span class="mcb-crumb mcb-match" id="mcb-match">—</span>
+              <span class="mcb-map hidden" id="mcb-map"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Map Opacity -->
       <div class="sp-section no-grow">
         <div class="sp-card">
@@ -941,18 +943,23 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
         </div>
       </div>
 
-      <!-- Self Team -->
+      <!-- Self Team (collapsible, expanded by default) -->
       <div class="sp-section" id="sp-self-section">
         <div class="sp-card">
-          <span class="sp-label">Our Squad</span>
-          <div class="sp-self-header">
-            <div class="sp-self-dot"></div>
-            <div class="sp-self-name" id="sp-self-name">—</div>
+          <div class="sp-card-header collapsible open" id="sp-self-toggle" onclick="toggleOurSquad()">
+            <span class="sp-label" style="margin-bottom:0;">Our Squad</span>
+            <iconify-icon icon="lucide:chevron-down" class="sp-chevron"></iconify-icon>
           </div>
-          <div class="sp-player-list" id="sp-player-list">
-            <div class="sp-empty-note">No match selected</div>
+          <div class="sp-collapse-body open" id="sp-self-body">
+            <div class="sp-self-header">
+              <div class="sp-self-dot"></div>
+              <div class="sp-self-name" id="sp-self-name">—</div>
+            </div>
+            <div class="sp-player-list" id="sp-player-list">
+              <div class="sp-empty-note">No match selected</div>
+            </div>
+            <button class="btn-set-squad" onclick="openActivePlayersModal()"><iconify-icon icon="lucide:users"></iconify-icon> SET SQUAD</button>
           </div>
-          <button class="btn-set-squad" onclick="openActivePlayersModal()"><iconify-icon icon="lucide:users"></iconify-icon> SET SQUAD</button>
         </div>
       </div>
 
@@ -963,7 +970,7 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
             <span class="sp-label" style="margin-bottom:0;">Enemy Teams<span class="sp-count-badge" id="sp-enemy-count">0</span></span>
             <iconify-icon icon="lucide:chevron-down" class="sp-chevron"></iconify-icon>
           </div>
-          <div id="sp-enemy-list">
+          <div class="sp-collapse-body" id="sp-enemy-list">
             <div class="sp-empty-note">No teams loaded</div>
           </div>
         </div>
@@ -2670,6 +2677,18 @@ function updateMatchContextBar() {
 function toggleEnemyTeams() {
   document.getElementById('sp-enemy-toggle').classList.toggle('open');
   document.getElementById('sp-enemy-list').classList.toggle('open');
+}
+
+// ── Our Squad collapsible section (expanded by default) ──
+function toggleOurSquad() {
+  document.getElementById('sp-self-toggle').classList.toggle('open');
+  document.getElementById('sp-self-body').classList.toggle('open');
+}
+
+// ── Match Info collapsible section (collapsed by default) ──
+function toggleMatchInfo() {
+  document.getElementById('sp-match-info-toggle').classList.toggle('open');
+  document.getElementById('sp-match-info-body').classList.toggle('open');
 }
 
 // ── Load Match modal: VOD URL editable, T/D/M/Map + map-align read context ──
