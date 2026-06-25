@@ -119,6 +119,14 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 .vlt-btn.vlt-start:hover:not(:disabled){ background:rgba(44,74,46,.16); }
 .vlt-btn.vlt-end{ border-color:rgba(155,28,17,.4);color:var(--red);background:rgba(155,28,17,.08); }
 .vlt-btn.vlt-end:hover:not(:disabled){ background:rgba(155,28,17,.16); }
+.vlt-btn.vlt-ev-elim{  border-color:rgba(44,74,46,.4); color:var(--accent); background:rgba(44,74,46,.08); }
+.vlt-btn.vlt-ev-loss{  border-color:rgba(124,90,0,.4); color:var(--yellow); background:rgba(124,90,0,.08); }
+.vlt-btn.vlt-ev-wipe{  border-color:rgba(155,28,17,.4); color:var(--red); background:rgba(155,28,17,.08); }
+.vlt-btn.vlt-ev-ewipe{ border-color:rgba(200,94,10,.4); color:var(--orange); background:rgba(200,94,10,.08); }
+.vlt-btn.vlt-ev-elim:hover:not(:disabled){ background:rgba(44,74,46,.16); }
+.vlt-btn.vlt-ev-loss:hover:not(:disabled){ background:rgba(124,90,0,.16); }
+.vlt-btn.vlt-ev-wipe:hover:not(:disabled){ background:rgba(155,28,17,.16); }
+.vlt-btn.vlt-ev-ewipe:hover:not(:disabled){ background:rgba(200,94,10,.16); }
 
 /* ── Drawing team select (floating, top-left under context chip) ── */
 #vlt-team-select-wrap{
@@ -128,13 +136,6 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 
 /* ── Log Event popover ── */
 .sp-card-header .icon-btn-sm{ display:flex;align-items:center;gap:4px;height:auto;padding:3px 8px; }
-#log-event-popover{
-  position:relative;
-}
-.lep-menu{
-  display:none;flex-direction:column;gap:4px;margin-top:6px;
-}
-.lep-menu.open{ display:flex; }
 .tb-select{
   height:30px;padding:0 8px;background:var(--bg);color:var(--text);border:1px solid var(--border);
   border-radius:6px;font-family:var(--font-body);font-size:11px;font-weight:500;outline:none;
@@ -338,21 +339,6 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 .sp-player-name{ flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
 .sp-player-time{ font-family:var(--font-mono);font-size:9px;color:var(--muted); }
 
-/* Event buttons in squad panel */
-.sp-event-grid{ display:grid;grid-template-columns:1fr 1fr;gap:4px; }
-.sp-event-btn{
-  padding:8px 4px;border-radius:6px;font-family:var(--font-body);font-size:11px;font-weight:700;
-  cursor:pointer;transition:all .15s;text-align:center;border:1px solid;
-}
-.sp-event-btn:disabled{ opacity:.35;cursor:not-allowed; }
-.sp-event-btn.elim{  background:rgba(44,74,46,.1);color:var(--accent);border-color:rgba(44,74,46,.4); }
-.sp-event-btn.elim:not(:disabled):hover{ background:rgba(44,74,46,.2); }
-.sp-event-btn.loss{  background:rgba(124,90,0,.1);color:var(--yellow);border-color:rgba(124,90,0,.4); }
-.sp-event-btn.loss:not(:disabled):hover{ background:rgba(124,90,0,.2); }
-.sp-event-btn.wipe{  background:rgba(155,28,17,.1);color:var(--red);border-color:rgba(155,28,17,.4); }
-.sp-event-btn.wipe:not(:disabled):hover{ background:rgba(155,28,17,.2); }
-.sp-event-btn.ewipe{ background:rgba(200,94,10,.1);color:var(--orange);border-color:rgba(200,94,10,.4); }
-.sp-event-btn.ewipe:not(:disabled):hover{ background:rgba(200,94,10,.2); }
 /* Enemy teams */
 .sp-enemy-team{
   display:flex;align-items:center;gap:7px;padding:6px 8px;
@@ -955,6 +941,13 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 
         <div class="vlt-divider"></div>
 
+        <button class="vlt-btn vlt-ev-elim"  id="btn-ev-elim"  onclick="startEvent('elim')"  disabled title="Self Elim"><iconify-icon icon="lucide:zap"></iconify-icon></button>
+        <button class="vlt-btn vlt-ev-loss"  id="btn-ev-loss"  onclick="startEvent('loss')"  disabled title="Self Loss"><iconify-icon icon="lucide:skull"></iconify-icon></button>
+        <button class="vlt-btn vlt-ev-wipe"  id="btn-ev-wipe"  onclick="startEvent('wipe')"  disabled title="Self Wipe"><iconify-icon icon="lucide:shield-x"></iconify-icon></button>
+        <button class="vlt-btn vlt-ev-ewipe" id="btn-ev-ewipe" onclick="startEvent('ewipe')" disabled title="Enemy Wipe"><iconify-icon icon="lucide:flag"></iconify-icon></button>
+
+        <div class="vlt-divider"></div>
+
         <button class="vlt-btn" onclick="openLoadMatchModal()" title="Load match / VOD link"><iconify-icon icon="lucide:folder-open"></iconify-icon></button>
         <button class="vlt-btn cal-mode-btn" id="btn-calibrate" onclick="toggleCalibration()" title="2-point map calibration"><iconify-icon icon="lucide:crosshair"></iconify-icon></button>
         <button class="vlt-btn" id="btn-save" onclick="manualSave()" title="Save"><iconify-icon icon="lucide:save"></iconify-icon></button>
@@ -1013,20 +1006,7 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
       <!-- Event Log -->
       <div class="sp-section sp-log-section">
         <div class="sp-card sp-log-card">
-          <div id="log-event-popover">
-            <div class="sp-card-header">
-              <span class="sp-label" style="margin-bottom:0;">Event Log</span>
-              <button class="icon-btn-sm" id="btn-log-event" onclick="toggleLogEventMenu()" title="Log event"><iconify-icon icon="lucide:plus"></iconify-icon> LOG EVENT</button>
-            </div>
-            <div class="lep-menu" id="lep-menu">
-              <div class="sp-event-grid">
-                <button class="sp-event-btn elim"  id="btn-ev-elim"  onclick="startEvent('elim')"  disabled><iconify-icon icon="lucide:zap"></iconify-icon> SELF ELIM</button>
-                <button class="sp-event-btn loss"  id="btn-ev-loss"  onclick="startEvent('loss')"  disabled><iconify-icon icon="lucide:skull"></iconify-icon> SELF LOSS</button>
-                <button class="sp-event-btn wipe"  id="btn-ev-wipe"  onclick="startEvent('wipe')"  disabled><iconify-icon icon="lucide:shield-x"></iconify-icon> SELF WIPE</button>
-                <button class="sp-event-btn ewipe" id="btn-ev-ewipe" onclick="startEvent('ewipe')" disabled><iconify-icon icon="lucide:flag"></iconify-icon> ENEMY WIPE</button>
-              </div>
-            </div>
-          </div>
+          <span class="sp-label">Event Log</span>
           <div id="vod-event-log"></div>
         </div>
       </div>
@@ -1938,7 +1918,6 @@ function startEvent(eventType) {
     if (!selfTeam) { toast('No self team found','warn'); return; }
   }
 
-  closeLogEventMenu();
   pendingEventType = eventType;
   pendingEventCoords = null;
 
@@ -2739,14 +2718,6 @@ function updateMatchContextBar() {
   const mapEl = document.getElementById('mcb-map');
   if (m.map_key) { mapEl.textContent = m.map_key.toUpperCase(); mapEl.classList.remove('hidden'); }
   else { mapEl.classList.add('hidden'); }
-}
-
-// ── Log Event popover (squad panel) ──
-function toggleLogEventMenu() {
-  document.getElementById('lep-menu').classList.toggle('open');
-}
-function closeLogEventMenu() {
-  document.getElementById('lep-menu').classList.remove('open');
 }
 
 // ── Enemy Teams collapsible section (collapsed by default) ──
