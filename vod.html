@@ -130,13 +130,19 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 
 /* ── Log Event popover ── */
 .sp-card-header .icon-btn-sm{ display:flex;align-items:center;gap:4px;height:auto;padding:3px 8px; }
-.tb-select{
-  height:30px;padding:0 8px;background:var(--bg);color:var(--text);border:1px solid var(--border);
-  border-radius:6px;font-family:var(--font-body);font-size:11px;font-weight:500;outline:none;
-  transition:border-color .2s;min-width:110px;max-width:160px;cursor:pointer;
+
+/* ── Drawing Team pill list (replaces native <select>) ── */
+.sp-team-pill{
+  display:flex;align-items:center;gap:8px;padding:6px 8px;margin-top:6px;
+  background:var(--bg);border:1px solid var(--border);border-radius:6px;
+  cursor:pointer;transition:all .15s;
 }
-.tb-select:focus{ border-color:var(--accent); }
-.tb-select.active-team{ min-width:120px;border-color:var(--accent);color:var(--accent); }
+.sp-team-pill:first-child{ margin-top:0; }
+.sp-team-pill:hover{ border-color:var(--accent); }
+.sp-team-pill.active{ border-color:var(--accent);background:var(--accent-dim); }
+.sp-team-pill-dot{ width:7px;height:7px;border-radius:50%;flex-shrink:0; }
+.sp-team-pill-name{ flex:1;font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+
 .map-align-label{ font-size:10px;color:var(--muted);white-space:nowrap; }
 .map-align-input{
   width:48px;height:22px;background:var(--bg);color:var(--text);border:1px solid var(--border);
@@ -285,7 +291,8 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 .sp-section{ padding:12px 12px 8px;border-bottom:1px solid var(--border-dim); }
 .sp-section:first-child{ padding-top:14px; }
 .sp-section.no-grow{ flex:0; }
-.sp-card-header.collapsible{ cursor:pointer; }
+.sp-card-header.collapsible{ cursor:pointer;margin:-2px -4px;padding:2px 4px;border-radius:5px;transition:background .15s; }
+.sp-card-header.collapsible:hover{ background:var(--hover-tint); }
 .sp-card-header.collapsible iconify-icon.sp-chevron{ color:var(--muted2);font-size:13px;transition:transform .2s; }
 .sp-card-header.collapsible.open iconify-icon.sp-chevron{ transform:rotate(180deg); }
 .sp-count-badge{
@@ -895,13 +902,17 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
         <div class="tb-time" id="tb-match-time">—:——</div>
       </div>
 
-      <!-- Drawing Team -->
+      <!-- Map Opacity -->
       <div class="sp-section no-grow">
         <div class="sp-card">
-          <span class="sp-label">Drawing Team</span>
-          <select class="tb-select active-team" id="sel-active-team" onchange="setActiveTeam(this.value)" title="Drawing team" style="width:100%;">
-            <option value="">— Team —</option>
-          </select>
+          <div class="sp-card-header">
+            <span class="sp-label">Map Opacity</span>
+            <button class="icon-btn-sm active" id="btn-overlay" onclick="toggleOverlayCanvas()" title="Toggle map overlay (Z)"><iconify-icon icon="lucide:eye"></iconify-icon></button>
+          </div>
+          <div class="map-opacity-cluster" id="map-opacity-cluster" title="Map opacity">
+            <input type="range" class="map-opacity-slider" id="map-opacity-slider" min="0" max="100" value="62" oninput="setMapOpacity(this.value)" style="flex:1;">
+            <span class="map-opacity-val" id="map-opacity-val">62%</span>
+          </div>
         </div>
       </div>
 
@@ -925,16 +936,15 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
         </div>
       </div>
 
-      <!-- Map Opacity -->
+      <!-- Drawing Team (collapsible pill list, no native dropdown) -->
       <div class="sp-section no-grow">
         <div class="sp-card">
-          <div class="sp-card-header">
-            <span class="sp-label">Map Opacity</span>
-            <button class="icon-btn-sm active" id="btn-overlay" onclick="toggleOverlayCanvas()" title="Toggle map overlay (Z)"><iconify-icon icon="lucide:eye"></iconify-icon></button>
+          <div class="sp-card-header collapsible" id="sp-team-toggle" onclick="toggleTeamSelect()">
+            <span class="sp-label" style="margin-bottom:0;">Drawing Team: <span id="sp-team-current">—</span></span>
+            <iconify-icon icon="lucide:chevron-down" class="sp-chevron"></iconify-icon>
           </div>
-          <div class="map-opacity-cluster" id="map-opacity-cluster" title="Map opacity">
-            <input type="range" class="map-opacity-slider" id="map-opacity-slider" min="0" max="100" value="62" oninput="setMapOpacity(this.value)" style="flex:1;">
-            <span class="map-opacity-val" id="map-opacity-val">62%</span>
+          <div class="sp-collapse-body" id="sp-team-list">
+            <div class="sp-empty-note">No teams loaded</div>
           </div>
         </div>
       </div>
@@ -3865,15 +3875,31 @@ function setActiveTeam(teamId) {
   draw();
 }
 
+// ── Drawing Team collapsible pill list (replaces native <select>) ──
+function toggleTeamSelect() {
+  document.getElementById('sp-team-toggle').classList.toggle('open');
+  document.getElementById('sp-team-list').classList.toggle('open');
+}
+function selectDrawingTeam(teamId) {
+  setActiveTeam(teamId);
+  refreshTeamSelector();
+  toggleTeamSelect();
+}
 function refreshTeamSelector() {
-  const sel = document.getElementById('sel-active-team');
-  if (!sel) return;
-  sel.innerHTML = '<option value="">— Team —</option>';
+  const list = document.getElementById('sp-team-list');
+  const curEl = document.getElementById('sp-team-current');
+  if (!list) return;
   const matchTeams = teams.filter(t => t.match_id === state.matchId);
+  const current = matchTeams.find(t => t.id === state.activeTeamId);
+  if (curEl) curEl.textContent = current ? ((current.is_self ? '★ ' : '') + current.name) : '—';
+  list.innerHTML = '';
+  if (!matchTeams.length) { list.innerHTML = '<div class="sp-empty-note">No teams loaded</div>'; return; }
   matchTeams.forEach(t => {
-    const o = new Option((t.is_self ? '★ ' : '') + t.name, t.id);
-    if (t.id === state.activeTeamId) o.selected = true;
-    sel.add(o);
+    const pill = document.createElement('div');
+    pill.className = 'sp-team-pill' + (t.id === state.activeTeamId ? ' active' : '');
+    pill.onclick = (e) => { e.stopPropagation(); selectDrawingTeam(t.id); };
+    pill.innerHTML = `<div class="sp-team-pill-dot" style="background:${t.color || '#888'}"></div><span class="sp-team-pill-name">${t.is_self ? '★ ' : ''}${esc(t.name)}</span>`;
+    list.appendChild(pill);
   });
 }
 
