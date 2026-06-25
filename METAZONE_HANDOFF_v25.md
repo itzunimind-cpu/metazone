@@ -323,7 +323,7 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | tournament-editor.html | ✅ Complete | Nav updated |
 | analytics.html | ✅ Complete | Nav updated, active link fixed |
 | player.html | ✅ Complete | Nav updated |
-| vod.html | ✅ Complete | v3.0 — full QoL overhaul |
+| vod.html | ✅ Complete | v6.0 — floating-chrome read-only analysis-session redesign (Session 41) |
 | history.html | ❌ Not built | Deferred — needs real data first |
 
 ---
@@ -457,6 +457,7 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 
 > Single source of truth. BUGSTOFIX.md is retired — all bugs now tracked here.
 > Bugs marked ✅ are fixed and logged in Section 8. Remove from this table once fixed.
+> ⚠️ Session 41's vod.html redesign moved ~350 net lines around (toolbar/panel/timeline markup relocated, several functions inserted). Any `~line N` reference below for `vod.html` predates that and may be off — grep the function name to confirm before editing.
 
 ---
 
@@ -474,7 +475,7 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | ID | ✅ | File | Function | Priority | What breaks | Fix |
 |----|----|----- |----------|----------|-------------|-----|
 | V1+E5 | ✅ | `editor.html` | `confirmWipe` | 🔴 | Winner gets `time_of_wipe` set in Scenarios A+B | Done S32 |
-| V1 | | `vod.html` | `confirmEnemyWipe` ~line 847 | 🔴 | Same bug — Scenario A+B set `winner.time_of_wipe = t`. Remove that line and `time_of_wipe:t` from the DB update in both scenarios. Only write `confirmed_position:1`. |
+| V1 | | `vod.html` | `confirmEnemyWipe` ~line 2173 (verify before editing — see note above table) | 🔴 | Same bug — Scenario A+B set `winner.time_of_wipe = t`. Remove that line and `time_of_wipe:t` from the DB update in both scenarios. Only write `confirmed_position:1`. |
 | E1 | ✅ | `editor.html` | `manualSave` | 🔴 | Only active team's shapes saved | Done S32 |
 | E9 | ✅ | `editor.html` | `deleteSelected` | 🔴 | `match_players` orphaned on delete | Done S32 |
 | E4 | | `editor.html` | `confirmWipe` Scenario A | 🟡 | `selfTeam.confirmed_position=2` with no collision check — if user already entered pos=2 manually, two teams get #2. Guard: `if (!selfTeam.confirmed_position) { const taken = matchTeams.some(t => t.confirmed_position===2 && t.id!==selfTeam.id); if (!taken) { assign 2; } }` |
@@ -556,8 +557,8 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 - `#skip-to-start-banner` — cyan bar below toolbar, `.show` class toggles visibility
 - `#editor-data-dialog` — fullscreen overlay, `.show` class toggles
 - `#offset-overwrite-dialog` — fullscreen overlay, `.show` class toggles
-- `#tb-match-status` — status chip in toolbar row 1, next to match dropdown
-- `#match-status-chip` (editor) — status chip in sidebar, below match selector
+- `#tb-match-status` — status chip, same id/JS since v3.0. **Relocated in Session 41**: now lives inside `#vod-context-chip` (the read-only canvas overlay chip, top-left of `#vod-stage`) instead of the old toolbar row — the horizontal toolbar it used to sit in no longer exists.
+- `#match-status-chip` (editor) — status chip in sidebar, below match selector. Unaffected — editor.html wasn't touched this session.
 - `#msc-vod` / `#tms-vod` — "VOD ✓" badge inside each chip
 
 ### Status level logic
@@ -567,6 +568,15 @@ partial = teams exist but no wipes + no duration
 complete = has time_of_wipe on at least one team AND duration_seconds set
 VOD ✓ badge = match.vod_start_offset != null
 ```
+
+### Session 41 additions — floating UI chrome (boot sequence/YT sync above unchanged)
+- `#vod-left-tools` — floating vertical toolbar, left edge of `#vod-stage`, vertically centered. Draw modes (zone/path/pin/**rotation**=Arrow/erase), undo, Load Match, Calibrate, Save, Start/End Match.
+- `#squad-panel` — same id as before v3.0, restyled into a floating top-right panel instead of a docked sidebar. Map Opacity moved to the top; Enemy Teams is now collapsible (`toggleEnemyTeams()`, collapsed by default); the 4 event buttons are now behind a "+ LOG EVENT" popover (`toggleLogEventMenu()`).
+- `#vod-context-chip` — new, replaces the old `#match-context-bar` breadcrumb. Read-only canvas overlay, top-left of `#vod-stage`: Tournament › Day › Match › Map + `#tb-match-status` + `#vid-state` + `#tb-match-time` (all relocated here, same ids).
+- `#load-match-modal` — new. Houses `#vod-url-input` (relocated, same id) and the map-align fine-tune inputs (`#map-offset-x/y`, `#map-scale-f`, also relocated, same ids). Opened via the left toolbar's folder icon.
+- `#end-match-modal` — new. Confirmation gate in front of `markMatchEnd()`'s end-the-match path only (the undo path — pressing again after duration is set — skips this, since it's reversible).
+- `#vod-timeline` — same id, contents rebuilt: skip ±10s (`skipBack()`/`skipForward()`), play/pause, timecode, speed pill+popover (`#speed-cluster` is now a popover, not inline buttons), scrubber + wipe/elim/zone legend, zoom, fullscreen (`toggleStageFullscreen()`).
+- `REFRESH DATA` / `OPEN IN EDITOR` buttons and `refreshMatchData()` — **removed entirely**, not relocated.
 
 ---
 
