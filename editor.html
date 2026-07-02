@@ -4025,18 +4025,18 @@ async function clearMap() {
         const ids=sh.filter(s=>s.id&&!String(s.id).startsWith('local_')).map(s=>s.id);
         sh.length=0;
         if(sb&&ids.length) await sb.from('shapes').delete().in('id',ids);
-        team.time_of_wipe=null; team.wipe_x=null; team.wipe_y=null; team.confirmed_position=null;
+        team.time_of_wipe=null; team.wipe_x=null; team.wipe_y=null; team.confirmed_position=null; team.kills=0;
         if(sb&&!String(team.id).startsWith('local_'))
-          await sb.from('teams').update({time_of_wipe:null,wipe_x:null,wipe_y:null,confirmed_position:null}).eq('id',team.id);
+          await sb.from('teams').update({time_of_wipe:null,wipe_x:null,wipe_y:null,confirmed_position:null,kills:0}).eq('id',team.id);
       }
       const zones=zonesCache[state.matchId]||[];
       const zids=zones.filter(z=>z.id&&!String(z.id).startsWith('local_')).map(z=>z.id);
       zones.length=0;
       if(sb&&zids.length) await sb.from('shapes').delete().in('id',zids);
       for(const p of matchPlayers){
-        p.time_of_loss=null; p.death_x=null; p.death_y=null;
+        p.time_of_loss=null; p.death_x=null; p.death_y=null; p.kills=0;
         if(sb&&p.id&&!String(p.id).startsWith('local_'))
-          await sb.from('match_players').update({time_of_loss:null,death_x:null,death_y:null,killed_by_team_id:null}).eq('id',p.id);
+          await sb.from('match_players').update({time_of_loss:null,death_x:null,death_y:null,killed_by_team_id:null,kills:0}).eq('id',p.id);
       }
       // Self Elim log entries (self_elims table) — not covered by any of the above
       selfElims=[];
@@ -4052,7 +4052,7 @@ async function clearMap() {
       }
       Object.keys(redoStack).forEach(k=>{ redoStack[k]=[]; });
       updateRedoBtn();
-      draw(); renderTimelineTicks(); renderAnnotationLog();
+      draw(); renderTimelineTicks(); renderAnnotationLog(); renderActiveSquadInline(); renderTeamList();
       toast('Map cleared','ok');
     },'CLEAR ALL');
 }
