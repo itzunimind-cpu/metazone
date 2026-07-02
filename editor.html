@@ -370,7 +370,6 @@ input[type="range"]{ flex:1;accent-color:var(--accent);height:3px;cursor:pointer
 }
 canvas{ display:block;touch-action:none;position:absolute;top:0;left:0;cursor:crosshair;opacity:0;transition:opacity .4s ease; }
 canvas.map-ready{ opacity:1; }
-canvas.panning{ cursor:grab; }
 canvas.panning-active{ cursor:grabbing; }
 canvas.path-mode{ cursor:cell; }
 
@@ -1703,7 +1702,7 @@ const wrap   = document.getElementById('canvas-wrap');
 let WORLD_W = 2048, WORLD_H = 2048;
 let _canvasReady = false; // true only after initCanvas() has sized the canvas
 let zoom=1, panX=0, panY=0;
-let isPanning=false, spaceDown=false;
+let isPanning=false;
 let panSX=0, panSY=0, panPX=0, panPY=0;
 
 // Drawing state
@@ -2507,10 +2506,6 @@ function onWheel(e) {
 }
 
 function onKeyDown(e) {
-  if(e.code==='Space'&&!e.target.matches('input,textarea,select')) {
-    e.preventDefault();
-    if(!spaceDown){ spaceDown=true; canvas.classList.add('panning'); }
-  }
   if(e.key==='Escape') {
     closePinPopup(); closeColorPicker();
     if(pathDrawing) cancelPath();
@@ -2518,9 +2513,6 @@ function onKeyDown(e) {
   }
   if((e.ctrlKey||e.metaKey)&&e.key==='z'){ e.preventDefault(); undo(); }
   if((e.ctrlKey||e.metaKey)&&e.key==='s'){ e.preventDefault(); manualSave(); }
-}
-function onKeyUp(e) {
-  if(e.code==='Space'){ spaceDown=false; canvas.classList.remove('panning','panning-active'); }
 }
 
 // ── Touch pinch state (E2) ──────────────────────────────
@@ -2551,11 +2543,11 @@ function initCanvas() {
   canvas.addEventListener('mouseup',    onPointerUp);
   canvas.addEventListener('mouseleave', onPointerLeave);
   canvas.addEventListener('dblclick',   onDblClick);
+  canvas.addEventListener('contextmenu', onRightClick);
   canvas.addEventListener('touchstart', onPointerDown, {passive:false});
   canvas.addEventListener('touchmove',  onPointerMove, {passive:false});
   canvas.addEventListener('touchend',   onPointerUp,   {passive:false});
   window.addEventListener('keydown', onKeyDown);
-  window.addEventListener('keyup',   onKeyUp);
   updateSliders(); setMode('zone');
 }
 
@@ -2596,15 +2588,18 @@ function onPointerDown(e) {
   if(e.touches&&e.touches.length>1) return;
 
   const {wx,wy,screenX,screenY}=evCoords(e);
-  if(spaceDown){
+  // Right-click is reserved for onRightClick (path finish/cancel) — never draws or pans
+  if(e.button===2) return;
+  // Middle-mouse-button drag pans in either mode
+  if(e.button===1){
     isPanning=true; panSX=screenX; panSY=screenY; panPX=panX; panPY=panY;
     canvas.classList.add('panning-active'); return;
   }
-  // Touch single-finger pan (no space key on mobile) — only when not in annotation mode
-  if(e.touches&&!isAnnotationMode){
-    isPanning=true; panSX=screenX; panSY=screenY; panPX=panX; panPY=panY; return;
+  // Preview mode: touch or plain left-click drags to pan directly (no drawing tools active)
+  if(!isAnnotationMode){
+    isPanning=true; panSX=screenX; panSY=screenY; panPX=panX; panPY=panY;
+    canvas.classList.add('panning-active'); return;
   }
-  if(!isAnnotationMode) return;
   const shapes=getActiveShapes();
   if(!shapes){ toast('SELECT A MATCH FIRST','warn'); return; }
   if(state.mode==='erase'){ eraseAtPosition(wx, wy); return; }
@@ -2613,7 +2608,7 @@ function onPointerDown(e) {
   }
   if(state.mode==='path'){
     // Touch: start freehand path on touchstart, points added in touchmove, finished on touchend
-    // Desktop: tap to place points, dblclick to finish (unchanged)
+    // Desktop: tap to place points, right-click to finish (dblclick kept as fallback)
     if(e.touches){
       pathDrawing=true; pathPoints=[{x:wx,y:wy}];
       document.getElementById('path-indicator').classList.add('show');
@@ -2734,15 +2729,26 @@ function onPointerLeave() {
 }
 
 function onDblClick(e) {
-  if(state.mode==='path'&&pathDrawing&&pathPoints.length>=2){
-    const shapes=getActiveShapes();
-    if(shapes){
-      const rotIdx = getNextRotationIndex(state.activeTeamId);
-      const shape={type:'path',points:[...pathPoints],tag:'rotation',time:state.time,rotation_index:rotIdx};
-      shapes.push(shape); queueForSave(shape);
-    }
-    cancelPath(); draw();
+  // dblclick kept as fallback; right-click is the preferred finish gesture
+  if(state.mode==='path'&&pathDrawing&&pathPoints.length>=2) _finishPath();
+}
+
+function onRightClick(e) {
+  e.preventDefault(); // suppress browser context menu on canvas
+  if(state.mode==='path'&&pathDrawing){
+    if(pathPoints.length>=2) _finishPath();
+    else cancelPath();
   }
+}
+
+function _finishPath() {
+  const shapes=getActiveShapes();
+  if(shapes){
+    const rotIdx = getNextRotationIndex(state.activeTeamId);
+    const shape={type:'path',points:[...pathPoints],tag:'rotation',time:state.time,rotation_index:rotIdx};
+    shapes.push(shape); queueForSave(shape);
+  }
+  cancelPath(); draw();
 }
 
 function cancelPath() {
@@ -3745,7 +3751,7 @@ function setMode(m){
   let cursor='crosshair';
   if(m==='erase') cursor='not-allowed';
   else if(m==='pin'||m==='fight'||m==='path') cursor='cell';
-  if(!spaceDown) canvas.style.cursor=cursor;
+  canvas.style.cursor=cursor;
   if(m==='path') canvas.classList.add('path-mode');
   else canvas.classList.remove('path-mode');
 }
@@ -3891,7 +3897,7 @@ function toggleAnnotationMode(isEdit) {
   isAnnotationMode=isEdit;
   document.getElementById('btn-edit-mode').classList.toggle('active',isEdit);
   document.getElementById('btn-preview-mode').classList.toggle('active',!isEdit);
-  canvas.style.cursor=isEdit?'crosshair':'default';
+  canvas.style.cursor=isEdit?'crosshair':'grab';
   if(!isEdit){ circleP1=null; drawing=false; pathDrawing=false; pathPoints=[]; preview=null; draw(); }
 }
 
