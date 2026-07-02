@@ -44,6 +44,7 @@ event_id            uuid REFERENCES events(id)   ← nullable
 stage               text                          ← nullable
 cycle               int                           ← nullable, group_stage only
 created_at          timestamptz DEFAULT now()
+updated_at          timestamptz DEFAULT now()     ← Session 41 SQL, RUN — trigger-maintained, never write it from client JS
 ```
 
 **stage values (hardcoded, never from DB):**
@@ -58,6 +59,7 @@ tournament_id       uuid REFERENCES tournaments(id)
 name                text NOT NULL
 order_index         int
 created_at          timestamptz DEFAULT now()
+updated_at          timestamptz DEFAULT now()     ← Session 41 SQL, RUN — trigger-maintained, never write it from client JS
 ```
 
 ### matches
@@ -70,6 +72,7 @@ duration_seconds    int
 vod_url             text       ← Session 21 SQL (run it if not done — see Section 9)
 vod_start_offset    int        ← Session 21 SQL (run it if not done — see Section 9)
 created_at          timestamptz DEFAULT now()
+updated_at          timestamptz DEFAULT now()     ← Session 41 SQL, RUN — trigger-maintained (bumped by direct edits AND by activity on shapes/teams/match_players/self_elims/annotations), never write it from client JS
 ```
 
 ### teams
@@ -163,11 +166,11 @@ ALTER TABLE matches ADD COLUMN IF NOT EXISTS vod_start_offset int;
 
 ⚠️ If these haven't been run, the VOD page will silently fail to save/restore offsets and URLs.
 
+✅ **RUN — Session 41.** User confirmed this ran clean in Supabase, no issues reported. Kept below for reference (e.g. reapplying to a fresh environment) — columns now documented as present in Section 1.
+
 ```sql
 -- Session 41 (closes tracked item X3) — "last edited" tracking for tournaments/days/matches.
--- Safe to run any time — the app already falls back to created_at until this exists,
--- and index.html/editor.html/vod.html all use select('*') or were updated to, so no
--- query breaks either before or after this runs.
+-- RUN — kept here for reference only, not pending.
 
 ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
 ALTER TABLE days        ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
@@ -222,7 +225,7 @@ CREATE TRIGGER trg_annotations_touch_match AFTER INSERT OR UPDATE OR DELETE ON a
   FOR EACH ROW EXECUTE FUNCTION touch_match_from_child();
 ```
 
-⚠️ Until this runs, "last edited" sorting silently behaves exactly like today (falls back to `created_at`) — no regression either way. The Active Squad carry-over (Section 8, Session 41) works immediately and does not depend on this migration.
+"Last edited" sorting (Section 8/9, X3) is now live across `index.html`/`editor.html`/`vod.html`.
 
 ---
 
@@ -538,6 +541,7 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | 41 | **editor.html — CLEAR MAP button (and every other delete-confirm action) was silently broken; fixed the shared modal's root cause.** User reported CLEAR MAP did nothing. Root cause: `_dwmConfirm()` (the shared delete-warning modal's confirm handler, used by CLEAR MAP, "Clear map" (map-only), and every delete-tournament/day/match/team action) called `closeDeleteWarning()` **before** invoking the stored callback — but `closeDeleteWarning()` itself sets `_dwmCallback=null`, so by the time `_dwmConfirm()` checked `typeof _dwmCallback==='function'` it was always `null` and the callback silently never ran. Same bug class as the one fixed in `index.html`'s `_idmConfirm()` back in Session 26 — never ported to this modal. Fix: `_dwmConfirm()` now captures the callback into a local `cb` before closing, then invokes `cb`. **This one-line root-cause fix means every action behind this modal was non-functional until now**, not just CLEAR MAP. Separately, `clearMap()`'s actual deletion logic was also incomplete even once reachable — it cleared shapes/zones/wipes/deaths/match-end but never touched the `self_elims` table (Self Elim log entries) or the `annotations` table (saved notes), so those "events" would reappear after a clear. Both are now deleted (DB rows + local arrays reset) as part of the same confirm callback. |
 | 41 | **editor.html — clearMap() follow-up: Active Squad kill count wasn't resetting.** User report after the above fix: kill badges (`${p.kills}K`) in the Active Squad panel survived a Clear Map. Cause: `matchPlayers[].kills` (incremented by `markSelfElim()`, decremented by elim-undo) was never touched by `clearMap()` — clearing `self_elims` removed the log entries but not the summed kill count that had already been written onto each player row. Same gap existed for `teams.kills` (used to prefill the results-panel kills field). Fix: `clearMap()`'s existing per-team and per-player update calls now also reset `kills:0` (in-memory and DB), and the function now calls `renderActiveSquadInline()`/`renderTeamList()` at the end so the panel reflects the reset without needing a manual refresh/match-switch. |
 | 41 | **Active Squad carry-over + "last edited" recency, closing X3.** Two related requests. (1) `editor.html`'s `openActivePlayersModal()` no longer starts blank for every new match — if the current match has no squad of its own yet, it now carries over the squad from the tournament's most recently active *other* match, so the user just opens the modal and presses confirm on match 2, 3, 4... Only a genuine first-match-in-a-tournament stays blank. Implemented with in-memory `matches`/`days` filtering (already fully loaded by `loadAllData()`) plus a single `match_players` query scoped to the candidate match ids — no extra full-data fetch. (2) All 4 "pick the most recent X" sites — `index.html`'s latest-tournament/latest-day auto-select, and `editor.html`/`vod.html`'s latest-match auto-load — now sort by a shared `_recencyTs(row)` helper (`updated_at` if present, else `created_at`) instead of raw `created_at`. This closes tracked item **X3** (Section 9) code-side. Ships safe today: with no `updated_at` column yet, `_recencyTs` silently falls back to today's `created_at` behavior — zero regression — and upgrades automatically the moment the Section 3 SQL migration is run, no further deploy needed. That migration (3 new columns + a cascading trigger set: direct edits to a tournament/day/match bump its own `updated_at`, and activity on `shapes`/`teams`/`match_players`/`self_elims`/`annotations` cascades up through the owning match → day → tournament) is what makes "last edited" reflect actual drawing/kill-logging activity, not just edits to a row's own name/map fields — confirmed with user this was the intended meaning of "edited." **Caught along the way:** `index.html`'s `tournaments`/`days` queries explicitly enumerated columns (`select('id,name,created_at,...')` rather than `select('*')`) — adding `updated_at` to that literal list would have 400'd every dashboard load until the migration ran. Switched both to `select('*')` instead (matches the pattern `editor.html`/`vod.html` already used, which is why *they* needed no such fix) so the new column is picked up automatically and safely whenever it appears. |
+| 41 | **Session 41's `updated_at` migration (Section 3) run in Supabase — user confirmed clean.** X3 is now fully closed, not just code-complete: `updated_at` columns are live on `tournaments`/`days`/`matches`, the cascading trigger set is active, and "last edited" sorting (dashboard latest tournament/day, editor/VOD latest-match auto-load) is genuinely driven by last-touched now, not the `_recencyTs` created_at fallback. Section 1 schema blocks updated to show the new columns; Section 3/9's pending-migration entries closed out. |
 
 ---
 
@@ -553,7 +557,6 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | Priority | Item |
 |----------|------|
 | 🔴 HIGH | Run Session 21 SQL: `ALTER TABLE matches ADD COLUMN IF NOT EXISTS vod_url text; ALTER TABLE matches ADD COLUMN IF NOT EXISTS vod_start_offset int;` |
-| 🟡 MED | X3's `updated_at` migration + triggers — full SQL block now written, see Section 3 above ("Session 41 — closes tracked item X3"). Code side is done (X3 marked ✅ below); this row stays until the SQL is actually run in Supabase. |
 
 ---
 
@@ -590,7 +593,7 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 |----|----|----- |----------|----------|-------------|-----|
 | X1 | ✅ | `editor.html` | `_activateMatch` | 🔴 | `mzCtxWrite()` never called | Done S32 |
 | X2 | | `vod.html` | `onMatchChange` | 🔴 | `mzCtxWrite` doesn't exist in vod — nav to EDITOR always loads wrong match. Add function near `mzCtxRead()`, call at end of `onMatchChange` after `updateMatchContextBar()`. |
-| X3 | ✅ | `index.html`/`editor.html`/`vod.html` | `applyUrlParams` + dashboard auto-select | 🟡 | Done S41 — see Section 8. Shared `_recencyTs(row)` helper (falls back to `created_at` if `updated_at` isn't there yet) now drives all 4 "pick most recent" sites. Functionally inert until the Section 3 SQL migration is run — falls back to the old `created_at` behavior until then, so nothing broke by shipping this early. |
+| X3 | ✅ | `index.html`/`editor.html`/`vod.html` | `applyUrlParams` + dashboard auto-select | 🟡 | Done S41 — see Section 8. Shared `_recencyTs(row)` helper now drives all 4 "pick most recent" sites. Migration (Section 3) run by user, confirmed clean — `updated_at` columns are live, cascading triggers active, "last edited" sorting is fully in effect (not just the fallback anymore). |
 
 ---
 
