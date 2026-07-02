@@ -1675,6 +1675,10 @@ let selfElims    = [];   // self_elims rows for current match — survives refre
 let isAnnotationMode = true;
 let knownTeams = [];  // [FIX] autocomplete: preloaded from tournament_teams
 
+// Recency helper — prefers updated_at (last touched) over created_at, falls back
+// gracefully if the updated_at column/migration hasn't been run yet.
+function _recencyTs(row) { return new Date(row?.updated_at || row?.created_at || 0).getTime(); }
+
 let state = {
   tournamentId: null,
   dayId:        null,
@@ -2092,6 +2096,34 @@ async function openActivePlayersModal(matchId) {
   } catch(e) {
     // Non-fatal — pre-selection just won't show existing squad
     console.warn('[ACTIVE_SQUAD] pre-selection fetch failed:', e);
+  }
+
+  // Carry over the squad from the tournament's most recently active match,
+  // if this match doesn't already have one of its own.
+  if(_apmSelectedIds.size === 0 && tid) {
+    try {
+      const otherMatchIds = matches
+        .filter(m => m.id !== mid && days.find(d => d.id === m.day_id)?.tournament_id === tid)
+        .sort((a,b) => _recencyTs(b) - _recencyTs(a))
+        .map(m => m.id);
+      if(otherMatchIds.length) {
+        const {data:priorRows} = await sb.from('match_players')
+          .select('player_id, match_id')
+          .in('match_id', otherMatchIds);
+        if(priorRows && priorRows.length) {
+          for(const candidateId of otherMatchIds) {
+            const rowsForMatch = priorRows.filter(r => r.match_id === candidateId);
+            if(rowsForMatch.length) {
+              rowsForMatch.forEach(r => { if(r.player_id) _apmSelectedIds.add(r.player_id); });
+              break;
+            }
+          }
+        }
+      }
+    } catch(e) {
+      // Non-fatal — carry-over just won't pre-fill, user picks manually
+      console.warn('[ACTIVE_SQUAD] carry-over fetch failed:', e);
+    }
   }
 
   _renderApmPlayers();
@@ -3412,8 +3444,8 @@ async function applyUrlParams() {
   // [E11] No params — auto-load user's most recent match
   if (!pMatchId && !pDayId && !pTournamentId) {
     if (!matches.length) return; // no matches at all
-    // Sort all matches by created_at desc, pick latest
-    const sorted = [...matches].sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+    // Sort all matches by recency (last edited, falls back to created_at), pick latest
+    const sorted = [...matches].sort((a,b) => _recencyTs(b) - _recencyTs(a));
     const latestMatch = sorted[0];
     const latestDay   = days.find(d => d.id === latestMatch.day_id);
     const latestT     = latestDay && tournaments.find(t => t.id === latestDay.tournament_id);

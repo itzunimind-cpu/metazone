@@ -20,13 +20,13 @@
 
 | File | Version | Last changed | Notes |
 |------|---------|--------------|-------|
-| index.html | v9.7 | Session 40 | Added delete-match action to dashboard match card as a top-right corner icon overlay on the map image (not a footer button) — cascade-delete reuses existing delete-warning modal pattern. See Section 8 changelog. |
-| editor.html | v7.3 | Session 41 | Pan/path-finish input overhaul — middle-mouse-drag pans in both modes, preview-mode left-click/touch pans directly (space+left-click removed), right-click now finishes a path (dblclick kept as fallback). Plus two later fixes: the shared delete-warning confirm modal (`_dwmConfirm()` was nulling its own callback before invoking it — silently broke CLEAR MAP, clear match map, and every delete-tournament/day/match/team confirm), and `clearMap()` now also purges `self_elims`/`annotations` (elim log + notes) and resets `teams.kills`/`match_players.kills` to 0 (Active Squad kill badges were surviving a clear). See Section 8 changelog. |
+| index.html | v9.8 | Session 41 | Auto-select of latest tournament/day now uses `_recencyTs` (last-edited, falls back to `created_at`) instead of raw `created_at` — see Section 8 changelog and Section 3's `updated_at` migration (pending). `tournaments`/`days` queries switched to `select('*')` so the new column is picked up automatically once that SQL runs. |
+| editor.html | v7.4 | Session 41 | Pan/path-finish input overhaul — middle-mouse-drag pans in both modes, preview-mode left-click/touch pans directly (space+left-click removed), right-click now finishes a path (dblclick kept as fallback). Plus two later fixes: the shared delete-warning confirm modal (`_dwmConfirm()` was nulling its own callback before invoking it — silently broke CLEAR MAP, clear match map, and every delete-tournament/day/match/team confirm), and `clearMap()` now also purges `self_elims`/`annotations` (elim log + notes) and resets `teams.kills`/`match_players.kills` to 0 (Active Squad kill badges were surviving a clear). Plus a follow-up feature: `openActivePlayersModal()` now carries over the squad from the tournament's most recently active match when the current match has none of its own, and auto-load sorting switched to `_recencyTs` (last-edited). See Section 8 changelog. |
 | tournament-create.html | v5.0 | Session 38 | Full parchment design-system migration — header/nav/auth/sidebar match editor.html (268px). Glow effects, decorative sync-badge, and kernel/copyright footer removed. See Section 8 changelog. |
 | tournament-editor.html | v1.4 | Session 25 | VOD REVIEW nav link added |
 | analytics.html | v2.3 | Session 25 | VOD REVIEW nav link added, active link fixed |
 | player.html | v1.2 | Session 25 | VOD REVIEW nav link added |
-| vod.html | v6.1 | Session 41 | Full appearance overhaul — floating left toolbar (+ Arrow draw mode), floating top-right squad panel, read-only canvas context chip, Load Match modal, rebuilt bottom bar, End Match confirmation modal. Plus two later follow-ups: squad panel scrollbar-gutter fix, and `#overlay-canvas` map-load fade-in ported from editor.html (`_canvasReady`/`map-ready`). See Section 8 changelog. |
+| vod.html | v6.2 | Session 41 | Full appearance overhaul — floating left toolbar (+ Arrow draw mode), floating top-right squad panel, read-only canvas context chip, Load Match modal, rebuilt bottom bar, End Match confirmation modal. Plus later follow-ups: squad panel scrollbar-gutter fix, `#overlay-canvas` map-load fade-in ported from editor.html (`_canvasReady`/`map-ready`), and auto-load sorting switched to `_recencyTs` (last-edited, falls back to `created_at`). See Section 8 changelog. |
 | history.html | — | NOT BUILT | Design locked — see Section 7B |
 
 ---
@@ -163,6 +163,67 @@ ALTER TABLE matches ADD COLUMN IF NOT EXISTS vod_start_offset int;
 
 ⚠️ If these haven't been run, the VOD page will silently fail to save/restore offsets and URLs.
 
+```sql
+-- Session 41 (closes tracked item X3) — "last edited" tracking for tournaments/days/matches.
+-- Safe to run any time — the app already falls back to created_at until this exists,
+-- and index.html/editor.html/vod.html all use select('*') or were updated to, so no
+-- query breaks either before or after this runs.
+
+ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+ALTER TABLE days        ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+ALTER TABLE matches     ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+
+CREATE OR REPLACE FUNCTION touch_updated_at() RETURNS trigger AS $$
+BEGIN NEW.updated_at = now(); RETURN NEW; END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_tournaments_touch BEFORE UPDATE ON tournaments
+  FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_days_touch BEFORE UPDATE ON days
+  FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_matches_touch BEFORE UPDATE ON matches
+  FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+
+-- Cascade upward: touching a match also touches its day and tournament, so
+-- index.html's "latest tournament → latest day in it" picks the right one too.
+CREATE OR REPLACE FUNCTION touch_day_from_match() RETURNS trigger AS $$
+BEGIN UPDATE days SET updated_at = now() WHERE id = NEW.day_id; RETURN NEW; END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER trg_matches_touch_day AFTER UPDATE ON matches
+  FOR EACH ROW EXECUTE FUNCTION touch_day_from_match();
+
+CREATE OR REPLACE FUNCTION touch_tournament_from_day() RETURNS trigger AS $$
+BEGIN UPDATE tournaments SET updated_at = now() WHERE id = NEW.tournament_id; RETURN NEW; END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER trg_days_touch_tournament AFTER UPDATE ON days
+  FOR EACH ROW EXECUTE FUNCTION touch_tournament_from_day();
+
+-- Cascade from real activity (drawing, kills, wipes, notes) up to the match —
+-- without this, "last edited" would only reflect edits to the match's own
+-- name/map/etc, not the actual annotation work that happens on child tables.
+CREATE OR REPLACE FUNCTION touch_match_from_child() RETURNS trigger AS $$
+DECLARE mid uuid;
+BEGIN
+  mid := COALESCE(NEW.match_id, OLD.match_id);
+  IF mid IS NOT NULL THEN UPDATE matches SET updated_at = now() WHERE id = mid; END IF;
+  RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_shapes_touch_match AFTER INSERT OR UPDATE OR DELETE ON shapes
+  FOR EACH ROW EXECUTE FUNCTION touch_match_from_child();
+CREATE TRIGGER trg_teams_touch_match AFTER INSERT OR UPDATE OR DELETE ON teams
+  FOR EACH ROW EXECUTE FUNCTION touch_match_from_child();
+CREATE TRIGGER trg_match_players_touch_match AFTER INSERT OR UPDATE OR DELETE ON match_players
+  FOR EACH ROW EXECUTE FUNCTION touch_match_from_child();
+CREATE TRIGGER trg_self_elims_touch_match AFTER INSERT OR UPDATE OR DELETE ON self_elims
+  FOR EACH ROW EXECUTE FUNCTION touch_match_from_child();
+CREATE TRIGGER trg_annotations_touch_match AFTER INSERT OR UPDATE OR DELETE ON annotations
+  FOR EACH ROW EXECUTE FUNCTION touch_match_from_child();
+```
+
+⚠️ Until this runs, "last edited" sorting silently behaves exactly like today (falls back to `created_at`) — no regression either way. The Active Squad carry-over (Section 8, Session 41) works immediately and does not depend on this migration.
+
 ---
 
 ## SECTION 4 — NAVIGATION (CANONICAL — ALL PAGES)
@@ -238,6 +299,7 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | `renderMultiTrackPanel()` | Builds multi-track team checklist with stagger animation; called when multi-track is activated |
 | `toggleMultiTrack()` | Toggles multi-track mode; calls `updateAnnotationLogColors()` (not `renderAnnotationLog`) for smooth icon fade |
 | `renderActiveSquadInline()` | Renders match_players inline below ACTIVE SQUAD button in right panel. Each row has a hover-reveal `⇄` swap button. |
+| `openActivePlayersModal(matchId)` | Roster picker for a match's active squad (4-6 of the tournament's up-to-6 registered players). Pre-selects from the *current* match's own `match_players` if it has any. **Session 41 addition:** if it doesn't (a brand-new match), falls through to a carry-over step — finds the most recently active *other* match in the same tournament (via in-memory `matches`/`days`, `_recencyTs`-sorted) that has a squad, and pre-selects those same player ids via one `match_players` query scoped to the candidate match ids. Only stays empty if no other match in the tournament has a squad yet. `_renderApmPlayers()`/`confirmActivePlayers()` unchanged — they already just read/commit whatever's in `_apmSelectedIds`. |
 | `openSqReplace(rowId)` | Toggles inline replacement picker for a squad row. Fetches tournament roster minus current squad, renders as inline dropdown. `_sqReplaceOpen` tracks the open row id; `_sqReplaceAvail` holds fetched candidates (null = loading). |
 | `doReplacePlayer(oldRowId, newPlayerId)` | UPDATEs `match_players` row in place (`player_id` only) — kills/damage/time_of_loss are preserved for the new player. Reloads `matchPlayers` and re-renders sidebar. |
 | `toggleMetaCollapse()` | Toggles Match Metadata accordion in right panel |
@@ -475,6 +537,7 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | 41 | **editor.html — pan trigger overhauled; right-click now finishes paths (parity with vod.html).** Three related input changes on request: (1) **Preview mode** (`!isAnnotationMode`) — plain left-click/touch drag now pans the canvas directly; previously mouse users needed to hold Space (touch already worked without it). (2) **Edit mode** — the Space+left-click pan gesture was removed entirely (`spaceDown` var, its `keydown`/`keyup` handling, and the now-fully-dead `onKeyUp`/`.panning` CSS class all deleted) and replaced with middle-mouse-button drag (`e.button===1`), which works in both modes. `onPointerDown` now bails immediately on `e.button===2` (right-click) so it never falls through to drawing or panning — right-click is handled exclusively by the new `contextmenu` listener. (3) **Path drawing** — right-click is now the primary finish gesture instead of an unhandled browser-context-menu popup that visually broke the drawing flow: new `onRightClick()` (mirrors vod.html's function of the same name almost verbatim, ported in the opposite direction from Session 41's earlier vod.html work) finishes the path via a new `_finishPath()` helper (factored out of `onDblClick`'s old inline body) if ≥2 points are placed, else cancels it. Double-click is kept as a fallback finish gesture, unchanged in behavior. `toggleAnnotationMode()`'s preview-mode base cursor changed from `default` to `grab` to hint that left-click now pans. |
 | 41 | **editor.html — CLEAR MAP button (and every other delete-confirm action) was silently broken; fixed the shared modal's root cause.** User reported CLEAR MAP did nothing. Root cause: `_dwmConfirm()` (the shared delete-warning modal's confirm handler, used by CLEAR MAP, "Clear map" (map-only), and every delete-tournament/day/match/team action) called `closeDeleteWarning()` **before** invoking the stored callback — but `closeDeleteWarning()` itself sets `_dwmCallback=null`, so by the time `_dwmConfirm()` checked `typeof _dwmCallback==='function'` it was always `null` and the callback silently never ran. Same bug class as the one fixed in `index.html`'s `_idmConfirm()` back in Session 26 — never ported to this modal. Fix: `_dwmConfirm()` now captures the callback into a local `cb` before closing, then invokes `cb`. **This one-line root-cause fix means every action behind this modal was non-functional until now**, not just CLEAR MAP. Separately, `clearMap()`'s actual deletion logic was also incomplete even once reachable — it cleared shapes/zones/wipes/deaths/match-end but never touched the `self_elims` table (Self Elim log entries) or the `annotations` table (saved notes), so those "events" would reappear after a clear. Both are now deleted (DB rows + local arrays reset) as part of the same confirm callback. |
 | 41 | **editor.html — clearMap() follow-up: Active Squad kill count wasn't resetting.** User report after the above fix: kill badges (`${p.kills}K`) in the Active Squad panel survived a Clear Map. Cause: `matchPlayers[].kills` (incremented by `markSelfElim()`, decremented by elim-undo) was never touched by `clearMap()` — clearing `self_elims` removed the log entries but not the summed kill count that had already been written onto each player row. Same gap existed for `teams.kills` (used to prefill the results-panel kills field). Fix: `clearMap()`'s existing per-team and per-player update calls now also reset `kills:0` (in-memory and DB), and the function now calls `renderActiveSquadInline()`/`renderTeamList()` at the end so the panel reflects the reset without needing a manual refresh/match-switch. |
+| 41 | **Active Squad carry-over + "last edited" recency, closing X3.** Two related requests. (1) `editor.html`'s `openActivePlayersModal()` no longer starts blank for every new match — if the current match has no squad of its own yet, it now carries over the squad from the tournament's most recently active *other* match, so the user just opens the modal and presses confirm on match 2, 3, 4... Only a genuine first-match-in-a-tournament stays blank. Implemented with in-memory `matches`/`days` filtering (already fully loaded by `loadAllData()`) plus a single `match_players` query scoped to the candidate match ids — no extra full-data fetch. (2) All 4 "pick the most recent X" sites — `index.html`'s latest-tournament/latest-day auto-select, and `editor.html`/`vod.html`'s latest-match auto-load — now sort by a shared `_recencyTs(row)` helper (`updated_at` if present, else `created_at`) instead of raw `created_at`. This closes tracked item **X3** (Section 9) code-side. Ships safe today: with no `updated_at` column yet, `_recencyTs` silently falls back to today's `created_at` behavior — zero regression — and upgrades automatically the moment the Section 3 SQL migration is run, no further deploy needed. That migration (3 new columns + a cascading trigger set: direct edits to a tournament/day/match bump its own `updated_at`, and activity on `shapes`/`teams`/`match_players`/`self_elims`/`annotations` cascades up through the owning match → day → tournament) is what makes "last edited" reflect actual drawing/kill-logging activity, not just edits to a row's own name/map fields — confirmed with user this was the intended meaning of "edited." **Caught along the way:** `index.html`'s `tournaments`/`days` queries explicitly enumerated columns (`select('id,name,created_at,...')` rather than `select('*')`) — adding `updated_at` to that literal list would have 400'd every dashboard load until the migration ran. Switched both to `select('*')` instead (matches the pattern `editor.html`/`vod.html` already used, which is why *they* needed no such fix) so the new column is picked up automatically and safely whenever it appears. |
 
 ---
 
@@ -490,7 +553,7 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | Priority | Item |
 |----------|------|
 | 🔴 HIGH | Run Session 21 SQL: `ALTER TABLE matches ADD COLUMN IF NOT EXISTS vod_url text; ALTER TABLE matches ADD COLUMN IF NOT EXISTS vod_start_offset int;` |
-| 🟡 MED | X3 prerequisite: `ALTER TABLE matches ADD COLUMN updated_at TIMESTAMPTZ DEFAULT now();` + trigger (see X3 below). Do NOT swap sort logic until column exists. |
+| 🟡 MED | X3's `updated_at` migration + triggers — full SQL block now written, see Section 3 above ("Session 41 — closes tracked item X3"). Code side is done (X3 marked ✅ below); this row stays until the SQL is actually run in Supabase. |
 
 ---
 
@@ -527,7 +590,7 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 |----|----|----- |----------|----------|-------------|-----|
 | X1 | ✅ | `editor.html` | `_activateMatch` | 🔴 | `mzCtxWrite()` never called | Done S32 |
 | X2 | | `vod.html` | `onMatchChange` | 🔴 | `mzCtxWrite` doesn't exist in vod — nav to EDITOR always loads wrong match. Add function near `mzCtxRead()`, call at end of `onMatchChange` after `updateMatchContextBar()`. |
-| X3 | | both | `applyUrlParams` | 🟡 | Auto-load sorts by `created_at` not `updated_at` — loads newest match, not most recently worked on. **Blocked on DB migration** (see DB section). After SQL runs: swap sort to `updated_at` in both files. |
+| X3 | ✅ | `index.html`/`editor.html`/`vod.html` | `applyUrlParams` + dashboard auto-select | 🟡 | Done S41 — see Section 8. Shared `_recencyTs(row)` helper (falls back to `created_at` if `updated_at` isn't there yet) now drives all 4 "pick most recent" sites. Functionally inert until the Section 3 SQL migration is run — falls back to the old `created_at` behavior until then, so nothing broke by shipping this early. |
 
 ---
 

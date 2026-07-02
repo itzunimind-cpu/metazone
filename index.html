@@ -665,6 +665,10 @@ let currentUser=null,tournaments=[],events=[],activeTournamentId=null,activeDayI
 const TEAM_COLORS=['#22d3ee','#4ade80','#f87171','#fb923c','#facc15','#a78bfa','#f472b6','#34d399','#f97316','#38bdf8','#86efac','#ef4444','#c084fc','#fbbf24','#a8a29e','#94a3b8','#ec4899','#60a5fa'];
 const MAP_IMGS={erangel:'erangel_lo.jpg',miramar:'miramar_lo.jpg',sanhok:'sanhok_lo.jpg',rondo:'rondo_lo.jpg'};
 
+// Recency helper — prefers updated_at (last touched) over created_at, falls back
+// gracefully if the updated_at column/migration hasn't been run yet.
+function _recencyTs(row){ return new Date(row?.updated_at||row?.created_at||0).getTime(); }
+
 // ── AUTH ──
 async function sendMagicLink(){
   const email=document.getElementById('auth-email').value.trim();
@@ -695,8 +699,10 @@ async function loadAll(){
   const t0=Date.now();
   try{
     const[{data:tData,error:tErr},{data:dData,error:dErr},{data:mData,error:mErr}]=await Promise.all([
-      sb.from('tournaments').select('id,name,created_at,event_id,stage,cycle').order('created_at'),
-      sb.from('days').select('id,name,tournament_id,order_index,created_at').order('order_index'),
+      // select('*') here (not an explicit column list) so updated_at is picked up automatically
+      // once the migration adds it — an explicit list would 400 if the column doesn't exist yet.
+      sb.from('tournaments').select('*').order('created_at'),
+      sb.from('days').select('*').order('order_index'),
       sb.from('matches').select('id,day_id').order('created_at')
     ]);
     if(tErr)throw tErr;if(dErr)throw dErr;if(mErr)throw mErr;
@@ -738,11 +744,11 @@ async function loadAll(){
       }
     } else {
       if(tournaments.length>0 && !activeTournamentId){
-        const latestT=[...tournaments].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))[0];
+        const latestT=[...tournaments].sort((a,b)=>_recencyTs(b)-_recencyTs(a))[0];
         if(latestT){
           activeTournamentId=latestT.id;
           latestT.open=true;
-          const sortedDays=[...latestT.days].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+          const sortedDays=[...latestT.days].sort((a,b)=>_recencyTs(b)-_recencyTs(a));
           const latestD=sortedDays[0];
           if(latestD){
             await selectDay(latestT.id,latestD.id);

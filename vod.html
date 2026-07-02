@@ -1298,6 +1298,10 @@ let zonesCache  = {};    // matchId → shape[]
 let annotations = [];    // local event log
 let matchPlayers = [];   // match_players with names
 
+// Recency helper — prefers updated_at (last touched) over created_at, falls back
+// gracefully if the updated_at column/migration hasn't been run yet.
+function _recencyTs(row) { return new Date(row?.updated_at || row?.created_at || 0).getTime(); }
+
 let state = {
   tournamentId: null, dayId: null, matchId: null,
   activeTeamId: null, mapKey: 'erangel',
@@ -2796,7 +2800,7 @@ async function applyUrlParams() {
 
   // No match specified — auto-load the most recently edited match
   if (!matches.length) return;
-  const sorted = [...matches].sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+  const sorted = [...matches].sort((a,b) => _recencyTs(b) - _recencyTs(a));
   const latest = sorted[0];
   if (!latest) return;
   const latestDay = days.find(d=>d.id===latest.day_id);
