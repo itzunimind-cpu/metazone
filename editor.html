@@ -2435,8 +2435,9 @@ function closeDeleteWarning() {
   _dwmCallback = null;
 }
 function _dwmConfirm() {
+  const cb = _dwmCallback;
   closeDeleteWarning();
-  if(typeof _dwmCallback === 'function') _dwmCallback();
+  if(typeof cb === 'function') cb();
 }
 
 // ══════════════════════════════════════════════════════
@@ -4016,7 +4017,7 @@ async function clearTeam() {
 async function clearMap() {
   if(!state.matchId){ toast('SELECT A MATCH FIRST','warn'); return; }
   showDeleteWarning('delete','Clear All Map Data?',
-    'Permanently deletes all shapes, zones, wipes, deaths, and match results for this match.',
+    'Permanently deletes all shapes, zones, wipes, deaths, elims, notes, and match results for this match.',
     async ()=>{
       const matchTeams=teams.filter(t=>t.match_id===state.matchId);
       for(const team of matchTeams){
@@ -4037,6 +4038,12 @@ async function clearMap() {
         if(sb&&p.id&&!String(p.id).startsWith('local_'))
           await sb.from('match_players').update({time_of_loss:null,death_x:null,death_y:null,killed_by_team_id:null}).eq('id',p.id);
       }
+      // Self Elim log entries (self_elims table) — not covered by any of the above
+      selfElims=[];
+      if(sb&&!String(state.matchId).startsWith('local_')) await sb.from('self_elims').delete().eq('match_id',state.matchId);
+      // Saved notes (annotations table) — also not covered by any of the above
+      annotations=[];
+      if(sb&&!String(state.matchId).startsWith('local_')) await sb.from('annotations').delete().eq('match_id',state.matchId);
       const m=matches.find(x=>x.id===state.matchId);
       if(m&&m.duration_seconds!=null){
         m.duration_seconds=null;
