@@ -7,33 +7,35 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@800,700,500,400&f[]=satoshi@700,500,400&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Lexend+Deca:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #020617;
-      --bg-panel: #0b1221;
-      --bg-card: #0f172a;
-      --border: #1e293b;
-      --border-mid: #334155;
-      --accent: #22d3ee;
-      --green: #4ade80;
-      --red: #f87171;
-      --yellow: #facc15;
-      --purple: #a78bfa;
-      --orange: #fb923c;
-      --text: #f1f5f9;
-      --muted: #475569;
+      --bg: #F2EDE4;
+      --bg-panel: #E8E1D5;
+      --bg-card: #EDE7DC;
+      --border: #C9BFA8;
+      --border-mid: #A89880;
+      --forest: #2C4A2E;
+      --olive: #4E7C2F;
+      --accent: #2C4A2E;
+      --green: #4E7C2F;
+      --red: #9B1C11;
+      --yellow: #7C5A00;
+      --purple: #4A3870;
+      --orange: #C85E0A;
+      --text: #1C1A14;
+      --text-hero: #0C0A07;
+      --muted: #6B6048;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Satoshi', sans-serif;
+      font-family: 'Manrope', sans-serif;
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
     }
-    .font-display { font-family: 'Cabinet Grotesk', sans-serif; }
-    .font-mono { font-family: 'JetBrains Mono', monospace; }
+    .font-display { font-family: 'Oswald', sans-serif; }
+    .font-mono { font-family: 'Lexend Deca', monospace; }
 
     /* Scrollbar */
     ::-webkit-scrollbar { width: 3px; height: 3px; }
@@ -57,14 +59,6 @@
     }
     #loading-screen.hidden { display: none; }
 
-    /* Grid background texture */
-    .grid-bg {
-      background-image:
-        linear-gradient(rgba(34,211,238,0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(34,211,238,0.03) 1px, transparent 1px);
-      background-size: 40px 40px;
-    }
-
     /* Chart containers */
     .chart-wrap {
       background: var(--bg-card);
@@ -73,7 +67,7 @@
       padding: 20px;
       transition: border-color 0.2s;
     }
-    .chart-wrap:hover { border-color: rgba(34,211,238,0.25); }
+    .chart-wrap:hover { border-color: rgba(44,74,46,0.25); }
 
     /* KPI cards */
     .kpi-card {
@@ -84,15 +78,15 @@
       transition: border-color 0.2s, background 0.2s;
     }
     .kpi-card:hover {
-      border-color: rgba(34,211,238,0.3);
-      background: #111827;
+      border-color: rgba(44,74,46,0.3);
+      background: #E8E1D5;
     }
 
     /* View toggle */
     .view-btn {
       padding: 6px 18px;
       font-size: 10px;
-      font-family: 'JetBrains Mono', monospace;
+      font-family: 'Lexend Deca', monospace;
       font-weight: 700;
       letter-spacing: 0.12em;
       text-transform: uppercase;
@@ -104,7 +98,7 @@
     }
     .view-btn.active {
       background: var(--accent);
-      color: #020617;
+      color: #F2EDE4;
       border-color: var(--accent);
     }
     .view-btn:hover:not(.active) { color: var(--text); border-color: var(--border-mid); }
@@ -115,7 +109,7 @@
     .scope-pill {
       padding: 5px 12px;
       font-size: 9px;
-      font-family: 'JetBrains Mono', monospace;
+      font-family: 'Lexend Deca', monospace;
       font-weight: 700;
       letter-spacing: 0.1em;
       text-transform: uppercase;
@@ -128,22 +122,22 @@
     }
     .scope-pill.active {
       background: var(--accent);
-      color: #020617;
+      color: #F2EDE4;
     }
     .scope-pill:hover:not(.active) { color: var(--text); }
 
     /* Shared action buttons (matches index.html standard) */
-    .btn-primary{display:inline-flex;align-items:center;gap:7px;padding:10px 18px;background:var(--accent);color:#020617;border:none;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;cursor:pointer;letter-spacing:.1em;text-transform:uppercase;transition:all .15s;text-decoration:none;}
-    .btn-primary:hover{background:#67e8f9;}
-    .btn-secondary{display:inline-flex;align-items:center;gap:7px;padding:10px 16px;background:transparent;color:var(--text);border:1px solid var(--border);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;cursor:pointer;letter-spacing:.1em;text-transform:uppercase;transition:all .15s;text-decoration:none;}
-    .btn-secondary:hover{border-color:rgba(34,211,238,.4);color:var(--accent);}
+    .btn-primary{display:inline-flex;align-items:center;gap:7px;padding:10px 18px;background:var(--accent);color:#F2EDE4;border:none;border-radius:8px;font-family:'Lexend Deca',monospace;font-size:10px;font-weight:700;cursor:pointer;letter-spacing:.1em;text-transform:uppercase;transition:all .15s;text-decoration:none;}
+    .btn-primary:hover{opacity:.88;}
+    .btn-secondary{display:inline-flex;align-items:center;gap:7px;padding:10px 16px;background:transparent;color:var(--text);border:1px solid var(--border);border-radius:8px;font-family:'Lexend Deca',monospace;font-size:10px;font-weight:500;cursor:pointer;letter-spacing:.1em;text-transform:uppercase;transition:all .15s;text-decoration:none;}
+    .btn-secondary:hover{border-color:rgba(44,74,46,.4);color:var(--accent);}
 
     /* Insight callouts */
     .insight { border-radius: 3px; padding: 10px 14px; font-size: 11px; font-weight: 600; line-height: 1.5; margin-top: 12px; }
-    .insight.neutral { background: rgba(71,85,105,0.2); border: 1px solid rgba(71,85,105,0.3); color: #94a3b8; }
-    .insight.warn { background: rgba(250,204,21,0.08); border: 1px solid rgba(250,204,21,0.25); color: var(--yellow); }
-    .insight.critical { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.25); color: var(--red); }
-    .insight.good { background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.25); color: var(--green); }
+    .insight.neutral { background: rgba(107,96,72,0.2); border: 1px solid rgba(107,96,72,0.3); color: #A89880; }
+    .insight.warn { background: rgba(124,90,0,0.08); border: 1px solid rgba(124,90,0,0.25); color: var(--yellow); }
+    .insight.critical { background: rgba(155,28,17,0.08); border: 1px solid rgba(155,28,17,0.25); color: var(--red); }
+    .insight.good { background: rgba(78,124,47,0.08); border: 1px solid rgba(78,124,47,0.25); color: var(--green); }
 
     /* Profile badge */
     .profile-badge {
@@ -151,16 +145,16 @@
       padding: 4px 10px;
       border-radius: 2px;
       font-size: 9px;
-      font-family: 'JetBrains Mono', monospace;
+      font-family: 'Lexend Deca', monospace;
       font-weight: 700;
       letter-spacing: 0.12em;
       text-transform: uppercase;
     }
 
     /* SVG chart elements */
-    .bar-bg { fill: rgba(30,41,59,0.8); }
-    .axis-line { stroke: rgba(71,85,105,0.4); stroke-width: 1; }
-    .axis-label { fill: #475569; font-size: 9px; font-family: 'JetBrains Mono', monospace; }
+    .bar-bg { fill: rgba(201,191,168,0.8); }
+    .axis-line { stroke: rgba(107,96,72,0.4); stroke-width: 1; }
+    .axis-label { fill: #6B6048; font-size: 9px; font-family: 'Lexend Deca', monospace; }
 
     /* Pulse dot */
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
@@ -177,7 +171,7 @@
     }
     .skel {
       border-radius: 3px;
-      background: linear-gradient(90deg, #0f172a 25%, #1e293b 50%, #0f172a 75%);
+      background: linear-gradient(90deg, #EDE7DC 25%, #C9BFA8 50%, #EDE7DC 75%);
       background-size: 600px 100%;
       animation: shimmer 1.6s ease-in-out infinite;
     }
@@ -226,7 +220,7 @@
     }
     .chart-empty iconify-icon { font-size: 22px; opacity: 0.4; }
     .chart-empty .empty-title {
-      font-family: 'JetBrains Mono', monospace;
+      font-family: 'Lexend Deca', monospace;
       font-size: 10px;
       font-weight: 700;
       letter-spacing: 0.1em;
@@ -235,7 +229,7 @@
     }
     .chart-empty .empty-sub {
       font-size: 10px;
-      color: #334155;
+      color: #A89880;
       text-align: center;
       max-width: 220px;
       line-height: 1.5;
@@ -243,15 +237,15 @@
 
     /* Scan line effect on profile card */
     /* ── EVENT BANNER ── */
-    #event-banner{display:none;align-items:center;gap:12px;padding:10px 16px;background:rgba(34,211,238,0.04);border:1px solid rgba(34,211,238,0.15);border-radius:6px;margin-bottom:16px;flex-wrap:wrap;}
+    #event-banner{display:none;align-items:center;gap:12px;padding:10px 16px;background:rgba(44,74,46,0.04);border:1px solid rgba(44,74,46,0.15);border-radius:6px;margin-bottom:16px;flex-wrap:wrap;}
     #event-banner.show{display:flex;}
-    .ev-label{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:0.2em;text-transform:uppercase;white-space:nowrap;}
-    .ev-name{font-family:'Cabinet Grotesk',sans-serif;font-size:13px;font-weight:800;color:var(--accent);white-space:nowrap;}
+    .ev-label{font-family:'Lexend Deca',monospace;font-size:9px;color:var(--muted);letter-spacing:0.2em;text-transform:uppercase;white-space:nowrap;}
+    .ev-name{font-family:'Oswald',sans-serif;font-size:13px;font-weight:800;color:var(--accent);white-space:nowrap;}
     .ev-divider{width:1px;height:16px;background:var(--border);flex-shrink:0;}
     .ev-pills{display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
-    .ev-pill{padding:4px 12px;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:1px solid var(--border);border-radius:4px;background:transparent;color:var(--muted);cursor:pointer;text-decoration:none;transition:all 0.15s;white-space:nowrap;display:inline-block;}
-    .ev-pill:hover{border-color:rgba(34,211,238,0.4);color:var(--text);}
-    .ev-pill.current{border-color:var(--accent);color:var(--accent);background:rgba(34,211,238,0.08);cursor:default;pointer-events:none;}
+    .ev-pill{padding:4px 12px;font-family:'Lexend Deca',monospace;font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:1px solid var(--border);border-radius:4px;background:transparent;color:var(--muted);cursor:pointer;text-decoration:none;transition:all 0.15s;white-space:nowrap;display:inline-block;}
+    .ev-pill:hover{border-color:rgba(44,74,46,0.4);color:var(--text);}
+    .ev-pill.current{border-color:var(--accent);color:var(--accent);background:rgba(44,74,46,0.08);cursor:default;pointer-events:none;}
 
     @keyframes scanline {
       0% { top: -4px; }
@@ -259,48 +253,48 @@
     }
     .scanline {
       position: absolute; left: 0; right: 0; height: 2px;
-      background: linear-gradient(90deg, transparent, rgba(34,211,238,0.15), transparent);
+      background: linear-gradient(90deg, transparent, rgba(44,74,46,0.15), transparent);
       animation: scanline 3s linear infinite;
       pointer-events: none;
     }
 
-    /* Header — matches all other pages exactly */
-    #app-header{height:56px;min-height:56px;border-bottom:1px solid var(--border);background:rgba(2,6,23,.9);backdrop-filter:blur(20px);display:flex;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:50;flex-shrink:0;}
-    .header-left{display:flex;align-items:center;gap:32px;}
+    /* Header — matches all other pages exactly (solid forest, per design handoff) */
+    #app-header{height:52px;min-height:52px;background:var(--forest);border-bottom:3px solid var(--forest);display:flex;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:50;flex-shrink:0;}
+    .header-left{display:flex;align-items:center;gap:36px;}
     .logo-mark{display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;}
-    .logo-icon{width:28px;height:28px;background:var(--accent);display:flex;align-items:center;justify-content:center;border-radius:3px;transform:rotate(45deg);flex-shrink:0;}
-    .logo-icon-inner{transform:rotate(-45deg);color:#020617;font-size:14px;display:flex;}
-    .header-nav{display:flex;align-items:center;gap:4px;height:56px;}
-    .nav-link{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;color:var(--muted);text-decoration:none;letter-spacing:2px;padding:0 14px;height:100%;display:flex;align-items:center;border-bottom:2px solid transparent;transition:all .15s;}
-    .nav-link:hover{color:var(--text);}
-    .nav-link.active{color:var(--accent);border-bottom-color:var(--accent);}
-    .header-right{display:flex;align-items:center;gap:12px;}
+    .logo-icon{width:28px;height:28px;background:var(--orange);display:flex;align-items:center;justify-content:center;border-radius:2px;flex-shrink:0;}
+    .logo-icon-inner{color:#fff;font-size:15px;display:flex;}
+    .header-nav{display:flex;align-items:center;gap:2px;height:52px;}
+    .nav-link{font-family:'Lexend Deca',sans-serif;font-size:10px;font-weight:500;color:rgba(255,255,255,.6);text-decoration:none;letter-spacing:1px;text-transform:uppercase;padding:0 13px;height:100%;display:flex;align-items:center;border-bottom:3px solid transparent;margin-bottom:-3px;transition:all .15s;}
+    .nav-link:hover{color:rgba(255,255,255,.9);}
+    .nav-link.active{color:#fff;border-bottom-color:var(--orange);}
+    .header-right{display:flex;align-items:center;gap:10px;}
 
     /* Match table row */
-    .match-row { border-bottom: 1px solid rgba(30,41,59,0.6); transition: background 0.15s; cursor: pointer; }
-    .match-row:hover { background: rgba(30,41,59,0.5); }
+    .match-row { border-bottom: 1px solid rgba(201,191,168,0.6); transition: background 0.15s; cursor: pointer; }
+    .match-row:hover { background: rgba(201,191,168,0.5); }
     .match-row:last-child { border-bottom: none; }
 
     /* Team selector */
     .team-option { padding: 8px 12px; cursor: pointer; transition: background 0.1s; font-size: 12px; }
-    .team-option:hover { background: rgba(34,211,238,0.08); }
-    .team-option.selected { color: var(--accent); background: rgba(34,211,238,0.06); }
+    .team-option:hover { background: rgba(44,74,46,0.08); }
+    .team-option.selected { color: var(--accent); background: rgba(44,74,46,0.06); }
 
     select.styled {
       background: var(--bg-card);
       border: 1px solid var(--border);
       color: var(--text);
-      font-family: 'JetBrains Mono', monospace;
+      font-family: 'Lexend Deca', monospace;
       font-size: 10px;
       padding: 6px 10px;
       border-radius: 3px;
       outline: none;
       cursor: pointer;
     }
-    select.styled:focus { border-color: rgba(34,211,238,0.4); }
+    select.styled:focus { border-color: rgba(44,74,46,0.4); }
   </style>
 </head>
-<body class="grid-bg">
+<body>
 
 <!-- ══════════════════════════════════════════════════ -->
 <!-- AUTH SCREEN -->
@@ -308,17 +302,17 @@
 <div id="auth-screen">
   <div style="width:360px; background:var(--bg-card); border:1px solid var(--border); border-radius:6px; padding:40px;">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:32px;">
-      <div style="width:32px;height:32px;background:var(--accent);display:flex;align-items:center;justify-content:center;transform:rotate(45deg);border-radius:4px;">
-        <iconify-icon icon="lucide:layers" style="color:#020617;transform:rotate(-45deg);font-size:16px;"></iconify-icon>
+      <div style="width:32px;height:32px;background:var(--orange);display:flex;align-items:center;justify-content:center;border-radius:3px;">
+        <iconify-icon icon="lucide:layers" style="color:#fff;font-size:16px;"></iconify-icon>
       </div>
       <span class="font-display" style="font-size:20px;font-weight:800;letter-spacing:-0.03em;">METAZONE</span>
     </div>
     <p class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:24px;">Analytics — Magic Link Login</p>
     <input id="auth-email" type="email" placeholder="your@email.com"
-      style="width:100%;background:#0f172a;border:1px solid var(--border);color:var(--text);font-size:13px;padding:10px 14px;border-radius:3px;outline:none;margin-bottom:12px;"
+      style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:13px;padding:10px 14px;border-radius:3px;outline:none;margin-bottom:12px;"
       onkeydown="if(event.key==='Enter')sendMagicLink()">
     <button onclick="sendMagicLink()"
-      style="width:100%;background:var(--accent);color:#020617;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;padding:10px;border:none;border-radius:3px;cursor:pointer;">
+      style="width:100%;background:var(--accent);color:var(--bg);font-family:'Lexend Deca',sans-serif;font-weight:700;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;padding:10px;border:none;border-radius:3px;cursor:pointer;">
       SEND MAGIC LINK
     </button>
     <p id="auth-msg" style="font-size:11px;color:var(--muted);margin-top:12px;text-align:center;min-height:16px;"></p>
@@ -342,7 +336,7 @@
 <!-- ══════════════════════════════════════════════════ -->
 <div id="skeleton-screen">
   <!-- Fake header bar -->
-  <div style="height:56px;border-bottom:1px solid var(--border);background:rgba(2,6,23,.9);display:flex;align-items:center;padding:0 20px;gap:24px;position:fixed;top:0;left:0;right:0;z-index:49;">
+  <div style="height:52px;background:var(--forest);display:flex;align-items:center;padding:0 20px;gap:24px;position:fixed;top:0;left:0;right:0;z-index:49;">
     <div class="skel" style="width:28px;height:28px;border-radius:3px;flex-shrink:0;"></div>
     <div class="skel" style="width:100px;height:14px;"></div>
     <div style="display:flex;gap:8px;margin-left:8px;">
@@ -498,7 +492,7 @@
         <span class="pulse" style="width:6px;height:6px;background:var(--green);border-radius:50%;display:inline-block;"></span>
         <span class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.15em;text-transform:uppercase;">SYSTEM ONLINE</span>
       </div>
-      <button onclick="signOut()" style="background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:6px 12px;border-radius:3px;cursor:pointer;transition:all 0.15s;"
+      <button onclick="signOut()" style="background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'Lexend Deca',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:6px 12px;border-radius:3px;cursor:pointer;transition:all 0.15s;"
         onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">SIGN OUT</button>
     </div>
   </header>
@@ -572,12 +566,12 @@
         <div class="scanline"></div>
         <div style="display:flex;align-items:center;gap:20px;">
           <div id="team-color-dot" style="width:48px;height:48px;border-radius:3px;background:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            <iconify-icon icon="lucide:shield" style="font-size:22px;color:#020617;"></iconify-icon>
+            <iconify-icon icon="lucide:shield" style="font-size:22px;color:#F2EDE4;"></iconify-icon>
           </div>
           <div>
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
               <span class="font-display" id="identity-team-name" style="font-size:20px;font-weight:800;">SELF</span>
-              <span id="profile-tag" class="profile-badge" style="background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.3);color:var(--accent);">
+              <span id="profile-tag" class="profile-badge" style="background:rgba(44,74,46,0.1);border:1px solid rgba(44,74,46,0.3);color:var(--accent);">
                 <iconify-icon icon="lucide:activity"></iconify-icon>
                 <span id="profile-tag-text">LOADING...</span>
               </span>
@@ -630,20 +624,20 @@
           </div>
           <div style="display:flex;align-items:center;gap:16px;flex-shrink:0;">
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-              <span style="display:flex;align-items:center;gap:4px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);">
-                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#22d3ee;"></span>ZONE
+              <span style="display:flex;align-items:center;gap:4px;font-family:'Lexend Deca',monospace;font-size:9px;color:var(--muted);">
+                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#2C4A2E;"></span>ZONE
               </span>
-              <span style="display:flex;align-items:center;gap:4px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);">
-                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#fb923c;"></span>FIGHT
+              <span style="display:flex;align-items:center;gap:4px;font-family:'Lexend Deca',monospace;font-size:9px;color:var(--muted);">
+                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#C85E0A;"></span>FIGHT
               </span>
-              <span style="display:flex;align-items:center;gap:4px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);">
-                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#facc15;"></span>PLAYER LOSS
+              <span style="display:flex;align-items:center;gap:4px;font-family:'Lexend Deca',monospace;font-size:9px;color:var(--muted);">
+                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#7C5A00;"></span>PLAYER LOSS
               </span>
-              <span style="display:flex;align-items:center;gap:4px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);">
-                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#475569;"></span>ENEMY WIPE
+              <span style="display:flex;align-items:center;gap:4px;font-family:'Lexend Deca',monospace;font-size:9px;color:var(--muted);">
+                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#6B6048;"></span>ENEMY WIPE
               </span>
-              <span style="display:flex;align-items:center;gap:4px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);">
-                <span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#f87171;"></span>SELF WIPE
+              <span style="display:flex;align-items:center;gap:4px;font-family:'Lexend Deca',monospace;font-size:9px;color:var(--muted);">
+                <span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#9B1C11;"></span>SELF WIPE
               </span>
             </div>
           </div>
@@ -662,7 +656,7 @@
                 <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Strategy Quadrant — KP vs PP</h3>
                 <p style="font-size:10px;color:var(--muted);margin-top:3px;">Kill Points vs Placement Points across all matches. Each dot = one match.</p>
               </div>
-              <span class="font-mono" style="font-size:9px;color:var(--accent);border:1px solid rgba(34,211,238,0.3);padding:3px 8px;border-radius:2px;">TIER 1 CHART</span>
+              <span class="font-mono" style="font-size:9px;color:var(--accent);border:1px solid rgba(44,74,46,0.3);padding:3px 8px;border-radius:2px;">TIER 1 CHART</span>
             </div>
             <div style="position:relative;height:280px;">
               <canvas id="scatter-chart" style="width:100%;height:100%;"></canvas>
@@ -877,7 +871,7 @@
           <div class="chart-wrap" id="routes-compare-stage" style="display:none;">
             <div style="margin-bottom:14px;">
               <input type="range" id="routes-scrubber" min="0" max="2100" value="0" step="1" style="width:100%;" oninput="onRoutesScrub(this.value)">
-              <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);margin-top:4px;">
+              <div style="display:flex;justify-content:space-between;font-family:'Lexend Deca',monospace;font-size:9px;color:var(--muted);margin-top:4px;">
                 <span id="routes-scrub-time">00:00</span>
                 <span>DRAG TO PLAY BACK ROTATIONS ACROSS ALL SELECTED MATCHES</span>
               </div>
@@ -916,15 +910,6 @@
 
     </div><!-- /analytics-body -->
   </main>
-
-  <!-- FOOTER -->
-  <footer style="height:40px;border-top:1px solid var(--border);background:var(--bg-panel);display:flex;align-items:center;justify-content:between;padding:0 24px;">
-    <div style="display:flex;align-items:center;gap:24px;width:100%;">
-      <span class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.15em;">KERNAL: v4.0.2-ALPHA</span>
-      <span class="font-mono" id="footer-latency" style="font-size:9px;color:var(--muted);letter-spacing:0.15em;">LATENCY: —ms</span>
-      <span class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.15em;margin-left:auto;">© 2024 METAZONE INTELLIGENCE PLATFORM</span>
-    </div>
-  </footer>
 
 </div><!-- /app -->
 
@@ -986,8 +971,6 @@ async function signOut() {
 let _booted = false;
 
 (async () => {
-  const t0 = Date.now();
-
   // Always hide loading spinner immediately — auth screen or app will take over
   document.getElementById('loading-screen').classList.add('hidden');
 
@@ -1012,8 +995,6 @@ let _booted = false;
       document.getElementById('auth-screen').classList.remove('hidden');
     }
   });
-
-  document.getElementById('footer-latency').textContent = `LATENCY: ${Date.now() - t0}ms`;
 })();
 
 async function boot() {
@@ -1158,7 +1139,7 @@ function _showSkeleton() {
   if (rowsEl && rowsEl.childElementCount === 0) {
     for (let i = 0; i < 5; i++) {
       const row = document.createElement('div');
-      row.style.cssText = 'display:flex;gap:12px;padding:12px 0;border-bottom:1px solid rgba(30,41,59,0.5);';
+      row.style.cssText = 'display:flex;gap:12px;padding:12px 0;border-bottom:1px solid rgba(201,191,168,0.5);';
       const widths = ['flex:2', 'flex:1', 'flex:1', 'flex:1', 'flex:1', 'flex:1', 'flex:1', 'flex:1', 'flex:1'];
       widths.forEach(w => {
         const cell = document.createElement('div');
@@ -1457,28 +1438,28 @@ function renderScatterChart(rows) {
   const maxPP = Math.max(10, ...rows.map(r => r.placementPts));
 
   // Axes
-  ctx.strokeStyle = 'rgba(71,85,105,0.4)'; ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(107,96,72,0.4)'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t + ph); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(pad.l, pad.t + ph); ctx.lineTo(pad.l + pw, pad.t + ph); ctx.stroke();
 
   // Quadrant lines
-  ctx.strokeStyle = 'rgba(71,85,105,0.2)'; ctx.setLineDash([4, 6]);
+  ctx.strokeStyle = 'rgba(107,96,72,0.2)'; ctx.setLineDash([4, 6]);
   ctx.beginPath(); ctx.moveTo(pad.l + pw/2, pad.t); ctx.lineTo(pad.l + pw/2, pad.t + ph); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(pad.l, pad.t + ph/2); ctx.lineTo(pad.l + pw, pad.t + ph/2); ctx.stroke();
   ctx.setLineDash([]);
 
   // Quadrant labels
-  ctx.font = '600 8px JetBrains Mono'; ctx.fillStyle = 'rgba(71,85,105,0.6)';
+  ctx.font = '600 8px Lexend Deca'; ctx.fillStyle = 'rgba(107,96,72,0.6)';
   ctx.textAlign = 'left';
   ctx.fillText('RAT TEAMS', pad.l + 6, pad.t + ph/2 - 6);
   ctx.fillText('CONTENDERS', pad.l + pw/2 + 6, pad.t + 14);
-  ctx.fillStyle = 'rgba(248,113,113,0.5)';
+  ctx.fillStyle = 'rgba(155,28,17,0.5)';
   ctx.fillText('STRUGGLING', pad.l + 6, pad.t + ph - 6);
-  ctx.fillStyle = 'rgba(250,204,21,0.5)';
+  ctx.fillStyle = 'rgba(124,90,0,0.5)';
   ctx.fillText('RECKLESS', pad.l + pw/2 + 6, pad.t + ph - 6);
 
   // Axis labels
-  ctx.font = '500 9px JetBrains Mono'; ctx.fillStyle = '#475569';
+  ctx.font = '500 9px Lexend Deca'; ctx.fillStyle = '#6B6048';
   ctx.textAlign = 'center';
   ctx.fillText('KILL POINTS (KP) →', pad.l + pw/2, pad.t + ph + 28);
   ctx.save(); ctx.translate(14, pad.t + ph/2); ctx.rotate(-Math.PI/2);
@@ -1492,17 +1473,17 @@ function renderScatterChart(rows) {
 
     // Glow
     ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI*2);
-    ctx.fillStyle = 'rgba(34,211,238,0.06)'; ctx.fill();
+    ctx.fillStyle = 'rgba(44,74,46,0.06)'; ctx.fill();
 
     // Dot
     ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI*2);
-    ctx.fillStyle = r.is_self !== false ? '#22d3ee' : 'rgba(100,116,139,0.6)';
+    ctx.fillStyle = r.is_self !== false ? '#2C4A2E' : 'rgba(107,96,72,0.6)';
     ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(12,10,7,0.15)'; ctx.lineWidth = 1;
     ctx.stroke();
 
     // Match label
-    ctx.font = '500 8px JetBrains Mono'; ctx.fillStyle = 'rgba(148,163,184,0.7)';
+    ctx.font = '500 8px Lexend Deca'; ctx.fillStyle = 'rgba(168,152,128,0.7)';
     ctx.textAlign = 'center';
     ctx.fillText(`M${i+1}`, x, y - 9);
   });
@@ -1543,10 +1524,10 @@ function renderPointsRaceChart(rows) {
   // Grid lines
   for (let i = 0; i <= 4; i++) {
     const y = pad.t + (ph / 4) * i;
-    ctx.strokeStyle = 'rgba(30,41,59,0.8)'; ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(201,191,168,0.8)'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + pw, y); ctx.stroke();
     const val = Math.round(maxTotal - (maxTotal / 4) * i);
-    ctx.font = '500 8px JetBrains Mono'; ctx.fillStyle = '#475569';
+    ctx.font = '500 8px Lexend Deca'; ctx.fillStyle = '#6B6048';
     ctx.textAlign = 'right';
     ctx.fillText(val, pad.l - 4, y + 3);
   }
@@ -1562,8 +1543,8 @@ function renderPointsRaceChart(rows) {
   ctx.lineTo(pad.l, pad.t + ph);
   ctx.closePath();
   const grad = ctx.createLinearGradient(0, pad.t, 0, pad.t + ph);
-  grad.addColorStop(0, 'rgba(34,211,238,0.15)');
-  grad.addColorStop(1, 'rgba(34,211,238,0)');
+  grad.addColorStop(0, 'rgba(44,74,46,0.15)');
+  grad.addColorStop(1, 'rgba(44,74,46,0)');
   ctx.fillStyle = grad; ctx.fill();
 
   // Line
@@ -1573,15 +1554,15 @@ function renderPointsRaceChart(rows) {
     const y = pad.t + ph - ((r.total - 0) / (maxTotal * 1.1)) * ph;
     i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
   });
-  ctx.strokeStyle = '#22d3ee'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.strokeStyle = '#2C4A2E'; ctx.lineWidth = 2; ctx.stroke();
 
   // Dots + match labels
   rows.forEach((r, i) => {
     const x = pad.l + (i / Math.max(rows.length - 1, 1)) * pw;
     const y = pad.t + ph - ((r.total - 0) / (maxTotal * 1.1)) * ph;
     ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI*2);
-    ctx.fillStyle = '#22d3ee'; ctx.fill();
-    ctx.font = '500 8px JetBrains Mono'; ctx.fillStyle = '#475569';
+    ctx.fillStyle = '#2C4A2E'; ctx.fill();
+    ctx.font = '500 8px Lexend Deca'; ctx.fillStyle = '#6B6048';
     ctx.textAlign = 'center';
     ctx.fillText(`M${i+1}`, x, pad.t + ph + 18);
   });
@@ -1627,36 +1608,36 @@ function renderKpPpChart(rows) {
     const totalH = ppH + kpH;
 
     // PP bar (bottom)
-    ctx.fillStyle = 'rgba(74,222,128,0.7)';
+    ctx.fillStyle = 'rgba(78,124,47,0.7)';
     ctx.fillRect(x, pad.t + ph - ppH, barW, ppH);
 
     // KP bar (top)
-    ctx.fillStyle = 'rgba(34,211,238,0.7)';
+    ctx.fillStyle = 'rgba(44,74,46,0.7)';
     ctx.fillRect(x, pad.t + ph - ppH - kpH, barW, kpH);
 
     // Value label
     if (r.total > 0) {
-      ctx.font = '600 8px JetBrains Mono'; ctx.fillStyle = 'rgba(241,245,249,0.8)';
+      ctx.font = '600 8px Lexend Deca'; ctx.fillStyle = 'rgba(28,26,20,0.8)';
       ctx.textAlign = 'center';
       ctx.fillText(r.total, x + barW/2, pad.t + ph - totalH - 4);
     }
 
     // X label
-    ctx.font = '500 8px JetBrains Mono'; ctx.fillStyle = '#475569';
+    ctx.font = '500 8px Lexend Deca'; ctx.fillStyle = '#6B6048';
     ctx.textAlign = 'center';
     ctx.fillText(`M${i+1}`, x + barW/2, pad.t + ph + 18);
   });
 
   // Y axis
-  ctx.strokeStyle = 'rgba(71,85,105,0.3)'; ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(107,96,72,0.3)'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t + ph); ctx.stroke();
 
   // Legend
-  ctx.font = '600 8px JetBrains Mono';
-  ctx.fillStyle = 'rgba(34,211,238,0.8)'; ctx.fillRect(W - 80, 8, 8, 8);
-  ctx.fillStyle = '#94a3b8'; ctx.fillText('KP', W - 68, 16);
-  ctx.fillStyle = 'rgba(74,222,128,0.8)'; ctx.fillRect(W - 50, 8, 8, 8);
-  ctx.fillStyle = '#94a3b8'; ctx.fillText('PP', W - 38, 16);
+  ctx.font = '600 8px Lexend Deca';
+  ctx.fillStyle = 'rgba(44,74,46,0.8)'; ctx.fillRect(W - 80, 8, 8, 8);
+  ctx.fillStyle = '#A89880'; ctx.fillText('KP', W - 68, 16);
+  ctx.fillStyle = 'rgba(78,124,47,0.8)'; ctx.fillRect(W - 50, 8, 8, 8);
+  ctx.fillStyle = '#A89880'; ctx.fillText('PP', W - 38, 16);
 
   // Insight
   const avgKP = rows.reduce((a, r) => a + r.kp, 0) / rows.length;
@@ -1686,12 +1667,12 @@ function renderPlacementDist(rows) {
 
   // Buckets: 1st, 2nd, 3rd, top5, top10, 11–25
   const buckets = [
-    { label: '1ST', check: p => p === 1, color: '#facc15' },
-    { label: '2ND', check: p => p === 2, color: '#94a3b8' },
-    { label: '3RD', check: p => p === 3, color: '#fb923c' },
-    { label: 'TOP 5', check: p => p >= 4 && p <= 5, color: '#4ade80' },
-    { label: 'TOP 10', check: p => p >= 6 && p <= 10, color: '#22d3ee' },
-    { label: '11–25', check: p => !p || p > 10, color: '#475569' },
+    { label: '1ST', check: p => p === 1, color: '#7C5A00' },
+    { label: '2ND', check: p => p === 2, color: '#A89880' },
+    { label: '3RD', check: p => p === 3, color: '#C85E0A' },
+    { label: 'TOP 5', check: p => p >= 4 && p <= 5, color: '#4E7C2F' },
+    { label: 'TOP 10', check: p => p >= 6 && p <= 10, color: '#2C4A2E' },
+    { label: '11–25', check: p => !p || p > 10, color: '#6B6048' },
   ];
 
   const counts = buckets.map(b => rows.filter(r => b.check(r.placement)).length);
@@ -1709,14 +1690,14 @@ function renderPlacementDist(rows) {
 
     const countLabel = document.createElement('div');
     countLabel.textContent = counts[i];
-    countLabel.style.cssText = `font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;color:${counts[i] > 0 ? b.color : 'var(--muted)'};`;
+    countLabel.style.cssText = `font-family:'Lexend Deca',monospace;font-size:10px;font-weight:700;color:${counts[i] > 0 ? b.color : 'var(--muted)'};`;
 
     const bar = document.createElement('div');
     bar.style.cssText = `width:100%;max-width:48px;height:${barH}px;background:${b.color};border-radius:2px 2px 0 0;opacity:${counts[i] > 0 ? '0.85' : '0.2'};transition:height 0.3s;`;
 
     const label = document.createElement('div');
     label.textContent = b.label;
-    label.style.cssText = `font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--muted);text-align:center;position:absolute;bottom:0;left:50%;transform:translateX(-50%);white-space:nowrap;`;
+    label.style.cssText = `font-family:'Lexend Deca',monospace;font-size:8px;color:var(--muted);text-align:center;position:absolute;bottom:0;left:50%;transform:translateX(-50%);white-space:nowrap;`;
 
     const labelWrap = document.createElement('div');
     labelWrap.style.cssText = `position:relative;height:20px;width:100%;`;
@@ -1777,17 +1758,17 @@ function renderSurvivalChart(rows) {
     const hasData = r.survivalPct !== null;
     const barH = Math.max(2, Math.round((pct / 100) * chartH));
 
-    let color = '#22d3ee';
-    if (pct < 33) color = '#f87171';
-    else if (pct < 66) color = '#facc15';
-    else color = '#4ade80';
+    let color = '#2C4A2E';
+    if (pct < 33) color = '#9B1C11';
+    else if (pct < 66) color = '#7C5A00';
+    else color = '#4E7C2F';
 
     const col = document.createElement('div');
     col.style.cssText = `display:flex;flex-direction:column;align-items:center;flex:1;gap:2px;justify-content:flex-end;`;
 
     const pctLabel = document.createElement('div');
     pctLabel.textContent = hasData ? `${pct}%` : '?';
-    pctLabel.style.cssText = `font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;color:${color};`;
+    pctLabel.style.cssText = `font-family:'Lexend Deca',monospace;font-size:9px;font-weight:700;color:${color};`;
 
     const bar = document.createElement('div');
     bar.style.cssText = `width:100%;max-width:40px;height:${barH}px;background:${color};border-radius:2px 2px 0 0;opacity:${hasData ? '0.8' : '0.2'};`;
@@ -1799,7 +1780,7 @@ function renderSurvivalChart(rows) {
 
     const label = document.createElement('div');
     label.textContent = `M${i+1}`;
-    label.style.cssText = `font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--muted);text-align:center;position:absolute;bottom:0;left:50%;transform:translateX(-50%);`;
+    label.style.cssText = `font-family:'Lexend Deca',monospace;font-size:8px;color:var(--muted);text-align:center;position:absolute;bottom:0;left:50%;transform:translateX(-50%);`;
 
     const labelWrap = document.createElement('div');
     labelWrap.style.cssText = `position:relative;height:20px;width:100%;`;
@@ -1859,14 +1840,14 @@ function renderKillDist(rows) {
 
     const cntLbl = document.createElement('div');
     cntLbl.textContent = count > 0 ? count : '';
-    cntLbl.style.cssText = `font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;color:${isZero ? 'var(--red)' : 'var(--accent)'};`;
+    cntLbl.style.cssText = `font-family:'Lexend Deca',monospace;font-size:9px;font-weight:700;color:${isZero ? 'var(--red)' : 'var(--accent)'};`;
 
     const bar = document.createElement('div');
     bar.style.cssText = `width:100%;max-width:28px;height:${barH}px;background:${isZero ? 'var(--red)' : 'var(--accent)'};border-radius:2px 2px 0 0;opacity:${count > 0 ? '0.7' : '0.15'};`;
 
     const label = document.createElement('div');
     label.textContent = kills;
-    label.style.cssText = `font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--muted);text-align:center;position:absolute;bottom:0;left:50%;transform:translateX(-50%);`;
+    label.style.cssText = `font-family:'Lexend Deca',monospace;font-size:8px;color:var(--muted);text-align:center;position:absolute;bottom:0;left:50%;transform:translateX(-50%);`;
 
     const labelWrap = document.createElement('div');
     labelWrap.style.cssText = `position:relative;height:20px;width:100%;`;
@@ -1916,9 +1897,9 @@ function renderVarianceChart(rows) {
   // Grid
   for (let i = 0; i <= 3; i++) {
     const y = pad.t + (ph / 3) * i;
-    ctx.strokeStyle = 'rgba(30,41,59,0.8)'; ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(201,191,168,0.8)'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + pw, y); ctx.stroke();
-    ctx.font = '500 8px JetBrains Mono'; ctx.fillStyle = '#475569';
+    ctx.font = '500 8px Lexend Deca'; ctx.fillStyle = '#6B6048';
     ctx.textAlign = 'right';
     ctx.fillText(Math.round(maxSD - (maxSD / 3) * i), pad.l - 4, y + 3);
   }
@@ -1930,13 +1911,13 @@ function renderVarianceChart(rows) {
     const y = pad.t + ph - (v.sd / (maxSD * 1.1)) * ph;
     idx === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
   });
-  ctx.strokeStyle = '#a78bfa'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.strokeStyle = '#4A3870'; ctx.lineWidth = 2; ctx.stroke();
 
   sdValues.forEach(v => {
     const x = pad.l + (v.i / (rows.length - 1)) * pw;
     const y = pad.t + ph - (v.sd / (maxSD * 1.1)) * ph;
     ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI*2);
-    ctx.fillStyle = '#a78bfa'; ctx.fill();
+    ctx.fillStyle = '#4A3870'; ctx.fill();
   });
 
   // Insight
@@ -1967,12 +1948,12 @@ function renderAggressionChart(rows) {
   if (rows.length < 3) { drawEmpty(ctx, W, H, '3+ MATCHES NEEDED FOR CORRELATION'); return; }
   const maxTotal = Math.max(1, ...rows.map(r => r.total));
 
-  ctx.strokeStyle = 'rgba(71,85,105,0.4)'; ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(107,96,72,0.4)'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t + ph); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(pad.l, pad.t + ph); ctx.lineTo(pad.l + pw, pad.t + ph); ctx.stroke();
 
   // Axis labels
-  ctx.font = '500 9px JetBrains Mono'; ctx.fillStyle = '#475569';
+  ctx.font = '500 9px Lexend Deca'; ctx.fillStyle = '#6B6048';
   ctx.textAlign = 'center';
   ctx.fillText('KILLS IN MATCH →', pad.l + pw/2, pad.t + ph + 28);
   ctx.save(); ctx.translate(12, pad.t + ph/2); ctx.rotate(-Math.PI/2);
@@ -1992,7 +1973,7 @@ function renderAggressionChart(rows) {
   ctx.beginPath();
   ctx.moveTo(pad.l + (x1 / (maxKP * 1.1)) * pw, pad.t + ph - (Math.max(0, y1) / (maxTotal * 1.1)) * ph);
   ctx.lineTo(pad.l + (x2 / (maxKP * 1.1)) * pw, pad.t + ph - (Math.min(maxTotal * 1.1, y2) / (maxTotal * 1.1)) * ph);
-  ctx.strokeStyle = 'rgba(250,204,21,0.3)'; ctx.lineWidth = 1; ctx.setLineDash([6, 4]);
+  ctx.strokeStyle = 'rgba(124,90,0,0.3)'; ctx.lineWidth = 1; ctx.setLineDash([6, 4]);
   ctx.stroke(); ctx.setLineDash([]);
 
   // Points
@@ -2000,8 +1981,8 @@ function renderAggressionChart(rows) {
     const x = pad.l + (r.kp / (maxKP * 1.1)) * pw;
     const y = pad.t + ph - (r.total / (maxTotal * 1.1)) * ph;
     ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI*2);
-    ctx.fillStyle = 'rgba(34,211,238,0.8)'; ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = 'rgba(44,74,46,0.8)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(12,10,7,0.15)'; ctx.lineWidth = 1; ctx.stroke();
   });
 
   const el = document.getElementById('aggression-insight');
@@ -2039,9 +2020,9 @@ function renderPhaseChart(rows) {
   const total = validRows.length;
 
   const phases = [
-    { label: 'EARLY', count: early, color: '#f87171', desc: 'Hot drop / early wipe' },
-    { label: 'MID', count: mid, color: '#facc15', desc: 'Rotation / zone death' },
-    { label: 'LATE', count: late, color: '#4ade80', desc: 'Circle fight / clutch' },
+    { label: 'EARLY', count: early, color: '#9B1C11', desc: 'Hot drop / early wipe' },
+    { label: 'MID', count: mid, color: '#7C5A00', desc: 'Rotation / zone death' },
+    { label: 'LATE', count: late, color: '#4E7C2F', desc: 'Circle fight / clutch' },
   ];
 
   phases.forEach(p => {
@@ -2130,24 +2111,24 @@ function renderLobbyTimeline(filteredMatches) {
 
     // Match label
     const label = document.createElement('div');
-    label.style.cssText = 'font-family:\'JetBrains Mono\',monospace;font-size:9px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;width:52px;flex-shrink:0;text-align:right;';
+    label.style.cssText = 'font-family:\'Lexend Deca\',monospace;font-size:9px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;width:52px;flex-shrink:0;text-align:right;';
     label.textContent = match.name || `M${mi+1}`;
     row.appendChild(label);
 
     // Track area
     const track = document.createElement('div');
-    track.style.cssText = 'flex:1;position:relative;height:28px;background:rgba(15,23,42,0.8);border:1px solid var(--border);border-radius:3px;overflow:visible;';
+    track.style.cssText = 'flex:1;position:relative;height:28px;background:rgba(237,231,220,0.8);border:1px solid var(--border);border-radius:3px;overflow:visible;';
 
     // Survival bar (how long self team survived)
     if (selfTeam && selfTeam.time_of_wipe != null) {
       const pct = Math.min(100, (selfTeam.time_of_wipe / globalMax) * 100);
       const bar = document.createElement('div');
-      bar.style.cssText = `position:absolute;left:0;top:0;bottom:0;width:${pct}%;background:rgba(34,211,238,0.07);border-right:none;border-radius:2px 0 0 2px;`;
+      bar.style.cssText = `position:absolute;left:0;top:0;bottom:0;width:${pct}%;background:rgba(44,74,46,0.07);border-right:none;border-radius:2px 0 0 2px;`;
       track.appendChild(bar);
     } else if (selfTeam && selfTeam.placement === 1) {
       // WWCD — full bar green
       const bar = document.createElement('div');
-      bar.style.cssText = 'position:absolute;left:0;top:0;bottom:0;width:100%;background:rgba(74,222,128,0.07);border-radius:2px;';
+      bar.style.cssText = 'position:absolute;left:0;top:0;bottom:0;width:100%;background:rgba(78,124,47,0.07);border-radius:2px;';
       track.appendChild(bar);
     }
 
@@ -2156,12 +2137,12 @@ function renderLobbyTimeline(filteredMatches) {
       const t = s.time_seconds || 0;
       const pct = Math.min(99, (t / globalMax) * 100);
       const tick = document.createElement('div');
-      tick.style.cssText = `position:absolute;left:${pct}%;top:0;bottom:0;width:2px;background:rgba(34,211,238,0.5);`;
+      tick.style.cssText = `position:absolute;left:${pct}%;top:0;bottom:0;width:2px;background:rgba(44,74,46,0.5);`;
       tick.title = `Zone ${s.zone_phase || '?'} @ ${fmtSec(t)}`;
       track.appendChild(tick);
       // Zone label
       const lbl = document.createElement('div');
-      lbl.style.cssText = `position:absolute;left:${pct}%;top:-14px;font-family:'JetBrains Mono',monospace;font-size:8px;color:rgba(34,211,238,0.6);transform:translateX(-50%);white-space:nowrap;pointer-events:none;`;
+      lbl.style.cssText = `position:absolute;left:${pct}%;top:-14px;font-family:'Lexend Deca',monospace;font-size:8px;color:rgba(44,74,46,0.6);transform:translateX(-50%);white-space:nowrap;pointer-events:none;`;
       lbl.textContent = `Z${s.zone_phase||'?'}`;
       track.appendChild(lbl);
     });
@@ -2170,7 +2151,7 @@ function renderLobbyTimeline(filteredMatches) {
     matchTeams.filter(t => !t.is_self && t.time_of_wipe != null).forEach(t => {
       const pct = Math.min(99, (t.time_of_wipe / globalMax) * 100);
       const dot = document.createElement('div');
-      dot.style.cssText = `position:absolute;left:${pct}%;top:50%;transform:translate(-50%,-50%);width:6px;height:6px;border-radius:50%;background:rgba(71,85,105,0.9);border:1px solid rgba(100,116,139,0.5);cursor:default;`;
+      dot.style.cssText = `position:absolute;left:${pct}%;top:50%;transform:translate(-50%,-50%);width:6px;height:6px;border-radius:50%;background:rgba(107,96,72,0.9);border:1px solid rgba(107,96,72,0.5);cursor:default;`;
       dot.title = `${t.name} wiped @ ${fmtSec(t.time_of_wipe)}`;
       track.appendChild(dot);
     });
@@ -2180,7 +2161,7 @@ function renderLobbyTimeline(filteredMatches) {
     matchPlayers.filter(p => p.time_of_loss != null).forEach(p => {
       const pct = Math.min(99, (p.time_of_loss / globalMax) * 100);
       const dot = document.createElement('div');
-      dot.style.cssText = `position:absolute;left:${pct}%;top:50%;transform:translate(-50%,-50%);width:7px;height:7px;border-radius:50%;background:#facc15;border:1px solid rgba(250,204,21,0.5);cursor:default;`;
+      dot.style.cssText = `position:absolute;left:${pct}%;top:50%;transform:translate(-50%,-50%);width:7px;height:7px;border-radius:50%;background:#7C5A00;border:1px solid rgba(124,90,0,0.5);cursor:default;`;
       dot.title = `Player loss @ ${fmtSec(p.time_of_loss)}`;
       track.appendChild(dot);
     });
@@ -2191,7 +2172,7 @@ function renderLobbyTimeline(filteredMatches) {
       const t = s.time_seconds || 0;
       const pct = Math.min(99, (t / globalMax) * 100);
       const dot = document.createElement('div');
-      dot.style.cssText = `position:absolute;left:${pct}%;top:50%;transform:translate(-50%,-50%);width:8px;height:8px;border-radius:50%;background:#fb923c;border:1px solid rgba(251,146,60,0.5);cursor:default;`;
+      dot.style.cssText = `position:absolute;left:${pct}%;top:50%;transform:translate(-50%,-50%);width:8px;height:8px;border-radius:50%;background:#C85E0A;border:1px solid rgba(200,94,10,0.5);cursor:default;`;
       dot.title = `Fight: ${s.fight_team_a||'?'} vs ${s.fight_team_b||'?'} @ ${fmtSec(t)}`;
       track.appendChild(dot);
     });
@@ -2200,7 +2181,7 @@ function renderLobbyTimeline(filteredMatches) {
     if (selfTeam && selfTeam.time_of_wipe != null) {
       const pct = Math.min(99, (selfTeam.time_of_wipe / globalMax) * 100);
       const marker = document.createElement('div');
-      marker.style.cssText = `position:absolute;left:${pct}%;top:0;bottom:0;width:3px;background:#f87171;border-radius:1px;transform:translateX(-50%);`;
+      marker.style.cssText = `position:absolute;left:${pct}%;top:0;bottom:0;width:3px;background:#9B1C11;border-radius:1px;transform:translateX(-50%);`;
       marker.title = `SELF WIPE @ ${fmtSec(selfTeam.time_of_wipe)} — #${selfTeam.confirmed_position||selfTeam.placement||'?'}`;
       track.appendChild(marker);
     }
@@ -2209,7 +2190,7 @@ function renderLobbyTimeline(filteredMatches) {
     for (let t = 60; t < globalMax; t += 60) {
       const pct = (t / globalMax) * 100;
       const tick = document.createElement('div');
-      tick.style.cssText = `position:absolute;left:${pct}%;bottom:-16px;font-family:'JetBrains Mono',monospace;font-size:7px;color:var(--muted);transform:translateX(-50%);`;
+      tick.style.cssText = `position:absolute;left:${pct}%;bottom:-16px;font-family:'Lexend Deca',monospace;font-size:7px;color:var(--muted);transform:translateX(-50%);`;
       tick.textContent = fmtSec(t);
       track.appendChild(tick);
     }
@@ -2220,7 +2201,7 @@ function renderLobbyTimeline(filteredMatches) {
     const placeEl = document.createElement('div');
     const placement = selfTeam ? selfTeam.placement : null;
     const placeColor = placement === 1 ? 'var(--yellow)' : placement <= 3 ? 'var(--green)' : placement <= 5 ? 'var(--accent)' : 'var(--muted)';
-    placeEl.style.cssText = `font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;color:${placeColor};width:28px;flex-shrink:0;text-align:left;`;
+    placeEl.style.cssText = `font-family:'Lexend Deca',monospace;font-size:9px;font-weight:700;color:${placeColor};width:28px;flex-shrink:0;text-align:left;`;
     placeEl.textContent = placement ? `#${placement}` : '—';
     row.appendChild(placeEl);
 
@@ -2280,22 +2261,22 @@ function renderLobbySurvivalCurve(rows, filteredMatches) {
   if (!curves.length) { drawEmpty(ctx, W, H, '— NO DATA —'); return; }
 
   // Draw axes
-  ctx.strokeStyle = 'rgba(71,85,105,0.3)'; ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(107,96,72,0.3)'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t+ph); ctx.lineTo(pad.l+pw, pad.t+ph); ctx.stroke();
 
   // Y axis labels
   [0,25,50,75,100].forEach(v => {
     const y = pad.t + ph - (v/100)*ph;
-    ctx.fillStyle='#334155'; ctx.font='500 8px JetBrains Mono'; ctx.textAlign='right';
+    ctx.fillStyle='#A89880'; ctx.font='500 8px Lexend Deca'; ctx.textAlign='right';
     ctx.fillText(v+'%', pad.l-5, y+3);
     if (v > 0) {
-      ctx.beginPath(); ctx.setLineDash([3,4]); ctx.strokeStyle='rgba(71,85,105,0.15)';
+      ctx.beginPath(); ctx.setLineDash([3,4]); ctx.strokeStyle='rgba(107,96,72,0.15)';
       ctx.moveTo(pad.l, y); ctx.lineTo(pad.l+pw, y); ctx.stroke(); ctx.setLineDash([]);
     }
   });
 
   // X axis labels
-  ctx.fillStyle='#475569'; ctx.textAlign='center'; ctx.font='500 8px JetBrains Mono';
+  ctx.fillStyle='#6B6048'; ctx.textAlign='center'; ctx.font='500 8px Lexend Deca';
   [0, 0.25, 0.5, 0.75, 1].forEach(pct => {
     ctx.fillText(fmtSec(Math.round(pct*globalMax)), pad.l + pct*pw, pad.t+ph+18);
   });
@@ -2308,7 +2289,7 @@ function renderLobbySurvivalCurve(rows, filteredMatches) {
       const y = pad.t + ph - (v/100)*ph;
       i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
     });
-    ctx.strokeStyle = 'rgba(71,85,105,0.4)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.strokeStyle = 'rgba(107,96,72,0.4)'; ctx.lineWidth = 1; ctx.stroke();
   });
 
   // Average curve (white)
@@ -2319,7 +2300,7 @@ function renderLobbySurvivalCurve(rows, filteredMatches) {
     const y = pad.t + ph - (v/100)*ph;
     i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
   });
-  ctx.strokeStyle = 'rgba(241,245,249,0.5)'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.strokeStyle = 'rgba(28,26,20,0.5)'; ctx.lineWidth = 1.5; ctx.stroke();
 
   // Self wipe markers per match (red vertical dots on the average curve position)
   let selfWipePcts = [];
@@ -2333,8 +2314,8 @@ function renderLobbySurvivalCurve(rows, filteredMatches) {
     const lobbyAlive = avgCurve[Math.min(curveIdx, avgCurve.length-1)];
     const y = pad.t + ph - (lobbyAlive/100)*ph;
     ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI*2);
-    ctx.fillStyle = '#f87171'; ctx.fill();
-    ctx.strokeStyle = 'rgba(248,113,113,0.3)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#9B1C11'; ctx.fill();
+    ctx.strokeStyle = 'rgba(155,28,17,0.3)'; ctx.lineWidth = 2; ctx.stroke();
   });
 
   // Insight
@@ -2403,7 +2384,7 @@ function renderWipeDistChart(rows, filteredMatches) {
     // Lobby bar (grey, behind)
     const lobbyH = Math.max(lobbyCounts[i] > 0 ? 3 : 0, Math.round((lobbyCounts[i]/maxCount)*chartH));
     const lobbyBar = document.createElement('div');
-    lobbyBar.style.cssText = `width:100%;max-width:18px;height:${lobbyH}px;background:rgba(71,85,105,0.5);border-radius:2px 2px 0 0;`;
+    lobbyBar.style.cssText = `width:100%;max-width:18px;height:${lobbyH}px;background:rgba(107,96,72,0.5);border-radius:2px 2px 0 0;`;
     lobbyBar.title = `Lobby avg: ${lobbyCounts[i]} wipes`;
 
     const barsWrap = document.createElement('div');
@@ -2413,7 +2394,7 @@ function renderWipeDistChart(rows, filteredMatches) {
 
     const lbl = document.createElement('div');
     const pctLabel = `${i*10}%`;
-    lbl.style.cssText = 'font-family:\'JetBrains Mono\',monospace;font-size:7px;color:var(--muted);text-align:center;position:absolute;bottom:0;left:50%;transform:translateX(-50%);white-space:nowrap;';
+    lbl.style.cssText = 'font-family:\'Lexend Deca\',monospace;font-size:7px;color:var(--muted);text-align:center;position:absolute;bottom:0;left:50%;transform:translateX(-50%);white-space:nowrap;';
     lbl.textContent = pctLabel;
     const lblWrap = document.createElement('div');
     lblWrap.style.cssText = 'position:relative;height:20px;width:100%;';
@@ -2427,7 +2408,7 @@ function renderWipeDistChart(rows, filteredMatches) {
   // Legend
   const legend = document.createElement('div');
   legend.style.cssText = 'position:absolute;top:0;right:0;display:flex;gap:10px;';
-  legend.innerHTML = `<span style="font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--accent);">■ YOUR TEAM</span><span style="font-family:'JetBrains Mono',monospace;font-size:8px;color:rgba(71,85,105,0.8);">■ LOBBY</span>`;
+  legend.innerHTML = `<span style="font-family:'Lexend Deca',monospace;font-size:8px;color:var(--accent);">■ YOUR TEAM</span><span style="font-family:'Lexend Deca',monospace;font-size:8px;color:rgba(107,96,72,0.8);">■ LOBBY</span>`;
   container.style.position = 'relative';
   container.appendChild(legend);
 
@@ -2482,7 +2463,7 @@ function renderZonePhaseChart(rows, filteredMatches) {
 
   const maxCount = Math.max(1, ...phases.map(p => phaseCounts[p]));
   const chartH = 112;
-  const colors = ['#22d3ee','#4ade80','#facc15','#fb923c','#f87171','#a78bfa','#f87171'];
+  const colors = ['#2C4A2E','#4E7C2F','#7C5A00','#C85E0A','#9B1C11','#4A3870','#9B1C11'];
 
   phases.forEach(phase => {
     const count = phaseCounts[phase];
@@ -2494,7 +2475,7 @@ function renderZonePhaseChart(rows, filteredMatches) {
 
     const cntLbl = document.createElement('div');
     cntLbl.textContent = count;
-    cntLbl.style.cssText = `font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;color:${color};`;
+    cntLbl.style.cssText = `font-family:'Lexend Deca',monospace;font-size:10px;font-weight:700;color:${color};`;
 
     const bar = document.createElement('div');
     bar.style.cssText = `width:100%;max-width:36px;height:${barH}px;background:${color};border-radius:2px 2px 0 0;opacity:0.8;`;
@@ -2502,7 +2483,7 @@ function renderZonePhaseChart(rows, filteredMatches) {
     const lblWrap = document.createElement('div');
     lblWrap.style.cssText = 'position:relative;height:20px;width:100%;';
     const lbl = document.createElement('div');
-    lbl.style.cssText = 'font-family:\'JetBrains Mono\',monospace;font-size:9px;color:var(--muted);text-align:center;position:absolute;bottom:0;left:50%;transform:translateX(-50%);';
+    lbl.style.cssText = 'font-family:\'Lexend Deca\',monospace;font-size:9px;color:var(--muted);text-align:center;position:absolute;bottom:0;left:50%;transform:translateX(-50%);';
     lbl.textContent = `Z${phase}`;
     lblWrap.appendChild(lbl);
 
@@ -2556,18 +2537,18 @@ function renderFightTimingChart(filteredMatches) {
     row.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:4px;';
 
     const label = document.createElement('div');
-    label.style.cssText = 'font-family:\'JetBrains Mono\',monospace;font-size:8px;color:var(--muted);width:52px;flex-shrink:0;text-align:right;';
+    label.style.cssText = 'font-family:\'Lexend Deca\',monospace;font-size:8px;color:var(--muted);width:52px;flex-shrink:0;text-align:right;';
     label.textContent = match.name || `M${mi+1}`;
     row.appendChild(label);
 
     const track = document.createElement('div');
-    track.style.cssText = 'flex:1;position:relative;height:20px;background:rgba(15,23,42,0.6);border:1px solid rgba(30,41,59,0.6);border-radius:2px;';
+    track.style.cssText = 'flex:1;position:relative;height:20px;background:rgba(237,231,220,0.6);border:1px solid rgba(201,191,168,0.6);border-radius:2px;';
 
     // Zone ticks (faint)
     allShapes.filter(s => s.match_id === match.id && s.type === 'circle').forEach(z => {
       const pct = Math.min(99, ((z.time_seconds||0)/globalMax)*100);
       const tick = document.createElement('div');
-      tick.style.cssText = `position:absolute;left:${pct}%;top:0;bottom:0;width:1px;background:rgba(34,211,238,0.2);`;
+      tick.style.cssText = `position:absolute;left:${pct}%;top:0;bottom:0;width:1px;background:rgba(44,74,46,0.2);`;
       track.appendChild(tick);
     });
 
@@ -2575,7 +2556,7 @@ function renderFightTimingChart(filteredMatches) {
       const t = f.time_seconds || 0;
       const pct = Math.min(98, (t/globalMax)*100);
       const dot = document.createElement('div');
-      dot.style.cssText = `position:absolute;left:${pct}%;top:50%;transform:translate(-50%,-50%);width:9px;height:9px;border-radius:50%;background:#fb923c;border:1px solid rgba(251,146,60,0.4);`;
+      dot.style.cssText = `position:absolute;left:${pct}%;top:50%;transform:translate(-50%,-50%);width:9px;height:9px;border-radius:50%;background:#C85E0A;border:1px solid rgba(200,94,10,0.4);`;
       dot.title = `Fight: ${f.fight_team_a||'?'} vs ${f.fight_team_b||'?'} @ ${fmtSec(t)}`;
       track.appendChild(dot);
     });
@@ -2583,7 +2564,7 @@ function renderFightTimingChart(filteredMatches) {
     row.appendChild(track);
 
     const countEl = document.createElement('div');
-    countEl.style.cssText = 'font-family:\'JetBrains Mono\',monospace;font-size:8px;color:var(--orange);width:20px;flex-shrink:0;';
+    countEl.style.cssText = 'font-family:\'Lexend Deca\',monospace;font-size:8px;color:var(--orange);width:20px;flex-shrink:0;';
     countEl.textContent = matchFights.length ? `×${matchFights.length}` : '';
     row.appendChild(countEl);
 
@@ -2600,7 +2581,7 @@ function renderFightTimingChart(filteredMatches) {
   axisTrack.style.cssText = 'flex:1;position:relative;height:12px;';
   [0, 0.25, 0.5, 0.75, 1].forEach(pct => {
     const t = document.createElement('div');
-    t.style.cssText = `position:absolute;left:${pct*100}%;font-family:'JetBrains Mono',monospace;font-size:7px;color:var(--muted);transform:translateX(-50%);`;
+    t.style.cssText = `position:absolute;left:${pct*100}%;font-family:'Lexend Deca',monospace;font-size:7px;color:var(--muted);transform:translateX(-50%);`;
     t.textContent = fmtSec(Math.round(pct*globalMax));
     axisTrack.appendChild(t);
   });
@@ -2675,8 +2656,8 @@ function stdDev(arr) {
 }
 
 function drawEmpty(ctx, W, H, msg) {
-  ctx.font = '500 11px JetBrains Mono';
-  ctx.fillStyle = '#475569';
+  ctx.font = '500 11px Lexend Deca';
+  ctx.fillStyle = '#6B6048';
   ctx.textAlign = 'center';
   ctx.fillText(msg, W / 2, H / 2);
 }
@@ -2777,7 +2758,7 @@ function buildRoutesMatchPicker() {
   matches.forEach(m => {
     const row = document.createElement('label');
     row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:4px;cursor:pointer;font-size:11px;';
-    row.onmouseover = () => row.style.background = 'rgba(34,211,238,0.05)';
+    row.onmouseover = () => row.style.background = 'rgba(44,74,46,0.05)';
     row.onmouseout = () => row.style.background = '';
 
     const cb = document.createElement('input');
@@ -2891,7 +2872,7 @@ function renderRoutesTileGrid() {
     const wrap = document.createElement('div');
     wrap.style.cssText = 'display:flex;flex-direction:column;gap:4px;';
     const label = document.createElement('div');
-    label.style.cssText = 'font-family:\'JetBrains Mono\',monospace;font-size:9px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+    label.style.cssText = 'font-family:\'Lexend Deca\',monospace;font-size:9px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
     label.textContent = m ? `${m.tournamentName} › ${m.name}` : matchId;
     label.title = label.textContent;
     const canvasWrap = document.createElement('div');
@@ -2958,11 +2939,13 @@ function drawMapTile(ctx, { mapImg, worldW, worldH, zoom, panX, panY, teams, sha
 
   const teamColor = (teamId) => {
     const t = (teams || []).find(t => t.id === teamId);
-    return t ? (t.color || (t.is_self ? '#22d3ee' : '#f87171')) : '#94a3b8';
+    return t ? (t.color || (t.is_self ? '#2C4A2E' : '#9B1C11')) : '#A89880';
   };
 
   (zones || []).filter(s => s.time <= time).forEach(s => {
     ctx.beginPath(); ctx.arc(s.cx, s.cy, s.r, 0, Math.PI*2);
+    // White regardless of page theme — this draws on the map image itself (satellite/game
+    // imagery), not the page background, matching editor.html's drawZoneCircle() convention.
     ctx.strokeStyle = `rgba(255,255,255,${opacity})`; ctx.lineWidth = 2/zoom; ctx.stroke();
   });
 
@@ -2975,7 +2958,7 @@ function drawMapTile(ctx, { mapImg, worldW, worldH, zoom, panX, panY, teams, sha
 }
 
 function _hexToRgb(hex) {
-  const h = (hex||'#94a3b8').replace('#','');
+  const h = (hex||'#A89880').replace('#','');
   const n = parseInt(h.length===3 ? h.split('').map(c=>c+c).join('') : h, 16);
   return [(n>>16)&255, (n>>8)&255, n&255];
 }
@@ -3114,7 +3097,7 @@ async function renderHeatmap() {
     ctx.translate(panX, panY);
     ctx.scale(zoom, zoom);
     ctx.drawImage(mapEntry.img, 0, 0, mapEntry.w, mapEntry.h);
-    shapes.forEach(s => _drawRoutesShape(ctx, s, '#f87171', zoom, mapEntry.w, 0.15));
+    shapes.forEach(s => _drawRoutesShape(ctx, s, '#9B1C11', zoom, mapEntry.w, 0.15));
     ctx.restore();
   });
 }
