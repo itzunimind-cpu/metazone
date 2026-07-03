@@ -99,13 +99,13 @@ time_of_wipe        int        ← nullable, match-relative seconds
 confirmed_position  int        ← nullable
 wipe_x              float      ← nullable
 wipe_y              float      ← nullable
-team_identity_id    uuid REFERENCES team_identities(id)  ← Session 43 SQL, PENDING (see Section 3) — cross-tournament team identity, additive
+team_identity_id    uuid REFERENCES team_identities(id)  ← Session 43 SQL, RUN — cross-tournament team identity, additive
 created_at          timestamptz DEFAULT now()
 ```
 
 ### team_identities
 ```
-id                  uuid PRIMARY KEY DEFAULT gen_random_uuid()   ← Session 43 SQL, PENDING (see Section 3)
+id                  uuid PRIMARY KEY DEFAULT gen_random_uuid()   ← Session 43 SQL, RUN
 user_id             uuid REFERENCES auth.users(id) NOT NULL
 canonical_name      text NOT NULL
 created_at          timestamptz DEFAULT now()
@@ -118,7 +118,7 @@ id                  uuid PRIMARY KEY
 tournament_id       uuid REFERENCES tournaments(id)
 user_id             uuid REFERENCES auth.users(id)
 team_name           text NOT NULL
-team_identity_id    uuid REFERENCES team_identities(id)  ← Session 43 SQL, PENDING (see Section 3)
+team_identity_id    uuid REFERENCES team_identities(id)  ← Session 43 SQL, RUN
 created_at          timestamptz DEFAULT now()
 ```
 Was undocumented pre-Session-43. Per-tournament roster used only for autocomplete/prefill (`editor.html`'s `knownTeams`, `tournament-create.html`'s roster builder) until Session 43 added the identity link.
@@ -290,11 +290,11 @@ ALTER TABLE matches ADD COLUMN IF NOT EXISTS cal_active boolean DEFAULT false;
 
 ⚠️ Supabase/PostgREST 400s an insert or update that references a column that doesn't exist yet — so writing `source`/`cal_*` unconditionally before this migration runs would have broken every save (not just the new features). Both files probe for these columns once at boot (`_detectSession42Columns()` → `_hasSession42Cols`, `sb.from('matches').select('cal_active').limit(1)`) and gate the new fields on the result: `shapeToDbRow()` omits `source` (via `undefined`, which `JSON.stringify` drops) and `persistCalibration()` skips its write entirely (toast: session-only, not saved) until the flag is true. Existing save behavior is unaffected either way. Run this migration to actually get provenance tags and persisted calibration.
 
+✅ **RUN — Session 43.** User confirmed both the migration and the backfill ran clean in Supabase, no errors. Kept below for reference (e.g. reapplying to a fresh environment) — table/columns now documented as present in Section 1, `_hasTeamIdentityCols` will read `true` on next load in all three files (`editor.html`/`tournament-create.html`/`analytics.html`).
+
 ```sql
 -- Session 43 — Team identity registry (additive only)
--- PENDING — user needs to run this in Supabase, THEN the one-time backfill
--- below it, before the team-add UX changes (editor.html/tournament-create.html)
--- rely on team_identity_id being populated for existing teams.
+-- RUN — kept here for reference only, not pending.
 
 CREATE TABLE IF NOT EXISTS team_identities (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -725,6 +725,7 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | 43 | **analytics.html — Routes tab, Heatmap mode.** Superimposes every `tag:'rotation'` path/line a team (self via `is_self`, or an opponent via `team_identity_id` once the migration has run) has drawn on one map, across every match in every tournament the user owns — drawn at low constant alpha (~0.15) with **no time gating at all** (the point is full route history, not a moment in time), so frequently-used routes read visibly denser from canvas alpha stacking alone — no separate density/kernel-density math needed. Deliberately excludes `tag:'fight'` shapes (elimination-location points) — same "no elimination heatmaps this pass" decision as death-location heatmaps, both flagged as a natural later extension of this same infrastructure rather than built now. |
 | 43 | **player.html — new CAREER scope mode.** Cheapest of the three pieces of this session's work since `players.id` already has real cross-tournament identity (unlike teams pre-Session-43) via the existing `tournament_players` join — no schema change needed. Implemented by repointing the same `allMatches`/`allSelfTeams`/`allShapes`/`allDays` globals every existing chart function (`renderKillsPerMatch`, `renderTrend`, `renderDeathTiming`, etc.) already reads generically off its `rows` argument — zero chart-function rewrites. New `loadCareerScopedData(playerId)` scopes through `tournament_players.eq('player_id',...)` (not a blanket fetch of every match the user owns) and is cached per player. Two small necessary fixes surfaced while wiring this in: `renderMatchHistory()`'s row-click link previously hardcoded the single loaded `tournamentId` — in career mode that would have linked every row to the wrong tournament, now uses each row's own `match.tournament_id` with a fallback; `renderTrend()` gained dashed tournament-boundary markers so a coach can see performance drift across tournaments, not just across matches within one. |
 | 43 | **Section 1 schema corrections (found while implementing, not new changes).** Confirmed by reading the actual code, several parts of Section 1 were stale: `teams` was missing `user_id`/`slot_index` (both used constantly in `editor.html`); `players` was documented as scoped by `tournament_id`, which is wrong — no code path ever inserts that, it's scoped by `user_id` and linked into a tournament via `tournament_players` (this is what already gave players real cross-tournament identity, the exact pattern `team_identities` now mirrors for teams); `tournament_teams`/`tournament_players` had no schema block at all; `shapes`' real column names were wrong (`radius` not `r`, `pin_x`/`pin_y` not `wx`/`wy`, plus undocumented `label`/`fight_team_a`/`fight_team_b`/`zone_type`). All corrected in Section 1 this session. |
+| 43 | **Session 43's team-identity migration + backfill (Section 3) run in Supabase — user confirmed both ran clean, no errors.** `team_identities` table and `teams`/`tournament_teams.team_identity_id` are now live; the backfill has linked existing teams by case-insensitive name match. `_hasTeamIdentityCols` will read `true` in `editor.html`/`tournament-create.html`/`analytics.html` on next load, so team-add now actually persists identity links and Heatmap mode's opponent-team filtering is live, not just self-team. Section 1/3/9 pending-migration markers for this item closed out (the known near-duplicate-name caveat from the backfill still stands — see Section 3 ⚠️ note and FEAT-6). |
 
 ---
 
@@ -740,7 +741,6 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | Priority | Item |
 |----------|------|
 | 🟡 MED | Run Session 42 SQL (Section 3) — `shapes.source`, `matches.cal_tx/ty/sx/sy/active`. Degrades gracefully until run (see Section 3 ⚠️ note). |
-| 🟡 MED | Run Session 43 SQL + backfill (Section 3) — `team_identities` table, `teams`/`tournament_teams.team_identity_id`. Degrades gracefully until run; Heatmap-mode opponent filtering and identity-linked team-add won't work for real until it's done. |
 
 ---
 
