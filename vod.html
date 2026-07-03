@@ -1360,6 +1360,7 @@ const stage  = document.getElementById('vod-stage');
 let _booted = false;
 window.addEventListener('DOMContentLoaded', async () => {
   sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+  _detectSession42Columns(); // fire-and-forget capability probe — see definition
   const { data: { session } } = await sb.auth.getSession();
   if (session) {
     _booted = true;
@@ -1828,11 +1829,19 @@ async function _doStartMatch() {
     // Save to DB
     if (sb && !String(state.matchId).startsWith('local_')) {
       const upd = { vod_start_offset: Math.round(vodStartOffset) };
+      const m = matches.find(x=>x.id===state.matchId);
       if (vodUrl) upd.vod_url = vodUrl;
+      // Session 42: a saved calibration was tuned to the OLD video's framing —
+      // if the URL actually changed, it no longer applies. Invalidate it.
+      const urlChanged = vodUrl && m?.vod_url && vodUrl !== m.vod_url;
+      if (urlChanged && m?.cal_active) {
+        calTx=0; calTy=0; calSx=1; calSy=1; calActive=false;
+        upd.cal_tx=null; upd.cal_ty=null; upd.cal_sx=null; upd.cal_sy=null; upd.cal_active=false;
+        toast('Video changed — map calibration reset, recalibration needed', 'warn');
+      }
       await sb.from('matches').update(upd).eq('id', state.matchId);
       // Update local cache too
-      const m = matches.find(x=>x.id===state.matchId);
-      if (m) { m.vod_start_offset = Math.round(vodStartOffset); if (vodUrl) m.vod_url = vodUrl; }
+      if (m) { m.vod_start_offset = Math.round(vodStartOffset); Object.assign(m, upd); }
     }
     startPolling();
     updateEventButtons();
@@ -2539,6 +2548,17 @@ async function onMatchChange(val) {
   if (state.matchId) {
     const m = matches.find(x=>x.id===state.matchId);
     if (m?.map_key) { state.mapKey=m.map_key; loadMapKey(m.map_key); }
+
+    // Session 42: restore persisted calibration for this match (or reset to
+    // defaults — calTx/calSx etc are module-level and would otherwise bleed
+    // in from whatever match was open before this one)
+    if (m?.cal_active) {
+      calTx = m.cal_tx ?? 0; calTy = m.cal_ty ?? 0;
+      calSx = m.cal_sx ?? 1; calSy = m.cal_sy ?? 1;
+      calActive = true;
+    } else {
+      calTx = 0; calTy = 0; calSx = 1; calSy = 1; calActive = false;
+    }
     // Set active team to SELF
     const matchTeams = teams.filter(t=>t.match_id===state.matchId);
     const selfTeam = matchTeams.find(t=>t.is_self)||matchTeams[0];
@@ -2573,6 +2593,7 @@ async function onMatchChange(val) {
   updateEventButtons(); updateMatchTimeDisplay();
   renderSquadPanel(); renderTimelineMarkers(); draw();
   updateMatchContextBar();
+  announceMatchOpen(state.matchId);
 }
 
 function _extractYTIdSafe(url) {
@@ -3172,11 +3193,13 @@ async function undo() {
   const zoneIsNewer = lastZone && (!lastTeamShape || (lastZone.time>=(lastTeamShape.time||0)));
   if(zoneIsNewer&&zones.length){
     zones.pop();
+    lastZone._removed = true; // Session 42: tell a still-pending autosave not to re-insert this
     if(sb&&lastZone?.id&&!String(lastZone.id).startsWith('local_')) await sb.from('shapes').delete().eq('id',lastZone.id);
     draw(); renderTimelineMarkers(); return;
   }
   if(!teamShapes.length) return;
   const removed=teamShapes.pop();
+  removed._removed = true; // Session 42: tell a still-pending autosave not to re-insert this
   if(sb&&removed?.id&&!String(removed.id).startsWith('local_')) await sb.from('shapes').delete().eq('id',removed.id);
   draw(); renderTimelineMarkers();
 }
@@ -3256,14 +3279,15 @@ function drawShape(s, isPreview, teamColor, alphaMult) {
   const [r,g,b]=rgb;
   const stroke=`rgba(${r},${g},${b},${(op*am).toFixed(2)})`;
   const fill  =`rgba(${r},${g},${b},${(op*am*.12).toFixed(2)})`;
-  ctx.strokeStyle=stroke; ctx.fillStyle=fill; ctx.lineWidth=lw; ctx.setLineDash([]);
+  const vodDash=s.source==='vod'?[4/zoom,3/zoom]:[]; // Session 42: subtle provenance tell
+  ctx.strokeStyle=stroke; ctx.fillStyle=fill; ctx.lineWidth=lw; ctx.setLineDash(vodDash);
   if(s.type==='line'){
     drawArrow(s.x1,s.y1,s.x2,s.y2,stroke,lw);
   } else if(s.type==='path'){
-    drawPath(s.points,stroke,lw,isPreview);
+    drawPath(s.points,stroke,lw,isPreview,vodDash);
   } else if(s.type==='pin'||s.type==='fight'){
     const pin=`rgba(${r},${g},${b},${am.toFixed(2)})`;
-    drawPinMarker(s.x,s.y,pin,isPreview);
+    drawPinMarker(s.x,s.y,pin,isPreview,s.source==='vod');
     if(s.type==='fight'&&s.teamA){
       ctx.fillStyle=`rgba(${r},${g},${b},${am.toFixed(2)})`;
       ctx.font=`bold ${9/zoom}px JetBrains Mono,monospace`;
@@ -3275,7 +3299,8 @@ function drawShape(s, isPreview, teamColor, alphaMult) {
 function drawZoneCircle(s, isPreview) {
   const lw=2/zoom, op=.85;
   const stroke=`rgba(44,74,46,${op.toFixed(2)})`, fill=`rgba(44,74,46,${(op*.12).toFixed(2)})`;
-  ctx.strokeStyle=stroke; ctx.fillStyle=fill; ctx.lineWidth=lw; ctx.setLineDash([]);
+  ctx.strokeStyle=stroke; ctx.fillStyle=fill; ctx.lineWidth=lw;
+  ctx.setLineDash(s.source==='vod'?[4/zoom,3/zoom]:[]);
   ctx.beginPath(); ctx.arc(s.cx,s.cy,s.r,0,Math.PI*2); ctx.fill(); ctx.stroke();
   ctx.fillStyle=`rgba(44,74,46,.9)`; ctx.font=`bold ${13/zoom}px JetBrains Mono,monospace`;
   ctx.textAlign='center'; ctx.textBaseline='middle';
@@ -3293,10 +3318,10 @@ function drawArrow(x1,y1,x2,y2,stroke,lw) {
   ctx.stroke();
 }
 
-function drawPath(points, stroke, lw, isPreview) {
+function drawPath(points, stroke, lw, isPreview, vodDash) {
   if(!points||points.length<2) return;
   ctx.strokeStyle=stroke; ctx.lineWidth=lw;
-  ctx.setLineDash(isPreview?[5/zoom,4/zoom]:[]);
+  ctx.setLineDash(isPreview?[5/zoom,4/zoom]:(vodDash||[]));
   ctx.beginPath(); ctx.moveTo(points[0].x,points[0].y);
   for(let i=1;i<points.length;i++) ctx.lineTo(points[i].x,points[i].y);
   ctx.stroke(); ctx.setLineDash([]);
@@ -3307,10 +3332,16 @@ function drawPath(points, stroke, lw, isPreview) {
   if(points.length>=2) drawArrow(points[points.length-2].x,points[points.length-2].y,points[points.length-1].x,points[points.length-1].y,stroke,lw);
 }
 
-function drawPinMarker(x,y,pin,isPreview) {
+function drawPinMarker(x,y,pin,isPreview,isVodSourced) {
   const r=(isPreview?6:7)/zoom;
   ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fillStyle=pin; ctx.fill();
   ctx.beginPath(); ctx.arc(x,y,r*.35,0,Math.PI*2); ctx.fillStyle='rgba(0,0,0,.6)'; ctx.fill();
+  // Session 42: subtle provenance ring for VOD-sourced pin/fight markers
+  if(isVodSourced){
+    ctx.beginPath(); ctx.arc(x,y,r+3/zoom,0,Math.PI*2);
+    ctx.setLineDash([3/zoom,2/zoom]); ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.lineWidth=1/zoom; ctx.stroke();
+    ctx.setLineDash([]);
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -3613,6 +3644,7 @@ function handleCalClick(sx, sy) {
       toast('Map point A marked — click the 2nd spot on the map', 'warn');
     } else {
       computeCalibration();
+      persistCalibration();
     }
   }
 }
@@ -3661,6 +3693,20 @@ function computeCalibration() {
   calPhase = 0; // prevent more clicks
   setTimeout(() => exitCalibration(), 1800);
   toast('Map calibrated — coords corrected', 'ok');
+}
+
+// Session 42: persist calibration to the match row so it survives reload —
+// previously calTx/calTy/calSx/calSy were plain JS state, lost every session.
+// Defined outside computeCalibration() because that function's local `sb`
+// (a calibration click point) shadows the module-level Supabase client.
+async function persistCalibration() {
+  if (!sb || !state.matchId || String(state.matchId).startsWith('local_')) return;
+  if (!_hasSession42Cols) { toast('Calibration set for this session, but not saved — ask an admin to run the pending DB migration','warn'); return; }
+  const upd = { cal_tx:calTx, cal_ty:calTy, cal_sx:calSx, cal_sy:calSy, cal_active:true };
+  const { error } = await sb.from('matches').update(upd).eq('id', state.matchId);
+  if (error) { toast('Calibration save failed: '+error.message, 'err'); return; }
+  const m = matches.find(x=>x.id===state.matchId);
+  if (m) Object.assign(m, upd);
 }
 
 function renderCalOverlay() {
@@ -3814,8 +3860,21 @@ function loadMapKey(key) {
 // ══════════════════════════════════════════════════════
 // SHAPE SERIALIZATION
 // ══════════════════════════════════════════════════════
+// Session 42 SQL (shapes.source, matches.cal_*) may not have been run yet in
+// Supabase — inserting/updating an unknown column 400s the whole request, which
+// would silently break EVERY save (not just the new feature). Probe once at
+// boot and gate the new fields on the result so old-behavior saves keep working
+// either way; `undefined` values are dropped by JSON.stringify, so omitting the
+// key this way (rather than restructuring the object) is enough.
+let _hasSession42Cols = false;
+async function _detectSession42Columns() {
+  if (!sb) return;
+  const { error } = await sb.from('matches').select('cal_active').limit(1);
+  _hasSession42Cols = !error;
+}
+
 function shapeToDbRow(shape, teamId, matchId) {
-  const base={team_id:teamId,match_id:matchId,user_id:currentUser?.id,type:shape.type,tag:shape.tag,time_seconds:Math.round(shape.time||0)};
+  const base={team_id:teamId,match_id:matchId,user_id:currentUser?.id,type:shape.type,tag:shape.tag,time_seconds:Math.round(shape.time||0),source:_hasSession42Cols?(shape.source||'vod'):undefined};
   if(shape.type==='circle'){
     const m=matches.find(x=>x.id===matchId);
     return {...base,team_id:null,cx:shape.cx,cy:shape.cy,radius:shape.r,zone_phase:parseInt(shape.zone_phase||1,10),zone_type:'white',map_key:m?.map_key||state.mapKey};
@@ -3828,7 +3887,7 @@ function shapeToDbRow(shape, teamId, matchId) {
 }
 
 function dbRowToShape(row) {
-  const base={id:row.id,type:row.type,tag:row.tag,time:row.time_seconds};
+  const base={id:row.id,type:row.type,tag:row.tag,time:row.time_seconds,source:row.source||'vod'};
   if(row.type==='circle') return {...base,cx:row.cx,cy:row.cy,r:row.radius,zone_phase:row.zone_phase||1};
   if(row.type==='line')   return {...base,x1:row.x1,y1:row.y1,x2:row.x2,y2:row.y2};
   if(row.type==='path')   return {...base,points:typeof row.path_points==='string'?JSON.parse(row.path_points):row.path_points};
@@ -3843,10 +3902,67 @@ function getNextRotationIndex(teamId) { return ((shapesCache[teamId]||[]).filter
 // ══════════════════════════════════════════════════════
 // SAVE SHAPES
 // ══════════════════════════════════════════════════════
-function queueForSave() { setSyncState('syncing'); }
+// ── Autosave (Session 42) — queueForSave used to be a UI-only no-op; it now
+// actually persists the finalized shape, debounced only to collapse rapid
+// duplicate calls (not to delay). manualSave/Ctrl+S remains a retry/force-flush
+// safety net for anything that failed to persist (transient network error).
+let _autosaveQueue = [];        // {shape, teamId, matchId}
+let _autosaveTimer = null;
+let _pendingAutosaveCount = 0;
+let _autosaveFailed = false;
+
+function queueForSave(shape) {
+  setSyncState('syncing');
+  if(!shape || !sb || !state.matchId) return;
+  if(!shape.source) shape.source = 'vod';
+  _autosaveQueue.push({ shape, teamId:state.activeTeamId, matchId:state.matchId });
+  _pendingAutosaveCount++;
+  if(_autosaveTimer) clearTimeout(_autosaveTimer);
+  _autosaveTimer = setTimeout(flushAutosaveQueue, 300);
+}
+
+async function flushAutosaveQueue() {
+  _autosaveTimer = null;
+  const batch = _autosaveQueue.splice(0, _autosaveQueue.length);
+  if(!sb || !batch.length) return;
+  setSyncState('syncing');
+  try {
+    for (const {shape, teamId, matchId} of batch) {
+      if(shape._removed || (shape.id && !String(shape.id).startsWith('local_'))) { _pendingAutosaveCount--; continue; }
+      const row = shapeToDbRow(shape, teamId, matchId);
+      const {data,error} = await sb.from('shapes').insert(row).select().single();
+      if(error) throw error;
+      shape.id = data.id;
+      _pendingAutosaveCount--;
+    }
+    setSyncState('saved'); _autosaveFailed = false;
+  } catch(e) {
+    setSyncState('error'); _autosaveFailed = true;
+    toast('AUTOSAVE FAILED — click Save to retry','err');
+  }
+}
+
+window.addEventListener('beforeunload', (e) => {
+  if(_autosaveFailed || _pendingAutosaveCount > 0) { e.preventDefault(); e.returnValue=''; }
+});
+
+// ── Cross-tab "already open" warning (Session 42) — soft heads-up only,
+// no lock. See METAZONE_HANDOFF_v25.md for the deferred Presence upgrade path.
+let _matchChannel = null;
+function announceMatchOpen(matchId) {
+  if(_matchChannel) { _matchChannel.close(); _matchChannel=null; }
+  if(!matchId || typeof BroadcastChannel==='undefined') return;
+  _matchChannel = new BroadcastChannel('mz-match-'+matchId);
+  _matchChannel.onmessage = (e) => {
+    if(e.data==='open') toast('This match is also open in another tab','warn');
+  };
+  _matchChannel.postMessage('open');
+}
 
 async function manualSave() {
   if(!sb||!state.matchId){ toast('Nothing to save','warn'); return; }
+  if(_autosaveTimer){ clearTimeout(_autosaveTimer); _autosaveTimer=null; }
+  await flushAutosaveQueue();
   setSyncState('syncing');
   try {
     // Save active team shapes
@@ -3868,8 +3984,8 @@ async function manualSave() {
       if(error) throw error;
       data.forEach((row,i)=>{ zones[i].id=row.id; });
     }
-    setSyncState('saved'); toast('SAVED ✓','ok');
-  } catch(e) { setSyncState('error'); toast('SAVE FAILED: '+e.message,'err'); }
+    setSyncState('saved'); _autosaveFailed=false; toast('SAVED ✓','ok');
+  } catch(e) { setSyncState('error'); _autosaveFailed=true; toast('SAVE FAILED: '+e.message,'err'); }
 }
 
 // ══════════════════════════════════════════════════════

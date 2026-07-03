@@ -1735,6 +1735,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('sel-map').value = savedMapKey;
 
   sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+  _detectSession42Columns(); // fire-and-forget capability probe — see definition
   const { data: { session } } = await sb.auth.getSession();
   if (session) {
     _booted = true;
@@ -2232,9 +2233,23 @@ function closeActivePlayersModal() {
 // ══════════════════════════════════════════════════════
 // SHAPE SERIALIZATION
 // ══════════════════════════════════════════════════════
+// Session 42 SQL (shapes.source, matches.cal_*) may not have been run yet in
+// Supabase — inserting/updating an unknown column 400s the whole request, which
+// would silently break EVERY save (not just the new feature). Probe once at
+// boot and gate the new fields on the result so old-behavior saves keep working
+// either way; `undefined` values are dropped by JSON.stringify, so omitting the
+// key this way (rather than restructuring the object) is enough.
+let _hasSession42Cols = false;
+async function _detectSession42Columns() {
+  if (!sb) return;
+  const { error } = await sb.from('matches').select('cal_active').limit(1);
+  _hasSession42Cols = !error;
+}
+
 function shapeToDbRow(shape, teamId, matchId) {
   const base = { team_id:teamId, match_id:matchId, user_id:currentUser?.id,
-                 type:shape.type, tag:shape.tag, time_seconds:shape.time };
+                 type:shape.type, tag:shape.tag, time_seconds:shape.time,
+                 source: _hasSession42Cols ? (shape.source||'editor') : undefined };
   if(shape.type==='circle') {
     // Zones are match-level: team_id=null, include zone_phase and map_key
     const match = matches.find(m=>m.id===matchId);
@@ -2249,7 +2264,7 @@ function shapeToDbRow(shape, teamId, matchId) {
 }
 
 function dbRowToShape(row) {
-  const base = { id:row.id, type:row.type, tag:row.tag, time:row.time_seconds };
+  const base = { id:row.id, type:row.type, tag:row.tag, time:row.time_seconds, source:row.source||'editor' };
   if(row.type==='circle') return {...base, cx:row.cx, cy:row.cy, r:row.radius, zone_phase:row.zone_phase||1};
   if(row.type==='line')   return {...base, x1:row.x1, y1:row.y1, x2:row.x2, y2:row.y2};
   if(row.type==='path')   return {...base, points: typeof row.path_points==='string' ? JSON.parse(row.path_points) : row.path_points};
@@ -2269,10 +2284,67 @@ function getNextRotationIndex(teamId) {
 }
 
 
-function queueForSave() { setSaveState('idle'); renderTimelineTicks(); }
+// ── Autosave (Session 42) — queueForSave used to be a UI-only no-op; it now
+// actually persists the finalized shape, debounced only to collapse rapid
+// duplicate calls (not to delay). manualSave/Ctrl+S remains a retry/force-flush
+// safety net for anything that failed to persist (transient network error).
+let _autosaveQueue = [];        // {shape, teamId, matchId}
+let _autosaveTimer = null;
+let _pendingAutosaveCount = 0;
+let _autosaveFailed = false;
+
+function queueForSave(shape) {
+  setSaveState('idle'); renderTimelineTicks();
+  if(!shape || !sb || !state.matchId) return;
+  if(!shape.source) shape.source = 'editor';
+  _autosaveQueue.push({ shape, teamId:state.activeTeamId, matchId:state.matchId });
+  _pendingAutosaveCount++;
+  if(_autosaveTimer) clearTimeout(_autosaveTimer);
+  _autosaveTimer = setTimeout(flushAutosaveQueue, 300);
+}
+
+async function flushAutosaveQueue() {
+  _autosaveTimer = null;
+  const batch = _autosaveQueue.splice(0, _autosaveQueue.length);
+  if(!sb || !batch.length) return;
+  setSyncState('syncing');
+  try {
+    for (const {shape, teamId, matchId} of batch) {
+      if(shape._removed || (shape.id && !String(shape.id).startsWith('local_'))) { _pendingAutosaveCount--; continue; }
+      const row = shapeToDbRow(shape, teamId, matchId);
+      const {data,error} = await sb.from('shapes').insert(row).select().single();
+      if(error) throw error;
+      shape.id = data.id;
+      _pendingAutosaveCount--;
+    }
+    setSyncState('saved'); _autosaveFailed = false;
+  } catch(e) {
+    setSyncState('error'); _autosaveFailed = true;
+    toast('AUTOSAVE FAILED — click Save to retry','err');
+  }
+}
+
+window.addEventListener('beforeunload', (e) => {
+  if(_autosaveFailed || _pendingAutosaveCount > 0) { e.preventDefault(); e.returnValue=''; }
+});
+
+// ── Cross-tab "already open" warning (Session 42) — soft heads-up only,
+// no lock. See METAZONE_HANDOFF_v25.md for the deferred Presence upgrade path.
+let _matchChannel = null;
+function announceMatchOpen(matchId) {
+  if(_matchChannel) { _matchChannel.close(); _matchChannel=null; }
+  if(!matchId || typeof BroadcastChannel==='undefined') return;
+  _matchChannel = new BroadcastChannel('mz-match-'+matchId);
+  _matchChannel.onmessage = (e) => {
+    if(e.data==='open') toast('This match is also open in another tab','warn');
+  };
+  _matchChannel.postMessage('open');
+}
 
 async function manualSave() {
   if(!sb||!state.matchId){ toast('Nothing to save','warn'); return; }
+  if(_autosaveTimer){ clearTimeout(_autosaveTimer); _autosaveTimer=null; }
+  await flushAutosaveQueue();
   setSaveState('saving'); setSyncState('syncing');
   try {
     // Save all teams' shapes (not just the active one)
@@ -2295,10 +2367,10 @@ async function manualSave() {
       if(zErr) throw zErr;
       zData.forEach((row,i)=>{ zonesToInsert[i].id=row.id; });
     }
-    setSyncState('saved'); setSaveState('saved'); toast('SAVED','ok');
+    setSyncState('saved'); setSaveState('saved'); _autosaveFailed=false; toast('SAVED','ok');
     setTimeout(()=>setSaveState('idle'),2000);
   } catch(e) {
-    setSyncState('error'); setSaveState('idle'); toast('SAVE FAILED: '+e.message,'err');
+    setSyncState('error'); setSaveState('idle'); _autosaveFailed=true; toast('SAVE FAILED: '+e.message,'err');
   }
 }
 
@@ -2415,8 +2487,25 @@ function loadMapKey(key) {
 
 function selectMapFromDropdown(key) {
   if(key==='custom'){ document.getElementById('file-map').click(); return; }
+  const n = state.matchId ? _matchAnnotationCount(state.matchId) : 0;
+  if(n>0 && key!==state.mapKey){
+    document.getElementById('sel-map').value = state.mapKey; // revert dropdown until confirmed
+    showDeleteWarning('map', 'Change map?',
+      `This match already has ${n} marker${n!==1?'s':''} — changing the map will make their positions meaningless.`,
+      () => { loadMapKey(key); if(state.matchId&&sb) updateMatchMap(key); },
+      'CHANGE MAP');
+    return;
+  }
   loadMapKey(key);
   if(state.matchId&&sb) updateMatchMap(key);
+}
+
+// Session 42: guard against silently orphaning existing markers on map switch
+function _matchAnnotationCount(matchId) {
+  const matchTeams = teams.filter(t=>t.match_id===matchId);
+  const shapeCount = matchTeams.reduce((n,t)=>n+((shapesCache[t.id]||[]).length),0);
+  const zoneCount = (zonesCache[matchId]||[]).length;
+  return shapeCount + zoneCount;
 }
 
 document.getElementById('file-map').onchange=e=>{
@@ -2901,7 +2990,8 @@ function drawShape(s, isPreview, teamColor, alphaMult) {
   const stroke=`rgba(${r},${g},${b},${(op*am).toFixed(2)})`;
   const fill  =`rgba(${r},${g},${b},${(op*am*.12).toFixed(2)})`;
   const pin   =`rgba(${r},${g},${b},${am.toFixed(2)})`;
-  ctx.strokeStyle=stroke; ctx.fillStyle=fill; ctx.lineWidth=lw; ctx.setLineDash([]);
+  const vodDash=s.source==='vod'?[4/zoom,3/zoom]:[]; // Session 42: subtle provenance tell for VOD-sourced markers
+  ctx.strokeStyle=stroke; ctx.fillStyle=fill; ctx.lineWidth=lw; ctx.setLineDash(vodDash);
 
   if(s.type==='circle'){
     // Circles are zone-level and rendered via drawZoneCircle — skip here
@@ -2910,7 +3000,7 @@ function drawShape(s, isPreview, teamColor, alphaMult) {
     if(s.tag==='rotation') drawArrow(s.x1,s.y1,s.x2,s.y2,stroke,lw);
     else{ ctx.beginPath(); ctx.moveTo(s.x1,s.y1); ctx.lineTo(s.x2,s.y2); ctx.stroke(); }
   } else if(s.type==='path'){
-    drawPath(s.points,stroke,lw,isPreview);
+    drawPath(s.points,stroke,lw,isPreview,vodDash);
   } else if(s.type==='pin'||s.type==='fight'){
     drawPinMarker(s,isPreview,teamColor,am);
   }
@@ -2921,7 +3011,8 @@ function drawZoneCircle(s, isPreview) {
   const op=+document.getElementById('sl-opacity').value;
   const lw=w/zoom;
   ctx.beginPath(); ctx.arc(s.cx,s.cy,s.r,0,Math.PI*2);
-  ctx.strokeStyle=`rgba(255,255,255,${op.toFixed(2)})`; ctx.lineWidth=lw; ctx.setLineDash([]); ctx.stroke();
+  ctx.strokeStyle=`rgba(255,255,255,${op.toFixed(2)})`; ctx.lineWidth=lw;
+  ctx.setLineDash(s.source==='vod'?[4/zoom,3/zoom]:[]); ctx.stroke();
   if(isPreview&&s._p1&&s._p2){
     ctx.setLineDash([4/zoom,4/zoom]);
     ctx.strokeStyle='rgba(255,255,255,.3)'; ctx.lineWidth=1/zoom;
@@ -2942,10 +3033,10 @@ function drawArrow(x1,y1,x2,y2,stroke,lw) {
   ctx.stroke();
 }
 
-function drawPath(points,stroke,lw,isPreview) {
+function drawPath(points,stroke,lw,isPreview,vodDash) {
   if(!points||points.length<2) return;
   ctx.strokeStyle=stroke; ctx.lineWidth=lw; ctx.lineCap='round'; ctx.lineJoin='round';
-  ctx.setLineDash(isPreview?[5/zoom,4/zoom]:[]);
+  ctx.setLineDash(isPreview?[5/zoom,4/zoom]:(vodDash||[]));
   ctx.beginPath(); ctx.moveTo(points[0].x,points[0].y);
   for(let i=1;i<points.length;i++) ctx.lineTo(points[i].x,points[i].y);
   ctx.stroke(); ctx.setLineDash([]);
@@ -2986,6 +3077,13 @@ function drawPinMarker(s, isPreview, teamColor, alphaMult) {
     const cr=mpx(6);
     ctx.beginPath(); ctx.arc(x,y,cr,0,Math.PI*2);
     ctx.fillStyle='rgb(45,212,191)'; ctx.fill();
+  }
+
+  // Session 42: subtle provenance ring for VOD-sourced pin/fight markers
+  if(s.source==='vod'){
+    ctx.beginPath(); ctx.arc(x,y,dr+mpx(4),0,Math.PI*2);
+    ctx.setLineDash([3/zoom,2/zoom]); ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.lineWidth=1/zoom; ctx.stroke();
+    ctx.setLineDash([]);
   }
 }
 
@@ -3547,6 +3645,7 @@ async function _activateMatch(match, statusMsg) {
   mzCtxWrite();
   setStatus(statusMsg, true);
   setTimeout(() => setStatus('READY', true), 2000);
+  announceMatchOpen(state.matchId);
 }
 
 function _flashSelect(el){
@@ -3577,7 +3676,7 @@ function refreshDropdowns() {
 
 document.getElementById('sel-tournament').onchange=async function(){
   state.tournamentId=this.value||null; state.dayId=null; state.matchId=null; state.activeTeamId=null;
-  overlayState={};
+  overlayState={}; announceMatchOpen(null);
   if(state.tournamentId&&sb){
     const {data,error}=await sb.from('days').select('*').eq('tournament_id',state.tournamentId).order('order_index');
     if(!error){ days=days.filter(d=>d.tournament_id!==state.tournamentId); days.push(...data); }
@@ -3590,7 +3689,7 @@ document.getElementById('sel-tournament').onchange=async function(){
 };
 document.getElementById('sel-day').onchange=async function(){
   state.dayId=this.value||null; state.matchId=null; state.activeTeamId=null;
-  overlayState={};
+  overlayState={}; announceMatchOpen(null);
   if(state.dayId&&sb){
     const {data,error}=await sb.from('matches').select('*').eq('day_id',state.dayId).order('created_at');
     if(!error){ matches=matches.filter(m=>m.day_id!==state.dayId); matches.push(...data); }
@@ -3634,6 +3733,7 @@ document.getElementById('sel-match').onchange=async function(){
   renderTeamList(); draw(); updateRightPanel();
   renderAnnotationLog();
   renderTimelineTicks();
+  announceMatchOpen(state.matchId);
 };
 
 document.getElementById('in-team').onkeydown=e=>{
@@ -3950,12 +4050,14 @@ async function undo() {
     const zoneIsNewer = !lastTeamShape || (lastZone.time >= (lastTeamShape.time||0));
     if(zoneIsNewer) {
       zones.pop();
+      lastZone._removed = true; // Session 42: tell a still-pending autosave not to re-insert this
       if(sb&&lastZone?.id&&!String(lastZone.id).startsWith('local_')) await sb.from('shapes').delete().eq('id',lastZone.id);
       draw(); renderAnnotationLog(); return;
     }
   }
   const shapes=getActiveShapes(); if(!shapes||!shapes.length) return;
   const removed=shapes.pop();
+  removed._removed = true; // Session 42: tell a still-pending autosave not to re-insert this
   if(!redoStack[state.activeTeamId]) redoStack[state.activeTeamId]=[];
   redoStack[state.activeTeamId].push(removed);
   if(sb&&removed?.id&&!String(removed.id).startsWith('local_')) await sb.from('shapes').delete().eq('id',removed.id);
@@ -3969,6 +4071,7 @@ function redo() {
   const shape=stack.pop();
   const shapes=getActiveShapes(); if(!shapes) return;
   shape.id='local_'+Date.now(); // needs re-save
+  delete shape._removed;
   shapes.push(shape); queueForSave(shape); draw(); renderTimelineTicks(); updateRedoBtn();
 }
 
