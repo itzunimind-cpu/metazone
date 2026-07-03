@@ -564,6 +564,9 @@
         </div>
       </div>
 
+      <!-- ── TOURNAMENT-SCOPED CHARTS (hidden when ROUTES view is active) ── -->
+      <div id="tournament-charts-wrap">
+
       <!-- ── TEAM IDENTITY CARD ── -->
       <div id="identity-card" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:4px;padding:20px 24px;margin-bottom:28px;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;position:relative;overflow:hidden;">
         <div class="scanline"></div>
@@ -610,6 +613,9 @@
           </button>
           <button class="view-btn" id="btn-analyst" onclick="setView('analyst')">
             <iconify-icon icon="lucide:microscope" style="margin-right:5px;"></iconify-icon>ANALYST VIEW
+          </button>
+          <button class="view-btn" id="btn-routes" onclick="setView('routes')">
+            <iconify-icon icon="lucide:route" style="margin-right:5px;"></iconify-icon>ROUTES
           </button>
         </div>
         <p class="font-mono" id="view-desc" style="font-size:9px;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;">Strategy & pattern summary for coaching decisions</p>
@@ -836,6 +842,78 @@
         </div>
       </div>
 
+      </div><!-- /tournament-charts-wrap -->
+
+      <!-- ── ROUTES VIEW (cross-tournament map/path tool, hidden by default) ── -->
+      <div id="routes-view" style="display:none;">
+        <div style="display:flex;gap:0;margin-bottom:20px;">
+          <button class="view-btn active" id="btn-routes-compare" onclick="setRoutesMode('compare')">
+            <iconify-icon icon="lucide:columns-3" style="margin-right:5px;"></iconify-icon>COMPARE
+          </button>
+          <button class="view-btn" id="btn-routes-heatmap" onclick="setRoutesMode('heatmap')">
+            <iconify-icon icon="lucide:flame" style="margin-right:5px;"></iconify-icon>HEATMAP
+          </button>
+        </div>
+
+        <!-- COMPARE MODE -->
+        <div id="routes-compare-mode">
+          <div class="chart-wrap" style="margin-bottom:20px;">
+            <div style="margin-bottom:12px;">
+              <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">1. Pick a map</h3>
+              <p style="font-size:10px;color:var(--muted);margin-top:3px;">Matches are only comparable on the same map — shape coordinates are map-specific pixel space.</p>
+            </div>
+            <div id="routes-map-pill-strip" style="display:flex;align-items:center;gap:3px;padding:4px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;flex-wrap:wrap;width:fit-content;"></div>
+          </div>
+          <div class="chart-wrap" style="margin-bottom:20px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+              <div>
+                <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">2. Pick matches to compare</h3>
+                <p style="font-size:10px;color:var(--muted);margin-top:3px;">Across any of your tournaments. Up to 12 at once.</p>
+              </div>
+              <span class="font-mono" id="routes-match-count-label" style="font-size:9px;color:var(--muted);">0 SELECTED</span>
+            </div>
+            <div id="routes-match-picker" style="display:flex;flex-direction:column;gap:4px;max-height:220px;overflow-y:auto;"></div>
+          </div>
+          <div class="chart-wrap" id="routes-compare-stage" style="display:none;">
+            <div style="margin-bottom:14px;">
+              <input type="range" id="routes-scrubber" min="0" max="2100" value="0" step="1" style="width:100%;" oninput="onRoutesScrub(this.value)">
+              <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);margin-top:4px;">
+                <span id="routes-scrub-time">00:00</span>
+                <span>DRAG TO PLAY BACK ROTATIONS ACROSS ALL SELECTED MATCHES</span>
+              </div>
+            </div>
+            <div id="routes-tile-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;"></div>
+          </div>
+        </div>
+
+        <!-- HEATMAP MODE -->
+        <div id="routes-heatmap-mode" style="display:none;">
+          <div class="chart-wrap" style="margin-bottom:20px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+              <div>
+                <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);margin-bottom:8px;">Team</h3>
+                <select id="routes-heatmap-team" class="styled" onchange="renderHeatmap()">
+                  <option value="self">YOUR TEAM (SELF)</option>
+                </select>
+              </div>
+              <div>
+                <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);margin-bottom:8px;">Map</h3>
+                <div id="routes-heatmap-map-pills" style="display:flex;align-items:center;gap:3px;padding:4px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;flex-wrap:wrap;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="chart-wrap">
+            <div style="margin-bottom:12px;">
+              <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Most-used routes</h3>
+              <p id="routes-heatmap-sub" style="font-size:10px;color:var(--muted);margin-top:3px;">Every rotation/fight path this team has drawn on this map, stacked — denser = more used.</p>
+            </div>
+            <div id="routes-heatmap-canvas-wrap" style="position:relative;width:100%;aspect-ratio:1;max-width:640px;background:#000;border-radius:4px;overflow:hidden;">
+              <canvas id="routes-heatmap-canvas" style="width:100%;height:100%;display:block;"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div><!-- /analytics-body -->
   </main>
 
@@ -917,6 +995,7 @@ let _booted = false;
   if (session) {
     currentUser = session.user;
     document.getElementById('auth-screen').classList.add('hidden');
+    _detectTeamIdentityCols(); // fire-and-forget capability probe — see definition
     if (!_booted) { _booted = true; await boot(); }
   }
 
@@ -924,6 +1003,7 @@ let _booted = false;
     if (event === 'SIGNED_IN' && session) {
       currentUser = session.user;
       document.getElementById('auth-screen').classList.add('hidden');
+      _detectTeamIdentityCols();
       if (!_booted) { _booted = true; await boot(); }
     }
     if (event === 'SIGNED_OUT') {
@@ -1183,10 +1263,23 @@ function setView(view) {
   currentView = view;
   document.getElementById('btn-coach').classList.toggle('active', view === 'coach');
   document.getElementById('btn-analyst').classList.toggle('active', view === 'analyst');
+  document.getElementById('btn-routes').classList.toggle('active', view === 'routes');
 
   const coachEl = document.getElementById('coach-view');
   const analystEl = document.getElementById('analyst-view');
+  const wrapEl = document.getElementById('tournament-charts-wrap');
+  const routesEl = document.getElementById('routes-view');
 
+  if (view === 'routes') {
+    wrapEl.style.display = 'none';
+    routesEl.style.display = 'block';
+    document.getElementById('view-desc').textContent = 'Cross-tournament map & path comparison — not scoped to this tournament';
+    initRoutesView();
+    return;
+  }
+
+  wrapEl.style.display = 'block';
+  routesEl.style.display = 'none';
   if (view === 'coach') {
     coachEl.style.display = 'block';
     analystEl.style.display = 'none';
@@ -2595,6 +2688,435 @@ function chartEmpty(icon, title, sub) {
     <div class="empty-title">${title}</div>
     <div class="empty-sub">${sub}</div>
   </div>`;
+}
+
+// ══════════════════════════════════════════════════════
+// ROUTES VIEW — cross-tournament map/path comparison + overlay.
+// Deliberately NOT reusing loadAllData() (tournament-scoped) — this pulls
+// across every tournament the user owns. Shape coordinates are map-specific
+// pixel space (not normalized), so matches are only ever compared within one
+// map_key at a time — enforced structurally here, not just validated after.
+// ══════════════════════════════════════════════════════
+let routesPickerLoaded = false;
+let routesAllMatches = [];      // [{id,name,day_id,map_key,duration_seconds,dayName,tournamentName,tournamentId}]
+let routesSelectedMapKey = null;
+let routesSelectedMatchIds = [];   // ordered array, cap 12
+let routesShapeData = {};       // matchId -> {teams:[{id,color,is_self}], shapesByTeam:{teamId:[shape]}, zones:[shape]}
+let routesMode = 'compare';     // 'compare' | 'heatmap'
+let routesMaxTime = 2100;
+
+async function initRoutesView() {
+  if (routesPickerLoaded) return;
+  routesPickerLoaded = true;
+  await loadRoutesPickerData();
+  buildRoutesMapPills();
+  buildRoutesHeatmapMapPills();
+}
+
+async function loadRoutesPickerData() {
+  const { data: myTournaments } = await sb.from('tournaments').select('id,name').eq('user_id', currentUser.id);
+  const tRows = myTournaments || [];
+  const tNameById = {}; tRows.forEach(t => { tNameById[t.id] = t.name; });
+  const tIds = tRows.map(t => t.id);
+  if (!tIds.length) { routesAllMatches = []; return; }
+
+  const { data: dRows } = await sb.from('days').select('id,name,tournament_id').in('tournament_id', tIds);
+  const days = dRows || [];
+  const dayMeta = {}; days.forEach(d => { dayMeta[d.id] = { name: d.name, tournamentId: d.tournament_id }; });
+  const dayIds = days.map(d => d.id);
+  if (!dayIds.length) { routesAllMatches = []; return; }
+
+  const { data: mRows } = await sb.from('matches')
+    .select('id,name,day_id,map_key,duration_seconds').in('day_id', dayIds).order('created_at');
+
+  routesAllMatches = (mRows || []).filter(m => m.map_key).map(m => {
+    const dm = dayMeta[m.day_id] || {};
+    return { ...m, dayName: dm.name || '—', tournamentId: dm.tournamentId, tournamentName: tNameById[dm.tournamentId] || '—' };
+  });
+}
+
+// ── Map-key picker (gates match selection structurally) ──
+function buildRoutesMapPills() {
+  const strip = document.getElementById('routes-map-pill-strip');
+  strip.innerHTML = '';
+  const keys = [...new Set(routesAllMatches.map(m => m.map_key))].sort();
+  if (!keys.length) {
+    strip.innerHTML = '<span style="font-size:10px;color:var(--muted);padding:4px 8px;">No matches with a map assigned yet.</span>';
+    return;
+  }
+  if (!routesSelectedMapKey || !keys.includes(routesSelectedMapKey)) routesSelectedMapKey = keys[0];
+  keys.forEach(k => {
+    const btn = document.createElement('button');
+    btn.className = 'scope-pill' + (routesSelectedMapKey === k ? ' active' : '');
+    btn.textContent = k.toUpperCase();
+    btn.onclick = () => setRoutesMapKey(k);
+    strip.appendChild(btn);
+  });
+  buildRoutesMatchPicker();
+}
+
+function setRoutesMapKey(key) {
+  routesSelectedMapKey = key;
+  routesSelectedMatchIds = [];
+  document.getElementById('routes-compare-stage').style.display = 'none';
+  buildRoutesMapPills();
+}
+
+// ── Match picker (only matches on the selected map are selectable) ──
+function buildRoutesMatchPicker() {
+  const container = document.getElementById('routes-match-picker');
+  container.innerHTML = '';
+  const matches = routesAllMatches.filter(m => m.map_key === routesSelectedMapKey)
+    .sort((a,b) => (a.tournamentName+a.dayName).localeCompare(b.tournamentName+b.dayName));
+
+  if (!matches.length) {
+    container.innerHTML = '<div style="font-size:10px;color:var(--muted);padding:8px 0;">No matches on this map yet.</div>';
+    return;
+  }
+
+  matches.forEach(m => {
+    const row = document.createElement('label');
+    row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:4px;cursor:pointer;font-size:11px;';
+    row.onmouseover = () => row.style.background = 'rgba(34,211,238,0.05)';
+    row.onmouseout = () => row.style.background = '';
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = routesSelectedMatchIds.includes(m.id);
+    cb.onchange = () => toggleRoutesMatch(m.id);
+
+    const lbl = document.createElement('span');
+    lbl.style.cssText = 'color:var(--text);';
+    lbl.textContent = `${m.tournamentName} › ${m.dayName} › ${m.name}`;
+
+    row.appendChild(cb); row.appendChild(lbl);
+    container.appendChild(row);
+  });
+  updateRoutesMatchCountLabel();
+}
+
+async function toggleRoutesMatch(matchId) {
+  const idx = routesSelectedMatchIds.indexOf(matchId);
+  if (idx >= 0) {
+    routesSelectedMatchIds.splice(idx, 1);
+  } else {
+    if (routesSelectedMatchIds.length >= 12) {
+      toast('Max 12 matches at once — deselect one first.');
+      buildRoutesMatchPicker(); // revert the checkbox that just got checked
+      return;
+    }
+    routesSelectedMatchIds.push(matchId);
+    await loadRoutesMatchShapes(matchId);
+  }
+  updateRoutesMatchCountLabel();
+  renderRoutesTileGrid();
+}
+
+function updateRoutesMatchCountLabel() {
+  document.getElementById('routes-match-count-label').textContent = `${routesSelectedMatchIds.length} SELECTED`;
+}
+
+// Minimal toast — this page has no existing toast system (unlike editor.html/vod.html)
+function toast(msg) {
+  console.warn('[routes]', msg);
+  alert(msg);
+}
+
+// ── Per-match shape loading ──
+async function loadRoutesMatchShapes(matchId) {
+  if (routesShapeData[matchId]) return;
+  const { data: teamRows } = await sb.from('teams').select('id,name,color,is_self').eq('match_id', matchId);
+  const teams = teamRows || [];
+  const { data: shapeRows } = await sb.from('shapes')
+    .select('id,team_id,type,tag,time_seconds,cx,cy,radius,x1,y1,x2,y2,path_points,pin_x,pin_y,label,fight_team_a,fight_team_b,zone_phase')
+    .eq('match_id', matchId);
+
+  const shapesByTeam = {}; const zones = [];
+  (shapeRows || []).forEach(row => {
+    const s = _routesRowToShape(row);
+    if (row.type === 'circle') { zones.push(s); return; }
+    if (!shapesByTeam[row.team_id]) shapesByTeam[row.team_id] = [];
+    shapesByTeam[row.team_id].push(s);
+  });
+
+  routesShapeData[matchId] = { teams, shapesByTeam, zones };
+}
+
+function _routesRowToShape(row) {
+  const base = { id: row.id, type: row.type, tag: row.tag, time: row.time_seconds };
+  if (row.type === 'circle') return { ...base, cx: row.cx, cy: row.cy, r: row.radius, zone_phase: row.zone_phase || 1 };
+  if (row.type === 'line')   return { ...base, x1: row.x1, y1: row.y1, x2: row.x2, y2: row.y2 };
+  if (row.type === 'path')   return { ...base, points: typeof row.path_points === 'string' ? JSON.parse(row.path_points) : (row.path_points || []) };
+  if (row.type === 'pin')    return { ...base, x: row.pin_x, y: row.pin_y, label: row.label };
+  if (row.type === 'fight')  return { ...base, x: row.pin_x, y: row.pin_y, teamA: row.fight_team_a, teamB: row.fight_team_b };
+  return base;
+}
+
+// ── Map image loading — always _lo.jpg, tiles are too small to need mid/hi ──
+const ROUTES_MAP_FALLBACK = { erangel:'Erangel_Main_No_Text_High_Res.png', miramar:'Miramar_Main_No_Text_High_Res.png', rondo:'Rondo_Main_No_Text_High_Res.png', sanhok:'Sanhok_Main_No_Text_High_Res.png' };
+const routesMapImgCache = {}; // src -> {img,w,h}
+function _loadRoutesMapImage(key, onload) {
+  const src = key + '_lo.jpg';
+  if (routesMapImgCache[src]) { onload(routesMapImgCache[src]); return; }
+  const img = new Image(); img.crossOrigin = 'anonymous';
+  img.onload = () => { const e = { img, w: img.naturalWidth||2048, h: img.naturalHeight||2048 }; routesMapImgCache[src] = e; onload(e); };
+  img.onerror = () => {
+    const fb = ROUTES_MAP_FALLBACK[key];
+    if (!fb) return;
+    if (routesMapImgCache[fb]) { onload(routesMapImgCache[fb]); return; }
+    const fbImg = new Image(); fbImg.crossOrigin = 'anonymous';
+    fbImg.onload = () => { const e = { img: fbImg, w: fbImg.naturalWidth||2048, h: fbImg.naturalHeight||2048 }; routesMapImgCache[fb] = e; onload(e); };
+    fbImg.src = fb;
+  };
+  img.src = src;
+}
+
+// ── Tile grid render (Compare mode) ──
+function renderRoutesTileGrid() {
+  const stage = document.getElementById('routes-compare-stage');
+  const grid = document.getElementById('routes-tile-grid');
+  if (!routesSelectedMatchIds.length) { stage.style.display = 'none'; return; }
+  stage.style.display = 'block';
+
+  routesMaxTime = Math.max(120, ...routesSelectedMatchIds.map(id => {
+    const m = routesAllMatches.find(x => x.id === id);
+    return (m && m.duration_seconds) || 0;
+  }), 2100);
+  const scrubber = document.getElementById('routes-scrubber');
+  scrubber.max = routesMaxTime;
+
+  grid.innerHTML = '';
+  routesSelectedMatchIds.forEach(matchId => {
+    const m = routesAllMatches.find(x => x.id === matchId);
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;flex-direction:column;gap:4px;';
+    const label = document.createElement('div');
+    label.style.cssText = 'font-family:\'JetBrains Mono\',monospace;font-size:9px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+    label.textContent = m ? `${m.tournamentName} › ${m.name}` : matchId;
+    label.title = label.textContent;
+    const canvasWrap = document.createElement('div');
+    canvasWrap.style.cssText = 'position:relative;width:100%;aspect-ratio:1;background:#000;border-radius:4px;overflow:hidden;border:1px solid var(--border);';
+    const canvas = document.createElement('canvas');
+    canvas.id = 'routes-tile-' + matchId;
+    canvas.style.cssText = 'width:100%;height:100%;display:block;';
+    canvasWrap.appendChild(canvas);
+    wrap.appendChild(label); wrap.appendChild(canvasWrap);
+    grid.appendChild(wrap);
+  });
+
+  onRoutesScrub(document.getElementById('routes-scrubber').value);
+}
+
+let _routesScrubRaf = null;
+function onRoutesScrub(val) {
+  const t = +val;
+  document.getElementById('routes-scrub-time').textContent = fmtRoutesTime(t);
+  if (_routesScrubRaf) cancelAnimationFrame(_routesScrubRaf);
+  _routesScrubRaf = requestAnimationFrame(() => drawAllRoutesTiles(t));
+}
+
+function fmtRoutesTime(s) {
+  s = Math.max(0, Math.round(s||0));
+  return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+}
+
+function drawAllRoutesTiles(time) {
+  routesSelectedMatchIds.forEach(matchId => {
+    const canvas = document.getElementById('routes-tile-' + matchId);
+    const data = routesShapeData[matchId];
+    if (!canvas || !data) return;
+    _loadRoutesMapImage(routesSelectedMapKey, (mapEntry) => {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      if (canvas.width !== rect.width || canvas.height !== rect.height) {
+        canvas.width = rect.width; canvas.height = rect.height;
+      }
+      const ctx = canvas.getContext('2d');
+      const zoom = Math.min(canvas.width / mapEntry.w, canvas.height / mapEntry.h);
+      const panX = (canvas.width - mapEntry.w * zoom) / 2;
+      const panY = (canvas.height - mapEntry.h * zoom) / 2;
+      drawMapTile(ctx, {
+        mapImg: mapEntry.img, worldW: mapEntry.w, worldH: mapEntry.h,
+        zoom, panX, panY, teams: data.teams, shapesByTeam: data.shapesByTeam, zones: data.zones, time,
+      });
+    });
+  });
+}
+
+// ── Parametrized, read-only render — modeled on editor.html's draw()/
+// drawZoneCircle()/drawPinMarker()/drawPath()/drawArrow()/mpx(), but every
+// input is passed explicitly (no module globals, no DOM slider reads) since
+// this needs to run once per tile, not against a single shared canvas. ──
+function _routesMpx(worldW, base) { return base * 0.075; }
+
+function drawMapTile(ctx, { mapImg, worldW, worldH, zoom, panX, panY, teams, shapesByTeam, zones, time, opacity = 0.9 }) {
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  ctx.save();
+  ctx.translate(panX, panY);
+  ctx.scale(zoom, zoom);
+  ctx.drawImage(mapImg, 0, 0, worldW, worldH);
+
+  const teamColor = (teamId) => {
+    const t = (teams || []).find(t => t.id === teamId);
+    return t ? (t.color || (t.is_self ? '#22d3ee' : '#f87171')) : '#94a3b8';
+  };
+
+  (zones || []).filter(s => s.time <= time).forEach(s => {
+    ctx.beginPath(); ctx.arc(s.cx, s.cy, s.r, 0, Math.PI*2);
+    ctx.strokeStyle = `rgba(255,255,255,${opacity})`; ctx.lineWidth = 2/zoom; ctx.stroke();
+  });
+
+  Object.keys(shapesByTeam || {}).forEach(teamId => {
+    const color = teamColor(teamId);
+    (shapesByTeam[teamId] || []).filter(s => s.time <= time).forEach(s => _drawRoutesShape(ctx, s, color, zoom, worldW, opacity));
+  });
+
+  ctx.restore();
+}
+
+function _hexToRgb(hex) {
+  const h = (hex||'#94a3b8').replace('#','');
+  const n = parseInt(h.length===3 ? h.split('').map(c=>c+c).join('') : h, 16);
+  return [(n>>16)&255, (n>>8)&255, n&255];
+}
+
+function _drawRoutesShape(ctx, s, colorHex, zoom, worldW, opacity) {
+  const [r,g,b] = _hexToRgb(colorHex);
+  const stroke = `rgba(${r},${g},${b},${opacity})`;
+  const lw = 2/zoom;
+  if (s.type === 'line') {
+    ctx.strokeStyle = stroke; ctx.lineWidth = lw;
+    ctx.beginPath(); ctx.moveTo(s.x1,s.y1); ctx.lineTo(s.x2,s.y2); ctx.stroke();
+  } else if (s.type === 'path' && s.points && s.points.length >= 2) {
+    ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(s.points[0].x, s.points[0].y);
+    for (let i=1;i<s.points.length;i++) ctx.lineTo(s.points[i].x, s.points[i].y);
+    ctx.stroke();
+  } else if (s.type === 'pin' || s.type === 'fight') {
+    const x = s.x, y = s.y, rad = _routesMpx(worldW, 8);
+    ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(${r},${g},${b},${opacity})`; ctx.fill();
+  }
+}
+
+// ── Compare / Heatmap sub-mode toggle ──
+function setRoutesMode(mode) {
+  routesMode = mode;
+  document.getElementById('btn-routes-compare').classList.toggle('active', mode === 'compare');
+  document.getElementById('btn-routes-heatmap').classList.toggle('active', mode === 'heatmap');
+  document.getElementById('routes-compare-mode').style.display = mode === 'compare' ? 'block' : 'none';
+  document.getElementById('routes-heatmap-mode').style.display = mode === 'heatmap' ? 'block' : 'none';
+  if (mode === 'heatmap') renderHeatmap();
+}
+
+// ══════════════════════════════════════════════════════
+// ROUTES — HEATMAP MODE
+// Superimposes every rotation/fight path a team has drawn on one map, across
+// every match (any tournament) that team+map combo appears in — no time
+// gating at all (unlike Compare), since the point is the full route history.
+// Opponent filtering needs the Session 43 team_identities registry; self
+// filtering (is_self) works regardless of whether that migration has run.
+// ══════════════════════════════════════════════════════
+let _hasTeamIdentityCols = false;
+let routesHeatmapMapKey = null;
+let routesTeamIdentities = []; // [{id, canonical_name}]
+
+async function _detectTeamIdentityCols() {
+  if (!sb) return;
+  const { error } = await sb.from('teams').select('team_identity_id').limit(1);
+  _hasTeamIdentityCols = !error;
+  if (_hasTeamIdentityCols) await loadRoutesTeamIdentities();
+}
+
+async function loadRoutesTeamIdentities() {
+  if (!currentUser) return;
+  const { data } = await sb.from('team_identities').select('id,canonical_name').eq('user_id', currentUser.id).order('canonical_name');
+  routesTeamIdentities = data || [];
+  const sel = document.getElementById('routes-heatmap-team');
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = '<option value="self">YOUR TEAM (SELF)</option>' +
+    routesTeamIdentities.map(ti => `<option value="${ti.id}">${esc(ti.canonical_name)}</option>`).join('');
+  if ([...sel.options].some(o => o.value === current)) sel.value = current;
+}
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function buildRoutesHeatmapMapPills() {
+  const strip = document.getElementById('routes-heatmap-map-pills');
+  strip.innerHTML = '';
+  const keys = [...new Set(routesAllMatches.map(m => m.map_key))].sort();
+  if (!keys.length) {
+    strip.innerHTML = '<span style="font-size:10px;color:var(--muted);padding:4px 8px;">No matches with a map assigned yet.</span>';
+    return;
+  }
+  if (!routesHeatmapMapKey || !keys.includes(routesHeatmapMapKey)) routesHeatmapMapKey = keys[0];
+  keys.forEach(k => {
+    const btn = document.createElement('button');
+    btn.className = 'scope-pill' + (routesHeatmapMapKey === k ? ' active' : '');
+    btn.textContent = k.toUpperCase();
+    btn.onclick = () => { routesHeatmapMapKey = k; buildRoutesHeatmapMapPills(); renderHeatmap(); };
+    strip.appendChild(btn);
+  });
+}
+
+async function renderHeatmap() {
+  if (!routesHeatmapMapKey) return;
+  const teamSel = document.getElementById('routes-heatmap-team').value;
+  const sub = document.getElementById('routes-heatmap-sub');
+  const canvas = document.getElementById('routes-heatmap-canvas');
+  const ctx = canvas.getContext('2d');
+
+  if (teamSel !== 'self' && !_hasTeamIdentityCols) {
+    sub.textContent = 'Opponent filtering needs the pending Session 43 DB migration — ask an admin to run it (see METAZONE_HANDOFF_v25.md Section 3). SELF still works.';
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    return;
+  }
+
+  // Matches on the selected map, across every tournament this user owns
+  const matchesOnMap = routesAllMatches.filter(m => m.map_key === routesHeatmapMapKey);
+  const matchIds = matchesOnMap.map(m => m.id);
+  if (!matchIds.length) { sub.textContent = 'No matches on this map yet.'; ctx.clearRect(0,0,canvas.width,canvas.height); return; }
+
+  // Teams matching the picked identity (self or opponent) within those matches
+  let teamQuery = sb.from('teams').select('id,match_id').in('match_id', matchIds);
+  teamQuery = teamSel === 'self' ? teamQuery.eq('is_self', true) : teamQuery.eq('team_identity_id', teamSel);
+  const { data: teamRows } = await teamQuery;
+  const teamIds = (teamRows || []).map(t => t.id);
+
+  if (!teamIds.length) {
+    sub.textContent = 'No matches found for this team on this map yet.';
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    return;
+  }
+
+  // Rotation paths/lines only — explicitly not doing fight/elimination-location
+  // heatmaps this pass (same decision as death-location heatmaps: deferred).
+  const { data: shapeRows } = await sb.from('shapes')
+    .select('type,x1,y1,x2,y2,path_points')
+    .in('team_id', teamIds)
+    .eq('tag', 'rotation');
+
+  const shapes = (shapeRows || []).map(_routesRowToShape).filter(s => s.type === 'line' || s.type === 'path');
+
+  sub.textContent = `${shapes.length} path${shapes.length!==1?'s':''} across ${new Set((teamRows||[]).map(t=>t.match_id)).size} match(es) on ${routesHeatmapMapKey.toUpperCase()} — denser = more used.`;
+
+  _loadRoutesMapImage(routesHeatmapMapKey, (mapEntry) => {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width = rect.width; canvas.height = rect.height;
+    const zoom = Math.min(canvas.width / mapEntry.w, canvas.height / mapEntry.h);
+    const panX = (canvas.width - mapEntry.w * zoom) / 2;
+    const panY = (canvas.height - mapEntry.h * zoom) / 2;
+
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.translate(panX, panY);
+    ctx.scale(zoom, zoom);
+    ctx.drawImage(mapEntry.img, 0, 0, mapEntry.w, mapEntry.h);
+    shapes.forEach(s => _drawRoutesShape(ctx, s, '#f87171', zoom, mapEntry.w, 0.15));
+    ctx.restore();
+  });
 }
 
 // Resize observer for canvas redraws

@@ -591,6 +591,12 @@ let knownTeams = []; // preloaded team names for instant autocomplete
 let squadPlayers = []; // [{id, name, role}] selected players for this tournament
 let allPlayers = [];  // [{id, name, role}] from players table
 
+// Session 43 — team identity registry (cross-tournament team identity, mirrors
+// the players/tournament_players pattern). _hasTeamIdentityCols gates writes
+// so team-add keeps working even if the Section 3 migration hasn't run yet.
+let allTeamIdentities = []; // [{id, canonical_name}]
+let _hasTeamIdentityCols = false;
+
 // EVENT ASSIGNMENT STATE
 let eventAssignEnabled = false;
 let allEvents = []; // [{id, name}] loaded from DB
@@ -635,6 +641,7 @@ let _booted = false;
     _booted = true;
     currentUser = session.user;
     document.getElementById('auth-screen').classList.add('hidden');
+    _detectTeamIdentityCols();
     init();
   }
   sb.auth.onAuthStateChange(async (event, session) => {
@@ -643,6 +650,7 @@ let _booted = false;
       _booted = true;
       currentUser = session.user;
       document.getElementById('auth-screen').classList.add('hidden');
+      _detectTeamIdentityCols();
       init();
     }
     if (event === 'SIGNED_OUT') {
@@ -665,8 +673,34 @@ async function init() {
     const { data, error } = await sb.from('players').select('id, name, role').eq('user_id', currentUser.id).order('name');
     if (!error && data) allPlayers = data;
   } catch(e) {}
+  try {
+    const { data, error } = await sb.from('team_identities').select('id,canonical_name').eq('user_id', currentUser.id);
+    if (!error && data) allTeamIdentities = data;
+  } catch(e) {}
   await loadEvents();
   renderStep(1);
+}
+
+// Session 43 — capability probe so team-add keeps working even if the
+// Section 3 migration (team_identities table, teams/tournament_teams.team_identity_id)
+// hasn't been run yet — PostgREST 400s a write referencing an unknown column.
+async function _detectTeamIdentityCols() {
+  const { error } = await sb.from('teams').select('team_identity_id').limit(1);
+  _hasTeamIdentityCols = !error;
+}
+
+// Resolve an existing team_identities row by case-insensitive name, or create
+// one. Returns undefined (not null) pre-migration so JSON.stringify drops the
+// key entirely from subsequent inserts — same trick as Session 42's `source`.
+async function resolveOrCreateTeamIdentity(name) {
+  if (!_hasTeamIdentityCols) return undefined;
+  const existing = allTeamIdentities.find(ti => ti.canonical_name.toLowerCase() === name.toLowerCase());
+  if (existing) return existing.id;
+  const { data, error } = await sb.from('team_identities')
+    .insert({ user_id: currentUser.id, canonical_name: name }).select('id,canonical_name').single();
+  if (error) { console.error('[team_identities] create failed:', error.message); return undefined; }
+  allTeamIdentities.push(data);
+  return data.id;
 }
 
 // ──────────────────────────────────────────────
@@ -891,14 +925,16 @@ function removePoolTeam(i) {
   poolTeams.splice(i, 1);
   renderPoolChips();
 }
-function addPoolTeam() {
+async function addPoolTeam() {
   const inp = document.getElementById('pool-team-input');
   const name = inp.value.trim();
   if (!name) return;
   if (poolTeams.find(t => t.name.toLowerCase() === name.toLowerCase())) {
     toast('Team already in list.', 'err'); return;
   }
-  poolTeams.push({ name });
+  const team_identity_id = await resolveOrCreateTeamIdentity(name);
+  if (poolTeams.find(t => t.name.toLowerCase() === name.toLowerCase())) return; // re-check: guards a double-Enter race during the await above
+  poolTeams.push({ name, team_identity_id });
   // Add to knownTeams if not already there (available in suggestions for groups too)
   if (!knownTeams.some(n => n.toLowerCase() === name.toLowerCase())) knownTeams.push(name);
   inp.value = '';
@@ -963,7 +999,7 @@ function updateGroupName(id, val) {
   const g = groups.find(g => g.id === id);
   if (g) g.name = val;
 }
-function addGroupTeam(gid) {
+async function addGroupTeam(gid) {
   const inp = document.getElementById('group-input-' + gid);
   const name = inp.value.trim();
   if (!name) return;
@@ -972,7 +1008,9 @@ function addGroupTeam(gid) {
   if (g.teams.find(t => t.name.toLowerCase() === name.toLowerCase())) {
     toast('Team already in this group.', 'err'); return;
   }
-  g.teams.push({ name });
+  const team_identity_id = await resolveOrCreateTeamIdentity(name);
+  if (g.teams.find(t => t.name.toLowerCase() === name.toLowerCase())) return; // re-check: guards a double-Enter race during the await above
+  g.teams.push({ name, team_identity_id });
   inp.value = '';
   closeSuggestions('group-suggestions-' + gid);
   renderGroupChips(gid);
@@ -1236,7 +1274,7 @@ async function confirmCreate() {
   if (teamMode === 'pool') {
     // 2a. Insert tournament_teams
     if (poolTeams.length > 0) {
-      const rows = poolTeams.map(t => ({ tournament_id: tid, user_id: uid, team_name: t.name }));
+      const rows = poolTeams.map(t => ({ tournament_id: tid, user_id: uid, team_name: t.name, team_identity_id: t.team_identity_id }));
       const { error: ttErr } = await sb.from('tournament_teams').insert(rows);
       if (ttErr) { handleCreateError(btn, ttErr.message); return; }
     }

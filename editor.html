@@ -1736,6 +1736,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   sb = supabase.createClient(SUPA_URL, SUPA_KEY);
   _detectSession42Columns(); // fire-and-forget capability probe — see definition
+  _detectTeamIdentityCols(); // fire-and-forget capability probe — see definition
   const { data: { session } } = await sb.auth.getSession();
   if (session) {
     _booted = true;
@@ -1802,6 +1803,43 @@ async function preloadKnownTeams(tournamentId) {
     const { data } = await sb.from('tournament_teams').select('team_name').eq('tournament_id', tournamentId).order('created_at');
     if (data) knownTeams = data.map(r => r.team_name);
   } catch(e) { /* silent */ }
+  // Session 43: identities are cross-tournament by design, deliberately not
+  // scoped to `tournamentId` like knownTeams above.
+  await preloadKnownTeamIdentities();
+}
+
+// Session 43 — team identity registry. _hasTeamIdentityCols gates writes so
+// team-add keeps working even if the Section 3 migration hasn't run yet
+// (PostgREST 400s a write referencing an unknown column).
+let knownTeamIdentities = []; // [{id, canonical_name}] — cross-tournament, all of this user's teams
+let _hasTeamIdentityCols = false;
+
+async function _detectTeamIdentityCols() {
+  if (!sb) return;
+  const { error } = await sb.from('teams').select('team_identity_id').limit(1);
+  _hasTeamIdentityCols = !error;
+}
+
+async function preloadKnownTeamIdentities() {
+  if (!sb || !currentUser) return;
+  try {
+    const { data } = await sb.from('team_identities').select('id,canonical_name').eq('user_id', currentUser.id);
+    if (data) knownTeamIdentities = data;
+  } catch(e) { /* silent */ }
+}
+
+// Resolve an existing team_identities row by case-insensitive name, or create
+// one. Returns undefined (not null) pre-migration so JSON.stringify drops the
+// key entirely from the teams.insert() call — same trick as `source` in shapeToDbRow().
+async function resolveOrCreateTeamIdentity(name) {
+  if (!_hasTeamIdentityCols || !currentUser) return undefined;
+  const existing = knownTeamIdentities.find(ti => ti.canonical_name.toLowerCase() === name.toLowerCase());
+  if (existing) return existing.id;
+  const { data, error } = await sb.from('team_identities')
+    .insert({ user_id: currentUser.id, canonical_name: name }).select('id,canonical_name').single();
+  if (error) { console.error('[team_identities] create failed:', error.message); return undefined; }
+  knownTeamIdentities.push(data);
+  return data.id;
 }
 
 // ══════════════════════════════════════════════════════
@@ -3308,9 +3346,18 @@ async function populateTeamsFromPoolEditor(matchId){
   const {data:selfData}=await sb.from('teams').insert({name:'SELF',match_id:matchId,user_id:currentUser.id,is_self:true,color:TEAM_COLORS[0],slot_index:0,kills:0}).select().single();
   if(selfData){ teams.push(selfData); shapesCache[selfData.id]=[]; }
   // Tournament roster
-  const{data:roster}=await sb.from('tournament_teams').select('team_name').eq('tournament_id',state.tournamentId).order('created_at');
+  const rosterCols = _hasTeamIdentityCols ? 'team_name,team_identity_id' : 'team_name';
+  const{data:roster}=await sb.from('tournament_teams').select(rosterCols).eq('tournament_id',state.tournamentId).order('created_at');
   if(!roster||roster.length===0)return;
-  const rows=roster.map((r,i)=>({name:r.team_name,match_id:matchId,user_id:currentUser.id,color:TEAM_COLORS[(i+1)%TEAM_COLORS.length],slot_index:i+1,kills:0}));
+  // tournament_teams rows created via tournament-create.html already carry
+  // team_identity_id — pass it straight through, only resolve-or-create as a
+  // fallback for rows that predate that (or the migration/backfill).
+  const rows=[];
+  for(let i=0;i<roster.length;i++){
+    const r=roster[i];
+    const identityId = r.team_identity_id || await resolveOrCreateTeamIdentity(r.team_name);
+    rows.push({name:r.team_name,match_id:matchId,user_id:currentUser.id,color:TEAM_COLORS[(i+1)%TEAM_COLORS.length],slot_index:i+1,kills:0,team_identity_id:identityId});
+  }
   const{data:rData}=await sb.from('teams').insert(rows).select();
   if(rData){ teams.push(...rData); rData.forEach(t=>{shapesCache[t.id]=[];}); }
 }
@@ -3368,7 +3415,13 @@ async function confirmEditorGroupPicker(){
   // Selected group members
   const{data:members}=await sb.from('group_members').select('team_name').in('group_id',[...editorSelectedGroupIds]);
   if(members&&members.length>0){
-    const rows=members.map((m,i)=>({name:m.team_name,match_id:mid,user_id:currentUser.id,color:TEAM_COLORS[(i+1)%TEAM_COLORS.length],slot_index:i+1,kills:0}));
+    // group_members has no team_identity_id column — always resolve-or-create per row
+    const rows=[];
+    for(let i=0;i<members.length;i++){
+      const m=members[i];
+      const identityId = await resolveOrCreateTeamIdentity(m.team_name);
+      rows.push({name:m.team_name,match_id:mid,user_id:currentUser.id,color:TEAM_COLORS[(i+1)%TEAM_COLORS.length],slot_index:i+1,kills:0,team_identity_id:identityId});
+    }
     const{data:rData}=await sb.from('teams').insert(rows).select();
     if(rData){teams.push(...rData);rData.forEach(t=>{shapesCache[t.id]=[];});}
   }
@@ -3409,7 +3462,8 @@ async function addTeam() {
   if(existingCount>=25){ toast('MAX 25 TEAMS','warn'); return; }
   const color=TEAM_COLORS[existingCount%TEAM_COLORS.length];
   if(sb&&currentUser){
-    const {data,error}=await sb.from('teams').insert({name,color,slot_index:existingCount,match_id:state.matchId,user_id:currentUser.id}).select().single();
+    const team_identity_id = await resolveOrCreateTeamIdentity(name);
+    const {data,error}=await sb.from('teams').insert({name,color,slot_index:existingCount,match_id:state.matchId,user_id:currentUser.id,team_identity_id}).select().single();
     if(error){ toast('ERROR: '+error.message,'err'); return; }
     teams.push(data); shapesCache[data.id]=[];
   } else {

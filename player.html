@@ -257,8 +257,16 @@
               <option value="">Loading...</option>
             </select>
           </div>
-          <!-- Day filter pills -->
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <!-- Scope mode: this tournament vs full career -->
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.15em;text-transform:uppercase;">SCOPE</span>
+            <div style="display:flex;gap:3px;padding:4px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;">
+              <button class="scope-pill active" id="mode-tournament-btn" onclick="setMode('tournament')">TOURNAMENT</button>
+              <button class="scope-pill" id="mode-career-btn" onclick="setMode('career')">CAREER</button>
+            </div>
+          </div>
+          <!-- Day filter pills (tournament scope only) -->
+          <div id="day-pill-row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <span class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.15em;text-transform:uppercase;white-space:nowrap;">DAYS</span>
             <div id="day-pill-strip" style="display:flex;align-items:center;gap:3px;padding:4px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;flex-wrap:nowrap;">
               <button class="scope-pill active" onclick="setScopeDay('all')">ALL</button>
@@ -455,6 +463,18 @@ let killedByTeamNames = {}; // team_id → team name
 let selectedPlayerId = null;
 let currentScopeDay = 'all';
 
+// ── Career mode (cross-tournament) ──
+// allDays/allMatches/allSelfTeams/allShapes above are "active" pointers — every
+// render function (renderTrend, renderDeathTiming, renderMatchHistory, etc.)
+// already reads them generically, keyed off whatever `rows` it's handed. Career
+// mode works by repointing these to a cross-tournament dataset rather than
+// touching any render function — see setMode()/applyModeData() below.
+let currentMode = 'tournament'; // 'tournament' | 'career'
+let tournamentDays = [], tournamentMatches = [], tournamentSelfTeams = [], tournamentShapes = [];
+let careerCache = {}; // playerId -> {matches, selfTeams, shapes, days, tournamentsById}
+let careerTournamentNames = {}; // tournament_id -> name, active only in career mode (for renderTrend markers)
+let _tournamentNameOriginal = '';
+
 // ══════════════════════════════════════════════════════
 // AUTH
 // ══════════════════════════════════════════════════════
@@ -518,6 +538,7 @@ async function loadTournamentData() {
   // Tournament name
   const { data: t } = await sb.from('tournaments').select('id,name').eq('id', tournamentId).single();
   if (!t) { document.getElementById('empty-state').style.display = 'flex'; return; }
+  _tournamentNameOriginal = t.name;
   document.getElementById('tournament-name-display').textContent = t.name;
 
   // Days
@@ -557,6 +578,11 @@ async function loadTournamentData() {
     document.getElementById('no-players-state').style.display = 'flex';
     return;
   }
+
+  // Cache as the "tournament scope" dataset — setMode()/applyModeData() swap
+  // allDays/allMatches/allSelfTeams/allShapes between this and career.* below.
+  tournamentDays = allDays; tournamentMatches = allMatches;
+  tournamentSelfTeams = allSelfTeams; tournamentShapes = allShapes;
 
   buildDayPills();
   buildPlayerSelector();
@@ -668,6 +694,83 @@ function buildPlayerSelector() {
 
 async function onPlayerChange() {
   selectedPlayerId = document.getElementById('player-selector').value;
+  if (currentMode === 'career') await applyModeData();
+  else await loadPlayerData();
+}
+
+// ══════════════════════════════════════════════════════
+// CAREER MODE (cross-tournament) — players already have stable identity
+// (players.id, user-scoped) via tournament_players, unlike teams. No schema
+// change needed; just a wider query scoped through that join.
+// ══════════════════════════════════════════════════════
+async function loadCareerScopedData(playerId) {
+  if (careerCache[playerId]) return careerCache[playerId];
+
+  const { data: tpRows } = await sb.from('tournament_players').select('tournament_id').eq('player_id', playerId);
+  const tIds = [...new Set((tpRows || []).map(r => r.tournament_id).filter(Boolean))];
+  if (!tIds.length) {
+    const empty = { matches: [], selfTeams: [], shapes: [], days: [], tournamentsById: {} };
+    careerCache[playerId] = empty;
+    return empty;
+  }
+
+  const { data: tRows } = await sb.from('tournaments').select('id,name').in('id', tIds);
+  const tournamentsById = {};
+  (tRows || []).forEach(t => { tournamentsById[t.id] = t.name; });
+
+  const { data: dRows } = await sb.from('days').select('id,name,order_index,tournament_id').in('tournament_id', tIds);
+  const dayToTournament = {};
+  (dRows || []).forEach(d => { dayToTournament[d.id] = d.tournament_id; });
+  const dayIds = (dRows || []).map(d => d.id);
+
+  let matches = [];
+  if (dayIds.length) {
+    const { data: mRows } = await sb.from('matches')
+      .select('id,name,day_id,map_key,duration_seconds').in('day_id', dayIds).order('created_at');
+    matches = (mRows || []).map(m => ({ ...m, tournament_id: dayToTournament[m.day_id] }));
+  }
+
+  let selfTeams = [], shapes = [];
+  const matchIds = matches.map(m => m.id);
+  if (matchIds.length) {
+    const { data: stRows } = await sb.from('teams')
+      .select('id,match_id,kills,time_of_wipe,placement').in('match_id', matchIds).eq('is_self', true);
+    selfTeams = stRows || [];
+    const { data: shRows } = await sb.from('shapes')
+      .select('match_id,zone_phase,time_seconds').in('match_id', matchIds).eq('type', 'circle');
+    shapes = shRows || [];
+  }
+
+  const result = { matches, selfTeams, shapes, days: dRows || [], tournamentsById };
+  careerCache[playerId] = result;
+  return result;
+}
+
+async function setMode(mode) {
+  if (mode === currentMode) return;
+  currentMode = mode;
+  document.getElementById('mode-tournament-btn').classList.toggle('active', mode === 'tournament');
+  document.getElementById('mode-career-btn').classList.toggle('active', mode === 'career');
+  document.getElementById('day-pill-row').style.display = mode === 'tournament' ? 'flex' : 'none';
+  await applyModeData();
+}
+
+async function applyModeData() {
+  currentScopeDay = 'all';
+  if (currentMode === 'tournament') {
+    allDays = tournamentDays; allMatches = tournamentMatches;
+    allSelfTeams = tournamentSelfTeams; allShapes = tournamentShapes;
+    careerTournamentNames = {};
+    document.getElementById('tournament-name-display').textContent = _tournamentNameOriginal;
+  } else {
+    if (!selectedPlayerId) return;
+    const career = await loadCareerScopedData(selectedPlayerId);
+    allDays = career.days; allMatches = career.matches;
+    allSelfTeams = career.selfTeams; allShapes = career.shapes;
+    careerTournamentNames = career.tournamentsById;
+    document.getElementById('tournament-name-display').textContent = 'CAREER VIEW';
+  }
+  buildDayPills();
   await loadPlayerData();
 }
 
@@ -728,7 +831,12 @@ function updateIdentityCard(rows) {
   document.getElementById('kpi-matches').textContent = rows.length;
   document.getElementById('kpi-clutch').textContent = clutchRating;
   document.getElementById('kpi-avg-survival').textContent = avgSurvival;
-  document.getElementById('player-identity-sub').textContent = `${rows.length} matches analyzed • ${totalKills} total kills • ${avgKills} avg kills/match`;
+  if (currentMode === 'career') {
+    const tCount = new Set(rows.map(r => r.match ? r.match.tournament_id : null).filter(Boolean)).size;
+    document.getElementById('player-identity-sub').textContent = `${tCount} tournament${tCount!==1?'s':''} • ${rows.length} matches analyzed • ${totalKills} total kills • ${avgKills} avg kills/match`;
+  } else {
+    document.getElementById('player-identity-sub').textContent = `${rows.length} matches analyzed • ${totalKills} total kills • ${avgKills} avg kills/match`;
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -884,6 +992,26 @@ function renderTrend(rows) {
     ctx.beginPath(); ctx.setLineDash([3,4]); ctx.strokeStyle='rgba(71,85,105,0.15)';
     ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+pw,y); ctx.stroke(); ctx.setLineDash([]);
   });
+
+  // Career mode: tournament-boundary markers — a dashed divider + name label
+  // wherever the chronological match sequence crosses into a new tournament.
+  if (currentMode === 'career') {
+    let prevTournamentId = null;
+    rows.forEach((r, i) => {
+      const tid = r.match ? r.match.tournament_id : null;
+      if (i > 0 && tid !== prevTournamentId) {
+        const x = pad.l + (i/(rows.length-1||1))*pw;
+        ctx.beginPath(); ctx.setLineDash([2,3]); ctx.strokeStyle = 'rgba(167,139,250,0.4)';
+        ctx.moveTo(x, pad.t); ctx.lineTo(x, pad.t+ph); ctx.stroke(); ctx.setLineDash([]);
+        const name = careerTournamentNames[tid] || '';
+        if (name) {
+          ctx.font = '700 7px JetBrains Mono'; ctx.fillStyle = '#a78bfa'; ctx.textAlign = 'left';
+          ctx.fillText(name.toUpperCase().slice(0,14), x+3, pad.t+8);
+        }
+      }
+      prevTournamentId = tid;
+    });
+  }
 
   // Raw kill bars (faint)
   kills.forEach((k, i) => {
@@ -1221,7 +1349,8 @@ function renderMatchHistory(rows) {
     const killColor = !r.kills ? 'var(--red)' : r.kills <= 2 ? 'var(--yellow)' : 'var(--accent)';
     const killedBy = r.killedByName || '—';
 
-    return `<tr class="match-row" onclick="window.location='editor.html?matchId=${r.match_id}&tournamentId=${tournamentId}'">
+    const linkTournamentId = r.match?.tournament_id || tournamentId;
+    return `<tr class="match-row" onclick="window.location='editor.html?matchId=${r.match_id}&tournamentId=${linkTournamentId}'">
       <td style="padding:12px 12px 12px 0;font-size:12px;font-weight:600;">${esc(matchName)}</td>
       <td class="font-mono" style="padding:12px 12px 12px 0;font-size:10px;color:var(--muted);">${esc(dayName)}</td>
       <td class="font-mono" style="padding:12px 12px 12px 0;font-size:10px;color:var(--muted);text-transform:capitalize;">${esc(mapName)}</td>

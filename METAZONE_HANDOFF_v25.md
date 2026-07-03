@@ -1,5 +1,5 @@
 # METAZONE — Project Handoff & Continuity Document
-**Version:** v42 — Session 42. Editor ↔ VOD data-sharing hardening: real autosave (`queueForSave` in both files now actually persists the finalized shape, debounced 300ms, instead of being a UI-only no-op — closes the gap with the product's own "auto-saves every 4 seconds" marketing copy), persisted VOD 2-point calibration (`matches.cal_tx/cal_ty/cal_sx/cal_sy/cal_active` — previously plain JS state lost every reload; now restored on match load, invalidated with a toast if the video URL actually changes), shape provenance tagging (`shapes.source` = `'editor'`\|`'vod'`, with a subtle dashed-stroke tell on VOD-sourced markers in both files' render code), a soft cross-tab "already open" warning (`BroadcastChannel`, no lock), and a confirm-guard in editor.html before changing a match's map when it already has shapes/zones. Requires the Section 3 SQL migration below — everything degrades gracefully pre-migration. See Section 8 changelog for full detail. Previous: v41 — Session 41. vod.html: full appearance overhaul into a floating-chrome "read-only analysis session" tool — left floating vertical toolbar (draw modes incl. new Arrow, Log Event icons elim/loss/wipe/ewipe, Load Match/Calibrate/Save, Start/End Match), top-right floating squad panel, new Load Match modal, rebuilt bottom bar (skip ±10s, speed popover, fullscreen), End Match confirmation modal. The canvas's top-left corner — which briefly held a context chip, status/sync chips, a zoom HUD, and a team-select dropdown — is now completely empty: status/sync chips and the duplicate zoom HUD deleted entirely, everything else moved into the squad panel, which now reads top to bottom as match timer → Map Opacity → Match Info (collapsed) → Drawing Team (collapsed pill list, no `<select>` anymore) → Our Squad (open) → Enemy Teams (collapsed) → Event Log (list only). All three collapsible sections now slide open/closed (editor.html multi-track style) instead of snapping. REFRESH DATA / OPEN IN EDITOR dropped entirely. Not yet visually verified in a real browser. **Known bug, not yet fixed:** the event log/timeline pips for all 4 event types don't survive a match switch or page reload — see Section 11. Two further Session 41 follow-ups since the above: `#squad-panel` now reserves a stable scrollbar gutter (`scrollbar-gutter:stable`) so content overflow no longer shifts the panel width; and `#overlay-canvas` gained editor.html's `_canvasReady`-gated map-load fade-in — starts at `opacity:0`, gains `.map-ready` (transition `opacity .4s ease`) once the lo-res tile (or single-image fallback) loads, so the map/overlay no longer pops in abruptly. See Section 8 changelog for both.
+**Version:** v43 — Session 43. Team identity registry + cross-tournament analytics: (1) New `team_identities` table (mirrors the existing `players`/`tournament_players` stable-identity pattern, applied to teams) — `teams`/`tournament_teams` gain an additive `team_identity_id` FK, backfilled from existing name strings. Team-add flows in `tournament-create.html` (`addPoolTeam()`/`addGroupTeam()`) and `editor.html` (`addTeam()`/`populateTeamsFromPoolEditor()`/`confirmEditorGroupPicker()`) now transparently resolve-or-create the matching identity — user-visible flow unchanged, still just type a name. Gated on a capability probe (`_detectTeamIdentityCols()`, same pattern as Session 42) so team-add keeps working before the migration runs. **Requires the Section 3 SQL migration + backfill — PENDING, not yet run.** (2) New **Routes tab** in `analytics.html` — cross-tournament (any of the user's tournaments, not just the currently loaded one), with two modes: **Compare** (pick matches sharing one map, scrub a shared timeline across a grid of small map tiles) and **Heatmap** (superimpose every rotation path a team — self or, once the migration runs, a specific opponent identity — has drawn on one map, to see most-used routes). Both required a new self-contained, parametrized canvas renderer (`drawMapTile()`/`_drawRoutesShape()`) since `editor.html`'s `draw()` reads module globals and DOM sliders that don't exist on this page. (3) New **CAREER mode** in `player.html` — a player's stats aggregated across every tournament they've played in, not just the current one; cheap to add since `players.id` already has real cross-tournament identity (unlike teams pre-Session-43) — implemented by repointing the same `allMatches`/`allSelfTeams`/`allShapes`/`allDays` globals every existing chart function already reads, no chart rewrites needed. Section 1 schema also corrected in several places this session (`teams.user_id`/`slot_index`, `players.user_id` not `tournament_id`, `tournament_teams`/`tournament_players` schema blocks added, `shapes`' real column names fixed) — these were stale/wrong versus the actual code, not new changes. See Section 8 changelog for full detail. Previous: v42 — Session 42. Editor ↔ VOD data-sharing hardening: real autosave (`queueForSave` in both files now actually persists the finalized shape, debounced 300ms, instead of being a UI-only no-op — closes the gap with the product's own "auto-saves every 4 seconds" marketing copy), persisted VOD 2-point calibration (`matches.cal_tx/cal_ty/cal_sx/cal_sy/cal_active` — previously plain JS state lost every reload; now restored on match load, invalidated with a toast if the video URL actually changes), shape provenance tagging (`shapes.source` = `'editor'`\|`'vod'`, with a subtle dashed-stroke tell on VOD-sourced markers in both files' render code), a soft cross-tab "already open" warning (`BroadcastChannel`, no lock), and a confirm-guard in editor.html before changing a match's map when it already has shapes/zones. Requires the Section 3 SQL migration below — everything degrades gracefully pre-migration. See Section 8 changelog for full detail. Previous: v41 — Session 41. vod.html: full appearance overhaul into a floating-chrome "read-only analysis session" tool — left floating vertical toolbar (draw modes incl. new Arrow, Log Event icons elim/loss/wipe/ewipe, Load Match/Calibrate/Save, Start/End Match), top-right floating squad panel, new Load Match modal, rebuilt bottom bar (skip ±10s, speed popover, fullscreen), End Match confirmation modal. The canvas's top-left corner — which briefly held a context chip, status/sync chips, a zoom HUD, and a team-select dropdown — is now completely empty: status/sync chips and the duplicate zoom HUD deleted entirely, everything else moved into the squad panel, which now reads top to bottom as match timer → Map Opacity → Match Info (collapsed) → Drawing Team (collapsed pill list, no `<select>` anymore) → Our Squad (open) → Enemy Teams (collapsed) → Event Log (list only). All three collapsible sections now slide open/closed (editor.html multi-track style) instead of snapping. REFRESH DATA / OPEN IN EDITOR dropped entirely. Not yet visually verified in a real browser. **Known bug, not yet fixed:** the event log/timeline pips for all 4 event types don't survive a match switch or page reload — see Section 11. Two further Session 41 follow-ups since the above: `#squad-panel` now reserves a stable scrollbar gutter (`scrollbar-gutter:stable`) so content overflow no longer shifts the panel width; and `#overlay-canvas` gained editor.html's `_canvasReady`-gated map-load fade-in — starts at `opacity:0`, gains `.map-ready` (transition `opacity .4s ease`) once the lo-res tile (or single-image fallback) loads, so the map/overlay no longer pops in abruptly. See Section 8 changelog for both.
 **Purpose:** Single source of truth across all chat sessions. Read this first in every new chat.
 
 ---
@@ -21,11 +21,15 @@
 | File | Version | Last changed | Notes |
 |------|---------|--------------|-------|
 | index.html | v9.8 | Session 41 | Auto-select of latest tournament/day now uses `_recencyTs` (last-edited, falls back to `created_at`) instead of raw `created_at` — see Section 8 changelog and Section 3's `updated_at` migration (pending). `tournaments`/`days` queries switched to `select('*')` so the new column is picked up automatically once that SQL runs. |
+| editor.html | v7.6 | Session 43 | Team identity registry — `addTeam()`/`populateTeamsFromPoolEditor()`/`confirmEditorGroupPicker()` now resolve-or-create a `team_identities` row per team (`resolveOrCreateTeamIdentity()`), gated on `_detectTeamIdentityCols()`. User-visible team-add flow unchanged. See Section 8. |
 | editor.html | v7.5 | Session 42 | Data-sharing hardening — real autosave (`queueForSave`/`flushAutosaveQueue`, 300ms debounce), `shapes.source` provenance tag + dashed-stroke render tell for `source==='vod'` shapes, `beforeunload` guard on unsaved/failed autosaves, cross-tab "already open" `BroadcastChannel` warning, and a confirm-guard in `selectMapFromDropdown()` before changing map on a match that already has markers. See Section 8. |
 | editor.html | v7.4 | Session 41 | Pan/path-finish input overhaul — middle-mouse-drag pans in both modes, preview-mode left-click/touch pans directly (space+left-click removed), right-click now finishes a path (dblclick kept as fallback). Plus two later fixes: the shared delete-warning confirm modal (`_dwmConfirm()` was nulling its own callback before invoking it — silently broke CLEAR MAP, clear match map, and every delete-tournament/day/match/team confirm), and `clearMap()` now also purges `self_elims`/`annotations` (elim log + notes) and resets `teams.kills`/`match_players.kills` to 0 (Active Squad kill badges were surviving a clear). Plus a follow-up feature: `openActivePlayersModal()` now carries over the squad from the tournament's most recently active match when the current match has none of its own, and auto-load sorting switched to `_recencyTs` (last-edited). See Section 8 changelog. |
+| tournament-create.html | v5.1 | Session 43 | Team identity registry — `addPoolTeam()`/`addGroupTeam()` now resolve-or-create a `team_identities` row per team (`resolveOrCreateTeamIdentity()`), gated on `_detectTeamIdentityCols()`; `tournament_teams` insert carries `team_identity_id` through. See Section 8. |
 | tournament-create.html | v5.0 | Session 38 | Full parchment design-system migration — header/nav/auth/sidebar match editor.html (268px). Glow effects, decorative sync-badge, and kernel/copyright footer removed. See Section 8 changelog. |
 | tournament-editor.html | v1.4 | Session 25 | VOD REVIEW nav link added |
+| analytics.html | v3.0 | Session 43 | New **Routes** tab (third view alongside Coach/Analyst) — cross-tournament Compare mode (map-gated match picker, synced scrubber, `drawMapTile()` parametrized tile renderer) and Heatmap mode (superimposed rotation paths for self or a `team_identities`-linked opponent, one map at a time). See Section 8. |
 | analytics.html | v2.3 | Session 25 | VOD REVIEW nav link added, active link fixed |
+| player.html | v1.3 | Session 43 | New CAREER scope mode (alongside existing TOURNAMENT scope) — a player's stats aggregated across every tournament they've played in. Implemented by repointing `allMatches`/`allSelfTeams`/`allShapes`/`allDays` to a cross-tournament dataset (`loadCareerScopedData()`) rather than touching any chart function; `renderTrend()` gained tournament-boundary markers, `renderMatchHistory()`'s row-click link now uses each row's own `tournament_id`. See Section 8. |
 | player.html | v1.2 | Session 25 | VOD REVIEW nav link added |
 | vod.html | v6.3 | Session 42 | Data-sharing hardening — real autosave (same `queueForSave`/`flushAutosaveQueue` pattern as editor.html), persisted 2-point calibration (`persistCalibration()` after `computeCalibration()`, restored/reset in `onMatchChange()`, invalidated in `_doStartMatch()` if the video URL actually changed), `shapes.source` provenance tag + dashed-stroke render tell, `beforeunload` guard, cross-tab "already open" `BroadcastChannel` warning. See Section 8. |
 | vod.html | v6.2 | Session 41 | Full appearance overhaul — floating left toolbar (+ Arrow draw mode), floating top-right squad panel, read-only canvas context chip, Load Match modal, rebuilt bottom bar, End Match confirmation modal. Plus later follow-ups: squad panel scrollbar-gutter fix, `#overlay-canvas` map-load fade-in ported from editor.html (`_canvasReady`/`map-ready`), and auto-load sorting switched to `_recencyTs` (last-edited, falls back to `created_at`). See Section 8 changelog. |
@@ -84,6 +88,8 @@ cal_active          boolean DEFAULT false  ← Session 42 SQL, PENDING (see Sect
 ```
 id                  uuid PRIMARY KEY
 match_id            uuid REFERENCES matches(id)
+user_id             uuid REFERENCES auth.users(id)   ← was undocumented pre-Session-43; used constantly (editor.html addTeam() etc)
+slot_index          int                                ← was undocumented pre-Session-43; team ordering within a match
 name                text NOT NULL
 color               text
 placement           int
@@ -93,8 +99,38 @@ time_of_wipe        int        ← nullable, match-relative seconds
 confirmed_position  int        ← nullable
 wipe_x              float      ← nullable
 wipe_y              float      ← nullable
+team_identity_id    uuid REFERENCES team_identities(id)  ← Session 43 SQL, PENDING (see Section 3) — cross-tournament team identity, additive
 created_at          timestamptz DEFAULT now()
 ```
+
+### team_identities
+```
+id                  uuid PRIMARY KEY DEFAULT gen_random_uuid()   ← Session 43 SQL, PENDING (see Section 3)
+user_id             uuid REFERENCES auth.users(id) NOT NULL
+canonical_name      text NOT NULL
+created_at          timestamptz DEFAULT now()
+```
+One row per real-world opponent (or self) org, reused across tournaments via `teams.team_identity_id`/`tournament_teams.team_identity_id` — mirrors the existing `players`/`tournament_players` stable-identity pattern, applied to teams. `teams.name`/`tournament_teams.team_name` remain the permanent display/fallback fields regardless.
+
+### tournament_teams
+```
+id                  uuid PRIMARY KEY
+tournament_id       uuid REFERENCES tournaments(id)
+user_id             uuid REFERENCES auth.users(id)
+team_name           text NOT NULL
+team_identity_id    uuid REFERENCES team_identities(id)  ← Session 43 SQL, PENDING (see Section 3)
+created_at          timestamptz DEFAULT now()
+```
+Was undocumented pre-Session-43. Per-tournament roster used only for autocomplete/prefill (`editor.html`'s `knownTeams`, `tournament-create.html`'s roster builder) until Session 43 added the identity link.
+
+### tournament_players
+```
+id                  uuid PRIMARY KEY
+tournament_id       uuid REFERENCES tournaments(id)
+player_id           uuid REFERENCES players(id)
+user_id             uuid REFERENCES auth.users(id)
+```
+Was undocumented pre-Session-43. Joins a stable `players.id` into a specific tournament's roster — this is what already gives players real cross-tournament identity (see `players` below), the pattern `team_identities` now mirrors for teams.
 
 ### match_players
 ```
@@ -113,25 +149,30 @@ created_at          timestamptz DEFAULT now()
 ### shapes
 ```
 id                  uuid PRIMARY KEY
-team_id             uuid REFERENCES teams(id)
+team_id             uuid REFERENCES teams(id)   ← null for zone circles (match-level, not team-owned)
 match_id            uuid REFERENCES matches(id)
-type                text        ← 'line'|'circle'|'arrow'|'pin'|'path'
+type                text        ← 'line'|'circle'|'path'|'pin'|'fight'
 tag                 text        ← 'zone'|'fight'|'rotation'|'pin'
 time_seconds        int
-path_points         jsonb       ← [{x,y,t}] for paths
-cx,cy,r             float       ← circles
-x1,y1,x2,y2        float       ← lines/arrows
-wx,wy               float       ← pins
+path_points         jsonb       ← [{x,y}] for paths
+cx,cy,radius        float       ← circles (corrected Session 43 — was documented as cx,cy,r)
+x1,y1,x2,y2         float       ← lines
+pin_x,pin_y         float       ← pins/fights (corrected Session 43 — was documented as wx,wy)
+label               text        ← pin label
+fight_team_a        text        ← fight-type shapes only
+fight_team_b        text        ← fight-type shapes only
+zone_type           text        ← zone circles only, e.g. 'white'
 zone_phase          int         ← zone circles only
 rotation_index      int         ← rotation lines/paths only
 source              text DEFAULT 'editor'  ← Session 42 SQL, PENDING (see Section 3) — which page drew this marker: 'editor'|'vod'
 created_at          timestamptz DEFAULT now()
 ```
+(Corrected Session 43 — several column names above were stale/wrong versus the actual code in `editor.html`/`vod.html`'s `shapeToDbRow()`/`dbRowToShape()`. `type` never has `'arrow'` — rotation arrows are `type:'line'`/`type:'path'` with `tag:'rotation'`, rendered with an arrowhead client-side.)
 
 ### players
 ```
 id                  uuid PRIMARY KEY
-tournament_id       uuid REFERENCES tournaments(id)
+user_id             uuid REFERENCES auth.users(id)   ← corrected Session 43 — was documented as tournament_id, which is wrong; no code path ever inserts tournament_id here. Scoped by user_id (i.e. reusable across every tournament), linked into a specific tournament's roster via tournament_players (see above). This is a real, working stable-identity pattern, unlike teams pre-Session-43.
 name                text NOT NULL
 ign                 text
 role                text
@@ -249,6 +290,65 @@ ALTER TABLE matches ADD COLUMN IF NOT EXISTS cal_active boolean DEFAULT false;
 
 ⚠️ Supabase/PostgREST 400s an insert or update that references a column that doesn't exist yet — so writing `source`/`cal_*` unconditionally before this migration runs would have broken every save (not just the new features). Both files probe for these columns once at boot (`_detectSession42Columns()` → `_hasSession42Cols`, `sb.from('matches').select('cal_active').limit(1)`) and gate the new fields on the result: `shapeToDbRow()` omits `source` (via `undefined`, which `JSON.stringify` drops) and `persistCalibration()` skips its write entirely (toast: session-only, not saved) until the flag is true. Existing save behavior is unaffected either way. Run this migration to actually get provenance tags and persisted calibration.
 
+```sql
+-- Session 43 — Team identity registry (additive only)
+-- PENDING — user needs to run this in Supabase, THEN the one-time backfill
+-- below it, before the team-add UX changes (editor.html/tournament-create.html)
+-- rely on team_identity_id being populated for existing teams.
+
+CREATE TABLE IF NOT EXISTS team_identities (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         uuid REFERENCES auth.users(id) NOT NULL,
+  canonical_name  text NOT NULL,
+  created_at      timestamptz DEFAULT now()
+);
+
+ALTER TABLE team_identities ENABLE ROW LEVEL SECURITY;
+CREATE POLICY team_identities_owner ON team_identities
+  FOR ALL USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+-- Mirror whatever RLS policy shape tournament_teams/events already use — check
+-- the Supabase dashboard for the exact existing policy before running, don't guess.
+
+CREATE UNIQUE INDEX IF NOT EXISTS team_identities_user_name_ci
+  ON team_identities (user_id, lower(canonical_name));
+
+ALTER TABLE teams            ADD COLUMN IF NOT EXISTS team_identity_id uuid REFERENCES team_identities(id);
+ALTER TABLE tournament_teams ADD COLUMN IF NOT EXISTS team_identity_id uuid REFERENCES team_identities(id);
+```
+
+**Backfill — run once, immediately after the migration above:**
+
+```sql
+-- 1. Create one team_identities row per distinct (user_id, lower(name)) that
+--    appears anywhere in `teams` and doesn't already have one.
+INSERT INTO team_identities (user_id, canonical_name)
+SELECT DISTINCT ON (t.user_id, lower(t.name)) t.user_id, t.name
+FROM teams t
+WHERE t.user_id IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM team_identities ti
+    WHERE ti.user_id = t.user_id AND lower(ti.canonical_name) = lower(t.name)
+  )
+ORDER BY t.user_id, lower(t.name), t.created_at ASC; -- earliest-seen spelling wins as canonical_name
+
+-- 2. Backfill teams.team_identity_id by case-insensitive name match within owner.
+UPDATE teams t
+SET team_identity_id = ti.id
+FROM team_identities ti
+WHERE t.user_id = ti.user_id
+  AND lower(t.name) = lower(ti.canonical_name)
+  AND t.team_identity_id IS NULL;
+
+-- 3. Sanity check — should return 0 rows. Run this before treating the backfill as done.
+SELECT id, name, user_id FROM teams WHERE user_id IS NOT NULL AND team_identity_id IS NULL;
+```
+
+⚠️ **Known, accepted gap**: this backfill groups by case-insensitive exact name match — it cannot tell "same team, different spelling" (e.g. "Warriors" vs "Team Warriors") from "different team, same name." Near-duplicates across tournaments will NOT auto-merge into one identity, and in the rare case two genuinely different teams share an exact name, they WILL be incorrectly merged. Spot-check any `team_identities` row with unusually many linked `teams` rows before relying on Heatmap-mode opponent filtering. A merge/split tool is a flagged fast-follow, not built yet — until then, fixing a bad merge/split is a manual SQL job (reassign `teams.team_identity_id`).
+
+`teams.name`/`tournament_teams.team_name` are untouched by any of this and remain the permanent display/fallback fields — `team_identity_id` is purely additive.
+
+**Graceful degradation** (same pattern as Session 42's `_detectSession42Columns()`): `editor.html` and `tournament-create.html` each add `_detectTeamIdentityCols()` — `sb.from('teams').select('team_identity_id').limit(1)` → `_hasTeamIdentityCols` — fired (not awaited) from boot. Every team insert conditionally includes `team_identity_id` (omitted via `undefined` if the flag is false), so team-add keeps working exactly as before if this migration hasn't run yet.
+
 ---
 
 ## SECTION 4 — NAVIGATION (CANONICAL — ALL PAGES)
@@ -356,6 +456,9 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | `toggleAnnotationMode(isEdit)` | Session 41: preview-mode base cursor changed `default`→`grab` (hints that left-click now pans directly in preview mode, since `spaceDown`'s `.panning` cursor class was removed). |
 | `exportJSON()` | Exports match data |
 | `downloadSnapshot()` | PNG snapshot of canvas |
+| `_detectTeamIdentityCols()` | Session 43, new. Capability probe (`sb.from('teams').select('team_identity_id').limit(1)`) → `_hasTeamIdentityCols`, gates writes so team-add keeps working pre-migration. Fired (not awaited) from boot, same pattern as `_detectSession42Columns()`. |
+| `preloadKnownTeamIdentities()` | Session 43, new. Loads `knownTeamIdentities` — deliberately cross-tournament (all of this user's teams), unlike the tournament-scoped `knownTeams`. Called from `preloadKnownTeams()`. |
+| `resolveOrCreateTeamIdentity(name)` | Session 43, new. Case-insensitive lookup against `knownTeamIdentities`, else inserts a new `team_identities` row. Returns `undefined` (not `null`) pre-migration so `JSON.stringify` drops the key — called from `addTeam()`, `populateTeamsFromPoolEditor()`, `confirmEditorGroupPicker()`. |
 
 ### vod.html
 
@@ -420,6 +523,40 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | `toggleStageFullscreen()` | Session 41, new. Fullscreen API on `#vod-stage` (video + canvas only, not the floating chrome's containing element — chrome is positioned inside `#vod-stage` so it fullscreens too). |
 | `toggleSpeedPopover()` / `closeSpeedPopover()` | Session 41, new. Bottom bar's speed pill (`#btn-speed-pill`) toggles `.open` on `#speed-cluster`, now a popover instead of 5 inline buttons. `setSpeed()` calls `closeSpeedPopover()` after applying the rate. |
 | `openEndMatchConfirm()` / `confirmEndMatch()` | Session 41, new. Left toolbar's End Match icon no longer calls `markMatchEnd()` directly. `openEndMatchConfirm()` checks `matches.find(...).duration_seconds` — if already set (i.e. this would be the *undo* path), skips the modal and calls `markMatchEnd()` straight through since that's reversible; otherwise shows `#end-match-modal` (`modal-red`). `confirmEndMatch()` closes the modal then calls `markMatchEnd()`. `markMatchEnd()` itself is unchanged. |
+
+### tournament-create.html
+*(New functions only — Session 43. This file's pre-existing functions were never registered here; not backfilled.)*
+
+| Function | Purpose |
+|----------|---------|
+| `_detectTeamIdentityCols()` | Capability probe → `_hasTeamIdentityCols`, same pattern as `editor.html`. Fired from the boot IIFE. |
+| `resolveOrCreateTeamIdentity(name)` | Case-insensitive lookup against `allTeamIdentities`, else inserts a new `team_identities` row. Returns `undefined` pre-migration. Called from `addPoolTeam()`/`addGroupTeam()`, both now `async` and re-check for a duplicate name after the identity-resolution `await` (guards a double-Enter race). |
+
+### analytics.html
+*(New functions only — Session 43. This file's pre-existing functions were never registered here; not backfilled.)*
+
+| Function | Purpose |
+|----------|---------|
+| `setView(view)` | Extended to accept `'routes'` alongside existing `'coach'`/`'analyst'` — toggles `#tournament-charts-wrap` vs `#routes-view`, calls `initRoutesView()` lazily on first open. |
+| `initRoutesView()` / `loadRoutesPickerData()` | Cross-tournament data load (all of `currentUser`'s tournaments/days/matches with a `map_key` set) — deliberately does NOT reuse the tournament-scoped `loadAllData()`. Lazy, loaded once per page load. |
+| `buildRoutesMapPills()` / `setRoutesMapKey(key)` | Map-key picker that structurally gates match selection — matches on a different map are never selectable, not just filtered after the fact. |
+| `buildRoutesMatchPicker()` / `toggleRoutesMatch(id)` | Checkbox match picker, capped at 12 selections. |
+| `loadRoutesMatchShapes(matchId)` / `_routesRowToShape(row)` | Per-match `teams`+`shapes` fetch (all shape types, unlike the existing tournament-scoped chart queries which only pull `type in ('fight','circle')`) and DB-row → drawable-shape parsing, mirrors `editor.html`'s `dbRowToShape()`. |
+| `drawMapTile(ctx, {...})` / `_drawRoutesShape()` / `_routesMpx()` | New, self-contained parametrized renderer — modeled on `editor.html`'s `draw()`/`drawZoneCircle()`/`drawPinMarker()`/`mpx()` but every input passed explicitly (no module globals, no DOM slider reads), since `editor.html`'s actual `draw()` can't be called cross-file and reads two sliders (`#sl-width`/`#sl-opacity`) that don't exist on this page. |
+| `renderRoutesTileGrid()` / `onRoutesScrub(val)` / `drawAllRoutesTiles(time)` | Compare-mode grid — one small canvas per selected match, one shared scrubber, rAF-batched redraw. Always loads `_lo.jpg` map resolution (tiles are too small to need mid/hi). |
+| `setRoutesMode(mode)` | Compare/Heatmap sub-toggle within the Routes tab. |
+| `_detectTeamIdentityCols()` / `loadRoutesTeamIdentities()` | Same capability-probe pattern as `editor.html`/`tournament-create.html` — separate script context, so redefined here too. Populates `#routes-heatmap-team`'s opponent options once the migration is detected. |
+| `buildRoutesHeatmapMapPills()` / `renderHeatmap()` | Single-map, single-team picker → queries `teams` by `is_self` or `team_identity_id`, then `shapes` where `tag='rotation'`, drawn at low constant alpha with no time gating (full route history, not a moment-in-time snapshot). Explicitly excludes fight/elimination markers — same "no elimination heatmaps this pass" decision as death-location heatmaps. |
+
+### player.html
+*(New functions only — Session 43. This file's pre-existing functions were never registered here; not backfilled.)*
+
+| Function | Purpose |
+|----------|---------|
+| `setMode(mode)` / `applyModeData()` | `'tournament'`/`'career'` toggle. Repoints `allDays`/`allMatches`/`allSelfTeams`/`allShapes` between the original tournament-scoped arrays (aliased into `tournamentDays`/`tournamentMatches`/`tournamentSelfTeams`/`tournamentShapes` at the end of `loadTournamentData()`) and a career-scoped dataset — every existing chart function keeps working unchanged since they already read these globals generically. |
+| `loadCareerScopedData(playerId)` | Scopes through `tournament_players.eq('player_id',...)` (not a blanket "all of this user's matches" fetch) — cached per player in `careerCache`. Attaches `tournament_id` onto each match (via its day) since career rows span multiple tournaments. |
+| `renderMatchHistory()` | Row-click link now uses `r.match?.tournament_id \|\| tournamentId` instead of always the single loaded `tournamentId` — was a real bug in career mode pre-fix (every row would have linked to the wrong tournament). |
+| `renderTrend()` | Gained tournament-boundary dashed-line + label markers, drawn only when `currentMode==='career'`, wherever the chronological match sequence crosses into a different `tournament_id`. |
 
 ---
 
@@ -580,6 +717,14 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | 42 | **Cross-tab "already open" warning (soft, no lock).** New `announceMatchOpen(matchId)` in both files opens a `BroadcastChannel('mz-match-'+matchId)` on match load, posts presence, and shows a `toast` if another tab announces the same match id. No DB changes, no blocking — genuinely just a heads-up for the same-browser-forgotten-tab case. Deferred upgrade path (not built): Supabase Realtime **Presence**, once multi-user/role-based access (Q3 roadmap) makes cross-device/cross-person conflicts a real scenario rather than a same-browser one. |
 | 42 | **editor.html — map-change guard.** New `_matchAnnotationCount(matchId)` sums a match's shapes (across its teams) + zones. `selectMapFromDropdown()` now checks this before switching `map_key` — if the match already has markers, shows the existing `showDeleteWarning()` confirm modal ("this match already has N markers — changing the map will make their positions meaningless") instead of silently swapping; only proceeds to `loadMapKey()`/`updateMatchMap()` on confirm. vod.html has no map-select UI (map is dashboard/editor-managed, read-only there — Session 40 decision), so this guard is editor.html-only. |
 | 42 | **Pre-migration write safety (found while implementing, not in the original plan).** Inserting/updating a column PostgREST doesn't know about yet 400s the *entire* request — so writing `shapes.source`/`matches.cal_*` unconditionally before the Section 3 SQL runs would have broken every save, not just the new features (this is a stricter failure mode than the "read-only" columns added in prior sessions, e.g. Session 41's `updated_at`, which were never written from client JS). New `_detectSession42Columns()` in both files probes once at boot (`sb.from('matches').select('cal_active').limit(1)`, fired but not awaited) and sets `_hasSession42Cols`; `shapeToDbRow()` omits `source` (via `undefined`, which `JSON.stringify` drops from the request body) and `persistCalibration()` skips its write entirely (toast: calibrated for this session, not saved) until the flag is true. Existing save behavior is unaffected whether or not the migration has run. |
+| 43 | **User Q&A surfaced two real gaps, scoped into a plan: opponent teams have no cross-tournament identity (name-string matching only), and nothing renders shapes/paths outside editor.html/vod.html's single-match canvases** — even though `player.html`/`analytics.html` had the data to support cross-tournament and spatial views. Four decisions locked in via AskUserQuestion: build a real team-identity registry (mirroring the existing `players`/`tournament_players` pattern); add a **Routes** tab inside `analytics.html` (not a standalone page) with Compare + Heatmap modes; extend `player.html` with a cross-tournament career view; explicitly defer death/elimination-location heatmaps to a later fast-follow. Requires the new Section 3 SQL migration + backfill — **PENDING, not yet run.** |
+| 43 | **Team identity registry.** New `team_identities` table (`user_id`, `canonical_name`) + additive `team_identity_id` FK on `teams` and `tournament_teams`. Backfill groups existing `teams.name` values case-insensitively per owner into one `team_identities` row each (earliest-seen spelling wins as `canonical_name`), then links `teams.team_identity_id` by the same match — **known accepted gap:** cannot distinguish "same team, different spelling" from "different team, same name" from a bare string, so near-duplicates won't auto-merge and, rarely, two genuinely different same-named teams could get merged; a merge/split tool is a flagged fast-follow, not built. `teams.name`/`tournament_teams.team_name` are untouched and remain the permanent display fields. |
+| 43 | **Team-add UX — resolve-or-create identity, transparently.** `tournament-create.html`'s `addPoolTeam()`/`addGroupTeam()` and `editor.html`'s `addTeam()`/`populateTeamsFromPoolEditor()`/`confirmEditorGroupPicker()` now call a new `resolveOrCreateTeamIdentity(name)` (case-insensitive lookup against a preloaded identity list, else inserts a new `team_identities` row) and attach the result as `team_identity_id` on the `teams`/`tournament_teams` insert. **User-visible flow is completely unchanged** — still just type a name and add. Both async functions in `tournament-create.html` gained a second duplicate-name check immediately after the identity-resolution `await` (the pre-existing check happens before that await and would otherwise let a rapid double-Enter through, since the identity call is a new async gap that didn't exist in the old fully-synchronous version of these functions). |
+| 43 | **Pre-migration write safety, same class of bug as Session 42's.** Both `editor.html` and `tournament-create.html` (two separate script contexts) gained their own `_detectTeamIdentityCols()` probe (`sb.from('teams').select('team_identity_id').limit(1)`) so writing `team_identity_id` before the migration runs can't 400 the team-add flow — `resolveOrCreateTeamIdentity()` returns `undefined` (dropped by `JSON.stringify`) until the flag is true. `analytics.html` needed its own independent copy of this same probe for Heatmap mode's opponent-filtering (separate page, separate script context — cannot share the check with the other two files). |
+| 43 | **analytics.html — new Routes tab, Compare mode.** Third view alongside Coach/Analyst (`setView('routes')`), backed by a new cross-tournament data path (`loadRoutesPickerData()` — deliberately does not reuse the existing tournament-scoped `loadAllData()`). A map-key pill picker gates match selection *structurally* — matches on a different map are never selectable, not filtered after the fact — because shape coordinates are map-specific pixel space, confirmed by reading `editor.html`'s existing map-change guard logic. Up to 12 matches render as small canvas tiles in a CSS grid, driven by one shared scrubber. Needed an entirely new, self-contained parametrized renderer (`drawMapTile()`/`_drawRoutesShape()`/`_routesMpx()`) since `editor.html`'s real `draw()` reads module-level globals *and* two DOM sliders (`#sl-width`/`#sl-opacity`) that don't exist on this page — confirmed this makes cross-file reuse impossible before writing new code, consistent with the project's single-file-page architecture rule. Tiles always load `_lo.jpg` (too small to need mid/hi resolution) and redraw via `requestAnimationFrame`-batched scrub events. |
+| 43 | **analytics.html — Routes tab, Heatmap mode.** Superimposes every `tag:'rotation'` path/line a team (self via `is_self`, or an opponent via `team_identity_id` once the migration has run) has drawn on one map, across every match in every tournament the user owns — drawn at low constant alpha (~0.15) with **no time gating at all** (the point is full route history, not a moment in time), so frequently-used routes read visibly denser from canvas alpha stacking alone — no separate density/kernel-density math needed. Deliberately excludes `tag:'fight'` shapes (elimination-location points) — same "no elimination heatmaps this pass" decision as death-location heatmaps, both flagged as a natural later extension of this same infrastructure rather than built now. |
+| 43 | **player.html — new CAREER scope mode.** Cheapest of the three pieces of this session's work since `players.id` already has real cross-tournament identity (unlike teams pre-Session-43) via the existing `tournament_players` join — no schema change needed. Implemented by repointing the same `allMatches`/`allSelfTeams`/`allShapes`/`allDays` globals every existing chart function (`renderKillsPerMatch`, `renderTrend`, `renderDeathTiming`, etc.) already reads generically off its `rows` argument — zero chart-function rewrites. New `loadCareerScopedData(playerId)` scopes through `tournament_players.eq('player_id',...)` (not a blanket fetch of every match the user owns) and is cached per player. Two small necessary fixes surfaced while wiring this in: `renderMatchHistory()`'s row-click link previously hardcoded the single loaded `tournamentId` — in career mode that would have linked every row to the wrong tournament, now uses each row's own `match.tournament_id` with a fallback; `renderTrend()` gained dashed tournament-boundary markers so a coach can see performance drift across tournaments, not just across matches within one. |
+| 43 | **Section 1 schema corrections (found while implementing, not new changes).** Confirmed by reading the actual code, several parts of Section 1 were stale: `teams` was missing `user_id`/`slot_index` (both used constantly in `editor.html`); `players` was documented as scoped by `tournament_id`, which is wrong — no code path ever inserts that, it's scoped by `user_id` and linked into a tournament via `tournament_players` (this is what already gave players real cross-tournament identity, the exact pattern `team_identities` now mirrors for teams); `tournament_teams`/`tournament_players` had no schema block at all; `shapes`' real column names were wrong (`radius` not `r`, `pin_x`/`pin_y` not `wx`/`wy`, plus undocumented `label`/`fight_team_a`/`fight_team_b`/`zone_type`). All corrected in Section 1 this session. |
 
 ---
 
@@ -594,7 +739,8 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 ### DB — Pending migrations
 | Priority | Item |
 |----------|------|
-| 🔴 HIGH | Run Session 21 SQL: `ALTER TABLE matches ADD COLUMN IF NOT EXISTS vod_url text; ALTER TABLE matches ADD COLUMN IF NOT EXISTS vod_start_offset int;` |
+| 🟡 MED | Run Session 42 SQL (Section 3) — `shapes.source`, `matches.cal_tx/ty/sx/sy/active`. Degrades gracefully until run (see Section 3 ⚠️ note). |
+| 🟡 MED | Run Session 43 SQL + backfill (Section 3) — `team_identities` table, `teams`/`tournament_teams.team_identity_id`. Degrades gracefully until run; Heatmap-mode opponent filtering and identity-linked team-add won't work for real until it's done. |
 
 ---
 
@@ -656,6 +802,8 @@ Session 25 fixed: VOD REVIEW was missing from analytics, player, tournament-crea
 | FEAT-3 | all pages | 🟡 | **Welcome modal** — one-time modal on first visit per session (`sessionStorage mz_welcomed` flag). Agreed Session 20, not built. |
 | FEAT-4 | — | 🟢 | **history.html** — deferred until 2–3 tournaments of real data exist |
 | FEAT-5 | `vod.html` | 🟢 | **Paywall** — deferred |
+| FEAT-6 | — | 🟡 | **Team identity merge/split tool** — Session 43's backfill groups `teams.name` case-insensitively per owner; near-duplicate spellings across tournaments won't auto-merge, and rare same-name-different-team collisions could be wrongly merged. Needs a small UI (pick two `team_identities`, reassign `teams.team_identity_id` from B→A and delete B; and the reverse — split one identity's teams back into two) — flagged in Session 43, not built. |
+| FEAT-7 | `analytics.html` | 🟢 | **Death-location / elimination-location heatmaps** — Routes tab (Session 43) only does rotation-path heatmaps. `match_players.death_x/death_y` and `shapes` fight-type rows (`pin_x/pin_y` + team) already exist and are map-specific coordinates like paths — same map_key-grouping infrastructure from Compare/Heatmap mode would apply directly. Explicitly deferred this session, not built. |
 
 ---
 
