@@ -313,24 +313,35 @@
   </div>
 </div>
 
+<!-- HEADER — a plain sibling, not nested inside #app, so the nav renders immediately from first paint like every other page (no loading state, no animation) -->
+<header id="app-header">
+  <div class="header-left">
+    <a href="index.html" class="logo-mark">
+      <div class="logo-icon"><div class="logo-icon-inner"><iconify-icon icon="lucide:layers"></iconify-icon></div></div>
+      <span class="font-display" style="font-size:18px;font-weight:800;letter-spacing:-0.02em;">METAZONE</span>
+    </a>
+    <nav class="header-nav">
+      <a href="index.html" class="nav-link">DASHBOARD</a>
+      <a href="editor.html" class="nav-link">EDITOR</a>
+      <a href="vod.html" class="nav-link">VOD REVIEW</a>
+      <a href="tournament-create.html" class="nav-link">NEW TOURNAMENT</a>
+      <a href="tournament-editor.html" class="nav-link">TOURNAMENT EDITOR</a>
+      <a href="analytics.html" class="nav-link active">TEAM ANALYTICS</a>
+      <a href="player.html" class="nav-link">PLAYER ANALYTICS</a>
+      <a href="manage.html" class="nav-link">MANAGE</a>
+    </nav>
+  </div>
+  <div class="header-right">
+    <button onclick="signOut()" style="background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'Lexend Deca',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:6px 12px;border-radius:3px;cursor:pointer;transition:all 0.15s;"
+      onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">SIGN OUT</button>
+  </div>
+</header>
+
 <!-- ══════════════════════════════════════════════════ -->
 <!-- A5: SKELETON LOADING SCREEN -->
 <!-- ══════════════════════════════════════════════════ -->
 <div id="skeleton-screen">
-  <!-- Fake header bar -->
-  <div style="height:52px;background:var(--forest);display:flex;align-items:center;padding:0 20px;gap:24px;position:fixed;top:0;left:0;right:0;z-index:49;">
-    <div class="skel" style="width:28px;height:28px;border-radius:3px;flex-shrink:0;"></div>
-    <div class="skel" style="width:100px;height:14px;"></div>
-    <div style="display:flex;gap:8px;margin-left:8px;">
-      <div class="skel" style="width:80px;height:10px;border-radius:2px;"></div>
-      <div class="skel" style="width:52px;height:10px;border-radius:2px;"></div>
-      <div class="skel" style="width:130px;height:10px;border-radius:2px;"></div>
-      <div class="skel" style="width:110px;height:10px;border-radius:2px;"></div>
-      <div class="skel" style="width:120px;height:10px;border-radius:2px;"></div>
-    </div>
-  </div>
-  <div style="height:56px;"></div>
-
+  <!-- No fake header here — the real #app-header now renders immediately (it's a plain sibling, not nested inside #app), so it's already visible for the entire loading window; duplicating it would be redundant and is exactly the "loading state for the nav" this page shouldn't have. -->
   <div style="padding:32px;max-width:1400px;width:100%;margin:0 auto;">
     <!-- Top bar -->
     <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;gap:16px;padding-top:4px;">
@@ -445,35 +456,10 @@
     </div>
   </div>
 </div>
-
 <!-- ══════════════════════════════════════════════════ -->
 <!-- APP -->
 <!-- ══════════════════════════════════════════════════ -->
 <div id="app" style="display:none;flex-direction:column;min-height:100vh;">
-
-  <!-- HEADER -->
-  <header id="app-header">
-    <div class="header-left">
-      <a href="index.html" class="logo-mark">
-        <div class="logo-icon"><div class="logo-icon-inner"><iconify-icon icon="lucide:layers"></iconify-icon></div></div>
-        <span class="font-display" style="font-size:18px;font-weight:800;letter-spacing:-0.02em;">METAZONE</span>
-      </a>
-      <nav class="header-nav">
-        <a href="index.html" class="nav-link">DASHBOARD</a>
-        <a href="editor.html" class="nav-link">EDITOR</a>
-        <a href="vod.html" class="nav-link">VOD REVIEW</a>
-        <a href="tournament-create.html" class="nav-link">NEW TOURNAMENT</a>
-        <a href="tournament-editor.html" class="nav-link">TOURNAMENT EDITOR</a>
-        <a href="analytics.html" class="nav-link active">TEAM ANALYTICS</a>
-        <a href="player.html" class="nav-link">PLAYER ANALYTICS</a>
-        <a href="manage.html" class="nav-link">MANAGE</a>
-      </nav>
-    </div>
-    <div class="header-right">
-      <button onclick="signOut()" style="background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'Lexend Deca',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:6px 12px;border-radius:3px;cursor:pointer;transition:all 0.15s;"
-        onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">SIGN OUT</button>
-    </div>
-  </header>
 
   <!-- MAIN CONTENT -->
   <main style="flex:1;padding:32px;max-width:1400px;width:100%;margin:0 auto;" id="main-content">
