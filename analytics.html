@@ -490,10 +490,6 @@
       </nav>
     </div>
     <div class="header-right">
-      <div style="display:flex;align-items:center;gap:6px;padding:5px 10px;background:var(--bg-card);border:1px solid var(--border);border-radius:3px;">
-        <span class="pulse" style="width:6px;height:6px;background:var(--green);border-radius:50%;display:inline-block;"></span>
-        <span class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.15em;text-transform:uppercase;">SYSTEM ONLINE</span>
-      </div>
       <button onclick="signOut()" style="background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'Lexend Deca',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:6px 12px;border-radius:3px;cursor:pointer;transition:all 0.15s;"
         onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">SIGN OUT</button>
     </div>
@@ -562,7 +558,7 @@
 
       <!-- ── VIEW TOGGLE (always visible — Coach/Analyst grouped; Routes separated as a cross-tournament tool) ── -->
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;">
-        <div style="display:flex;align-items:center;gap:16px;">
+        <div style="display:flex;align-items:flex-end;gap:16px;">
           <div style="display:flex;gap:0;">
             <button class="view-btn active" id="btn-coach" onclick="setView('coach')">
               <iconify-icon icon="lucide:user-cog" style="margin-right:5px;"></iconify-icon>COACH VIEW
@@ -571,7 +567,7 @@
               <iconify-icon icon="lucide:microscope" style="margin-right:5px;"></iconify-icon>ANALYST VIEW
             </button>
           </div>
-          <div style="width:1px;height:22px;background:var(--border-mid);"></div>
+          <div style="width:1px;height:22px;background:var(--border-mid);align-self:center;"></div>
           <div style="display:flex;flex-direction:column;gap:3px;">
             <span class="font-mono" style="font-size:8px;color:var(--muted);letter-spacing:0.15em;">CROSS-TOURNAMENT TOOL</span>
             <button class="view-btn view-btn-tool" id="btn-routes" onclick="setView('routes')">
@@ -659,12 +655,9 @@
 
           <!-- Chart 1: Strategy Quadrant — KP vs PP, with aggression trend line -->
           <div class="chart-wrap" style="grid-column:span 2;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-              <div>
-                <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Strategy Quadrant — KP vs PP</h3>
-                <p style="font-size:10px;color:var(--muted);margin-top:3px;">Kill Points vs Placement Points across all matches, with a kills-vs-score aggression trend line. Each dot = one match.</p>
-              </div>
-              <span class="font-mono" style="font-size:9px;color:var(--accent);border:1px solid rgba(44,74,46,0.3);padding:3px 8px;border-radius:2px;">TIER 1 CHART</span>
+            <div style="margin-bottom:16px;">
+              <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Strategy Quadrant — KP vs PP</h3>
+              <p style="font-size:10px;color:var(--muted);margin-top:3px;">Kill Points vs Placement Points across all matches, with a kills-vs-score aggression trend line. Each dot = one match.</p>
             </div>
             <div style="position:relative;height:280px;">
               <canvas id="scatter-chart" style="width:100%;height:100%;"></canvas>
@@ -1399,20 +1392,19 @@ function renderScatterChart(rows) {
   ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t + ph); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(pad.l, pad.t + ph); ctx.lineTo(pad.l + pw, pad.t + ph); ctx.stroke();
 
-  // Quadrant lines
-  ctx.strokeStyle = 'rgba(107,96,72,0.2)'; ctx.setLineDash([4, 6]);
+  // Quadrant lines — solid hairline, not dashed (dashed gridlines read as noise/projection)
+  ctx.strokeStyle = 'rgba(107,96,72,0.15)'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(pad.l + pw/2, pad.t); ctx.lineTo(pad.l + pw/2, pad.t + ph); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(pad.l, pad.t + ph/2); ctx.lineTo(pad.l + pw, pad.t + ph/2); ctx.stroke();
-  ctx.setLineDash([]);
 
-  // Quadrant labels
-  ctx.font = '600 8px Lexend Deca'; ctx.fillStyle = 'rgba(107,96,72,0.6)';
+  // Quadrant labels — recessive chrome, not competing with the data
+  ctx.font = '600 7px Lexend Deca'; ctx.fillStyle = 'rgba(107,96,72,0.45)';
   ctx.textAlign = 'left';
   ctx.fillText('RAT TEAMS', pad.l + 6, pad.t + ph/2 - 6);
   ctx.fillText('CONTENDERS', pad.l + pw/2 + 6, pad.t + 14);
-  ctx.fillStyle = 'rgba(155,28,17,0.5)';
+  ctx.fillStyle = 'rgba(155,28,17,0.35)';
   ctx.fillText('STRUGGLING', pad.l + 6, pad.t + ph - 6);
-  ctx.fillStyle = 'rgba(124,90,0,0.5)';
+  ctx.fillStyle = 'rgba(124,90,0,0.35)';
   ctx.fillText('RECKLESS', pad.l + pw/2 + 6, pad.t + ph - 6);
 
   // Axis labels
@@ -1442,26 +1434,17 @@ function renderScatterChart(rows) {
     ctx.stroke(); ctx.setLineDash([]);
   }
 
-  // Points
-  rows.forEach((r, i) => {
+  // Points — a plain filled dot with a thin surface ring; no glow halo, no per-dot label
+  // (match identity is already carried by the Match History table below)
+  rows.forEach((r) => {
     const x = pad.l + (r.kp / (maxKP * 1.1)) * pw;
     const y = pad.t + ph - (r.placementPts / (maxPP * 1.1)) * ph;
 
-    // Glow
-    ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI*2);
-    ctx.fillStyle = 'rgba(44,74,46,0.06)'; ctx.fill();
-
-    // Dot
     ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI*2);
     ctx.fillStyle = r.is_self !== false ? '#2C4A2E' : 'rgba(107,96,72,0.6)';
     ctx.fill();
-    ctx.strokeStyle = 'rgba(12,10,7,0.15)'; ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(252,251,251,0.9)'; ctx.lineWidth = 1.5;
     ctx.stroke();
-
-    // Match label
-    ctx.font = '500 8px Lexend Deca'; ctx.fillStyle = 'rgba(168,152,128,0.7)';
-    ctx.textAlign = 'center';
-    ctx.fillText(`M${i+1}`, x, y - 9);
   });
 
   // Insight — profile classification, plus (3+ matches) the aggression-conversion trend
@@ -1499,7 +1482,7 @@ function renderPointsCompositionChart(rows) {
   if (rows.length === 0) { drawEmpty(ctx, W, H, '— NO MATCHES IN FILTER —'); return; }
 
   const maxTotal = Math.max(1, ...rows.map(r => r.total));
-  const barW = Math.min(32, (pw / rows.length) - 4);
+  const barW = Math.min(24, (pw / rows.length) - 4);
   const xCenter = i => pad.l + ((i + 0.5) / rows.length) * pw;
 
   // Grid
@@ -1663,10 +1646,10 @@ function renderPlacementDist(rows) {
 
     const countLabel = document.createElement('div');
     countLabel.textContent = counts[i];
-    countLabel.style.cssText = `font-family:'Lexend Deca',monospace;font-size:10px;font-weight:700;color:${counts[i] > 0 ? b.color : 'var(--muted)'};`;
+    countLabel.style.cssText = `font-family:'Lexend Deca',monospace;font-size:10px;font-weight:700;color:${counts[i] > 0 ? 'var(--text)' : 'var(--muted)'};`;
 
     const bar = document.createElement('div');
-    bar.style.cssText = `width:100%;max-width:48px;height:${barH}px;background:${b.color};border-radius:2px 2px 0 0;opacity:${counts[i] > 0 ? '0.85' : '0.2'};transition:height 0.3s;`;
+    bar.style.cssText = `width:100%;max-width:24px;height:${barH}px;background:${b.color};border-radius:4px 4px 0 0;opacity:${counts[i] > 0 ? '0.85' : '0.2'};transition:height 0.3s;`;
 
     const label = document.createElement('div');
     label.textContent = b.label;
@@ -1737,10 +1720,10 @@ function renderSurvivalChart(rows) {
 
     const pctLabel = document.createElement('div');
     pctLabel.textContent = hasData ? `${pct}%` : '?';
-    pctLabel.style.cssText = `font-family:'Lexend Deca',monospace;font-size:9px;font-weight:700;color:${color};`;
+    pctLabel.style.cssText = `font-family:'Lexend Deca',monospace;font-size:9px;font-weight:700;color:${hasData ? 'var(--text)' : 'var(--muted)'};`;
 
     const bar = document.createElement('div');
-    bar.style.cssText = `width:100%;max-width:40px;height:${barH}px;background:${color};border-radius:2px 2px 0 0;opacity:${hasData ? '0.8' : '0.2'};`;
+    bar.style.cssText = `width:100%;max-width:24px;height:${barH}px;background:${color};border-radius:4px 4px 0 0;opacity:${hasData ? '0.8' : '0.2'};`;
 
     // Placement badge on bar
     if (r.placement && pct > 20) {
@@ -1843,10 +1826,10 @@ function renderKillDist(rows) {
 
     const cntLbl = document.createElement('div');
     cntLbl.textContent = count > 0 ? count : '';
-    cntLbl.style.cssText = `font-family:'Lexend Deca',monospace;font-size:9px;font-weight:700;color:${isZero ? 'var(--red)' : 'var(--accent)'};`;
+    cntLbl.style.cssText = `font-family:'Lexend Deca',monospace;font-size:9px;font-weight:700;color:${count > 0 ? 'var(--text)' : 'var(--muted)'};`;
 
     const bar = document.createElement('div');
-    bar.style.cssText = `width:100%;max-width:28px;height:${barH}px;background:${isZero ? 'var(--red)' : 'var(--accent)'};border-radius:2px 2px 0 0;opacity:${count > 0 ? '0.7' : '0.15'};`;
+    bar.style.cssText = `width:100%;max-width:24px;height:${barH}px;background:${isZero ? 'var(--red)' : 'var(--accent)'};border-radius:4px 4px 0 0;opacity:${count > 0 ? '0.7' : '0.15'};`;
 
     const label = document.createElement('div');
     label.textContent = kills;
@@ -1897,10 +1880,10 @@ function renderDamageOutputChart(rows) {
 
     const dmgLabel = document.createElement('div');
     dmgLabel.textContent = dmg;
-    dmgLabel.style.cssText = `font-family:'Lexend Deca',monospace;font-size:9px;font-weight:700;color:#C85E0A;`;
+    dmgLabel.style.cssText = `font-family:'Lexend Deca',monospace;font-size:9px;font-weight:700;color:${dmg > 0 ? 'var(--text)' : 'var(--muted)'};`;
 
     const bar = document.createElement('div');
-    bar.style.cssText = `width:100%;max-width:40px;height:${barH}px;background:#C85E0A;border-radius:2px 2px 0 0;opacity:${dmg > 0 ? '0.75' : '0.15'};position:relative;`;
+    bar.style.cssText = `width:100%;max-width:24px;height:${barH}px;background:#C85E0A;border-radius:4px 4px 0 0;opacity:${dmg > 0 ? '0.75' : '0.15'};position:relative;`;
     bar.title = `${r.kp} kills`;
 
     // Kills marker — small dot near the top of the bar
@@ -2142,8 +2125,8 @@ function renderLobbySurvivalCurve(rows, filteredMatches) {
     ctx.fillStyle='#A89880'; ctx.font='500 8px Lexend Deca'; ctx.textAlign='right';
     ctx.fillText(v+'%', pad.l-5, y+3);
     if (v > 0) {
-      ctx.beginPath(); ctx.setLineDash([3,4]); ctx.strokeStyle='rgba(107,96,72,0.15)';
-      ctx.moveTo(pad.l, y); ctx.lineTo(pad.l+pw, y); ctx.stroke(); ctx.setLineDash([]);
+      ctx.beginPath(); ctx.strokeStyle='rgba(107,96,72,0.15)'; ctx.lineWidth=1;
+      ctx.moveTo(pad.l, y); ctx.lineTo(pad.l+pw, y); ctx.stroke();
     }
   });
 
@@ -2256,10 +2239,10 @@ function renderZonePhaseChart(rows, filteredMatches) {
 
     const cntLbl = document.createElement('div');
     cntLbl.textContent = count;
-    cntLbl.style.cssText = `font-family:'Lexend Deca',monospace;font-size:10px;font-weight:700;color:${color};`;
+    cntLbl.style.cssText = `font-family:'Lexend Deca',monospace;font-size:10px;font-weight:700;color:var(--text);`;
 
     const bar = document.createElement('div');
-    bar.style.cssText = `width:100%;max-width:36px;height:${barH}px;background:${color};border-radius:2px 2px 0 0;opacity:0.8;`;
+    bar.style.cssText = `width:100%;max-width:24px;height:${barH}px;background:${color};border-radius:4px 4px 0 0;opacity:0.8;`;
 
     const lblWrap = document.createElement('div');
     lblWrap.style.cssText = 'position:relative;height:20px;width:100%;';
