@@ -50,14 +50,6 @@
     }
     #auth-screen.hidden { display: none; }
 
-    /* Loading state */
-    #loading-screen {
-      position: fixed; inset: 0; z-index: 100;
-      background: var(--bg);
-      display: flex; align-items: center; justify-content: center;
-      flex-direction: column; gap: 16px;
-    }
-    #loading-screen.hidden { display: none; }
 
     /* Chart containers */
     .chart-wrap {
@@ -301,7 +293,7 @@
 <!-- ══════════════════════════════════════════════════ -->
 <!-- AUTH SCREEN -->
 <!-- ══════════════════════════════════════════════════ -->
-<div id="auth-screen">
+<div id="auth-screen" class="hidden">
   <div style="width:360px; background:var(--bg-card); border:1px solid var(--border); border-radius:6px; padding:40px;">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:32px;">
       <div style="width:32px;height:32px;background:var(--orange);display:flex;align-items:center;justify-content:center;border-radius:3px;">
@@ -319,18 +311,6 @@
     </button>
     <p id="auth-msg" style="font-size:11px;color:var(--muted);margin-top:12px;text-align:center;min-height:16px;"></p>
   </div>
-</div>
-
-<!-- ══════════════════════════════════════════════════ -->
-<!-- LOADING SCREEN -->
-<!-- ══════════════════════════════════════════════════ -->
-<div id="loading-screen">
-  <div style="display:flex;gap:6px;">
-    <div style="width:6px;height:6px;background:var(--accent);border-radius:50%;animation:pulse 1s ease-in-out infinite;"></div>
-    <div style="width:6px;height:6px;background:var(--accent);border-radius:50%;animation:pulse 1s ease-in-out 0.2s infinite;"></div>
-    <div style="width:6px;height:6px;background:var(--accent);border-radius:50%;animation:pulse 1s ease-in-out 0.4s infinite;"></div>
-  </div>
-  <p class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.2em;text-transform:uppercase;">LOADING INTELLIGENCE</p>
 </div>
 
 <!-- ══════════════════════════════════════════════════ -->
@@ -917,15 +897,14 @@ async function signOut() {
 let _booted = false;
 
 (async () => {
-  // Always hide loading spinner immediately — auth screen or app will take over
-  document.getElementById('loading-screen').classList.add('hidden');
-
   const { data: { session } } = await sb.auth.getSession();
   if (session) {
     currentUser = session.user;
     document.getElementById('auth-screen').classList.add('hidden');
     _detectTeamIdentityCols(); // fire-and-forget capability probe — see definition
     if (!_booted) { _booted = true; await boot(); }
+  } else {
+    document.getElementById('auth-screen').classList.remove('hidden');
   }
 
   sb.auth.onAuthStateChange(async (event, session) => {

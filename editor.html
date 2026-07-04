@@ -107,7 +107,6 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 .nav-link:hover{color:rgba(255,255,255,.9);}
 .nav-link.active{color:#fff;border-bottom-color:var(--orange);}
 .header-right{display:flex;align-items:center;gap:10px;}
-@keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:.4} }
 .btn-logout{font-family:var(--font-mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:5px 11px;background:none;border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.6);border-radius:3px;cursor:pointer;transition:all .15s;}
 .btn-logout:hover{border-color:rgba(255,255,255,.5);color:#fff;}
 
@@ -1171,7 +1170,7 @@ canvas.path-mode{ cursor:cell; }
 <body>
 
 <!-- ══ AUTH ══════════════════════════════════════ -->
-<div id="auth-screen">
+<div id="auth-screen" class="hidden">
   <div class="auth-box">
     <div class="auth-logo">METAZONE<span>BGMI ANALYST TOOL</span></div>
     <input class="auth-input" id="auth-email" type="email" placeholder="your@email.com">
@@ -1748,6 +1747,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     await loadAllData();
     initCanvas();
   } else {
+    document.getElementById('auth-screen').classList.remove('hidden');
     initCanvas();
   }
   sb.auth.onAuthStateChange(async (event, session) => {

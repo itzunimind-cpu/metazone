@@ -767,7 +767,7 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 <body>
 
 <!-- ══ AUTH ══ -->
-<div id="auth-screen">
+<div id="auth-screen" class="hidden">
   <div class="auth-box">
     <div class="auth-logo">METAZONE<span>VOD REVIEW</span></div>
     <input class="auth-input" id="auth-email" type="email" placeholder="coach@team.com" onkeydown="if(event.key==='Enter')sendMagicLink()">
@@ -1350,6 +1350,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     await applyUrlParams();
     initCanvas();
   } else {
+    document.getElementById('auth-screen').classList.remove('hidden');
     initCanvas();
   }
   sb.auth.onAuthStateChange(async (event, session) => {

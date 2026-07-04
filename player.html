@@ -117,6 +117,9 @@
     /* Skeleton */
     @keyframes shimmer { 0%{background-position:-600px 0} 100%{background-position:600px 0} }
     .skel { border-radius:3px; background:linear-gradient(90deg,#EDE7DC 25%,#C9BFA8 50%,#EDE7DC 75%); background-size:600px 100%; animation:shimmer 1.6s ease-in-out infinite; }
+    #skeleton-screen { display:none; }
+    #skeleton-screen.visible { display:block; }
+    @keyframes cardReveal { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:translateY(0);} }
 
     /* Player selector */
     select.styled {
@@ -134,8 +137,6 @@
     /* Auth screen */
     #auth-screen { position:fixed;inset:0;z-index:999;background:var(--bg);display:flex;align-items:center;justify-content:center; }
     #auth-screen.hidden { display:none; }
-    #loading-screen { position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px; }
-    #loading-screen.hidden { display:none; }
 
     /* Death timing dot plot row */
     .death-dot-row { display:flex;align-items:center;gap:10px;margin-bottom:4px; }
@@ -146,7 +147,7 @@
 <body>
 
 <!-- AUTH SCREEN -->
-<div id="auth-screen">
+<div id="auth-screen" class="hidden">
   <div style="width:360px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:40px;">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:32px;">
       <div style="width:32px;height:32px;background:var(--orange);display:flex;align-items:center;justify-content:center;border-radius:3px;">
@@ -167,15 +168,6 @@
 </div>
 
 <!-- LOADING SCREEN -->
-<div id="loading-screen">
-  <div style="display:flex;gap:6px;">
-    <div style="width:6px;height:6px;background:var(--accent);border-radius:50%;animation:pulse 1s ease-in-out infinite;"></div>
-    <div style="width:6px;height:6px;background:var(--accent);border-radius:50%;animation:pulse 1s ease-in-out 0.2s infinite;"></div>
-    <div style="width:6px;height:6px;background:var(--accent);border-radius:50%;animation:pulse 1s ease-in-out 0.4s infinite;"></div>
-  </div>
-  <p class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.2em;text-transform:uppercase;">LOADING PLAYER DATA</p>
-</div>
-
 <!-- APP -->
 <div id="app" style="display:none;flex-direction:column;min-height:100vh;">
 
@@ -205,6 +197,39 @@
 
   <!-- MAIN -->
   <main style="flex:1;padding:32px;max-width:1400px;width:100%;margin:0 auto;" id="main-content">
+
+    <!-- SKELETON — content-shaped shimmer shown while data loads, hidden once renderAll() runs -->
+    <div id="skeleton-screen">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;gap:16px;">
+        <div><div class="skel" style="width:180px;height:8px;margin-bottom:8px;"></div><div class="skel" style="width:260px;height:26px;"></div></div>
+        <div style="display:flex;gap:8px;"><div class="skel" style="width:160px;height:30px;border-radius:3px;"></div><div class="skel" style="width:220px;height:30px;border-radius:8px;"></div></div>
+      </div>
+      <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:4px;padding:20px 24px;margin-bottom:28px;display:flex;align-items:center;justify-content:space-between;gap:24px;">
+        <div style="display:flex;align-items:center;gap:20px;">
+          <div class="skel" style="width:48px;height:48px;border-radius:3px;"></div>
+          <div><div class="skel" style="width:120px;height:18px;margin-bottom:8px;"></div><div class="skel" style="width:260px;height:10px;"></div></div>
+        </div>
+        <div style="display:flex;gap:32px;">
+          <div class="skel" style="width:48px;height:26px;"></div><div class="skel" style="width:36px;height:26px;"></div><div class="skel" style="width:44px;height:26px;"></div><div class="skel" style="width:36px;height:26px;"></div><div class="skel" style="width:44px;height:26px;"></div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:20px;grid-column:span 2;"><div class="skel" style="width:180px;height:12px;margin-bottom:16px;"></div><div class="skel" style="width:100%;height:140px;"></div></div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:20px;"><div class="skel" style="width:120px;height:12px;margin-bottom:16px;"></div><div class="skel" style="width:100%;height:180px;"></div></div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:20px;"><div class="skel" style="width:150px;height:12px;margin-bottom:16px;"></div><div class="skel" style="width:100%;height:180px;"></div></div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:20px;grid-column:span 2;"><div class="skel" style="width:200px;height:12px;margin-bottom:16px;"></div><div class="skel" style="width:100%;height:140px;"></div></div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:20px;grid-column:span 2;"><div class="skel" style="width:130px;height:12px;margin-bottom:16px;"></div><div class="skel" style="width:100%;height:100px;"></div></div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:20px;"><div class="skel" style="width:150px;height:12px;margin-bottom:16px;"></div><div class="skel" style="width:100%;height:80px;"></div></div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:20px;"><div class="skel" style="width:100px;height:12px;margin-bottom:16px;"></div><div class="skel" style="width:100%;height:80px;"></div></div>
+      </div>
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:20px;">
+        <div class="skel" style="width:120px;height:12px;margin-bottom:16px;"></div>
+        <div style="display:flex;gap:12px;padding-bottom:10px;border-bottom:1px solid var(--border);margin-bottom:4px;">
+          <div class="skel" style="flex:2;height:9px;"></div><div class="skel" style="flex:1;height:9px;"></div><div class="skel" style="flex:1;height:9px;"></div><div class="skel" style="flex:1;height:9px;"></div><div class="skel" style="flex:1;height:9px;"></div><div class="skel" style="flex:1;height:9px;"></div>
+        </div>
+        <div id="skel-table-rows"></div>
+      </div>
+    </div>
 
     <!-- EMPTY: no tournament -->
     <div id="empty-state" style="display:none;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:16px;text-align:center;">
@@ -482,6 +507,8 @@ let _booted = false;
     currentUser = session.user;
     document.getElementById('auth-screen').classList.add('hidden');
     if (!_booted) { _booted = true; await boot(); }
+  } else {
+    document.getElementById('auth-screen').classList.remove('hidden');
   }
   sb.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session) {
@@ -508,7 +535,31 @@ async function boot() {
   }
 
   try { sessionStorage.setItem('mz_ctx', JSON.stringify({...ctx, tournamentId})); } catch(e) {}
+  _showSkeleton();
   await loadTournamentData();
+  _hideSkeleton();
+}
+
+function _showSkeleton() {
+  const rowsEl = document.getElementById('skel-table-rows');
+  if (rowsEl && rowsEl.childElementCount === 0) {
+    for (let i = 0; i < 5; i++) {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:12px;padding:12px 0;border-bottom:1px solid rgba(201,191,168,0.5);';
+      ['flex:2','flex:1','flex:1','flex:1','flex:1','flex:1'].forEach(w => {
+        const cell = document.createElement('div');
+        cell.className = 'skel';
+        cell.style.cssText = `${w};height:11px;border-radius:2px;`;
+        row.appendChild(cell);
+      });
+      rowsEl.appendChild(row);
+    }
+  }
+  document.getElementById('skeleton-screen').classList.add('visible');
+}
+
+function _hideSkeleton() {
+  document.getElementById('skeleton-screen').classList.remove('visible');
 }
 
 // ══════════════════════════════════════════════════════

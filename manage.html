@@ -98,6 +98,14 @@ table.mg-table td{padding:10px 12px 10px 0;font-size:13px;color:var(--text);bord
 table.mg-table tr:last-child td{border-bottom:none;}
 .mg-empty{font-family:var(--font-mono);font-size:11px;color:var(--muted);text-align:center;padding:32px;}
 
+/* ── SKELETON LOADER — same shimmer as index.html, shaped to table rows ── */
+@keyframes shimmer{0%{background-position:-800px 0}100%{background-position:800px 0}}
+@keyframes rowReveal{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.skel{background:linear-gradient(90deg,#DDD5C4 25%,#EDE7DC 50%,#DDD5C4 75%);background-size:1600px 100%;animation:shimmer 1.6s infinite linear;border-radius:3px;display:inline-block;height:12px;}
+.mg-row-in{animation:rowReveal .3s ease both;}
+#app-body.fade-in{animation:fadeIn .3s ease both;}
+
 .mg-inline-input{padding:5px 8px;font-family:var(--font-body);font-size:12px;border:1px solid var(--border-mid);border-radius:4px;background:var(--bg);color:var(--text);outline:none;}
 .mg-inline-input:focus{border-color:var(--accent);}
 .mg-select{padding:5px 8px;font-family:var(--font-body);font-size:12px;border:1px solid var(--border-mid);border-radius:4px;background:var(--bg);color:var(--text);outline:none;}
@@ -108,6 +116,7 @@ table.mg-table tr:last-child td{border-bottom:none;}
 .mg-btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);}
 .mg-btn.primary:hover{opacity:.88;color:#fff;}
 .mg-btn[disabled]{opacity:.4;cursor:not-allowed;}
+.mg-btn.loading{opacity:.7;cursor:wait;}
 
 .mg-row-expand{background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:14px;margin-top:8px;display:flex;flex-direction:column;gap:10px;}
 .mg-check-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:4px;font-size:12px;}
@@ -148,7 +157,7 @@ table.mg-table tr:last-child td{border-bottom:none;}
 <body>
 
 <!-- AUTH SCREEN -->
-<div id="auth-screen">
+<div id="auth-screen" class="hidden">
   <div class="auth-box">
     <div style="text-align:center;">
       <div class="auth-logo-icon"><iconify-icon icon="lucide:layers"></iconify-icon></div>
@@ -205,7 +214,11 @@ table.mg-table tr:last-child td{border-bottom:none;}
     <div class="chart-wrap">
       <table class="mg-table" id="teams-table">
         <thead><tr><th>Team Identity</th><th>Match Teams</th><th>Roster Entries</th><th>Tournaments</th><th></th></tr></thead>
-        <tbody id="teams-tbody"></tbody>
+        <tbody id="teams-tbody" class="mg-skel-tbody">
+          <tr><td><div class="skel" style="width:70%"></div></td><td><div class="skel" style="width:30px"></div></td><td><div class="skel" style="width:30px"></div></td><td><div class="skel" style="width:30px"></div></td><td><div class="skel" style="width:40px"></div></td></tr>
+          <tr><td><div class="skel" style="width:55%"></div></td><td><div class="skel" style="width:30px"></div></td><td><div class="skel" style="width:30px"></div></td><td><div class="skel" style="width:30px"></div></td><td><div class="skel" style="width:40px"></div></td></tr>
+          <tr><td><div class="skel" style="width:62%"></div></td><td><div class="skel" style="width:30px"></div></td><td><div class="skel" style="width:30px"></div></td><td><div class="skel" style="width:30px"></div></td><td><div class="skel" style="width:40px"></div></td></tr>
+        </tbody>
       </table>
       <div id="teams-empty" class="mg-empty" style="display:none;">No team identities found yet.</div>
     </div>
@@ -217,7 +230,11 @@ table.mg-table tr:last-child td{border-bottom:none;}
     <div class="chart-wrap">
       <table class="mg-table" id="players-table">
         <thead><tr><th>Name</th><th>IGN</th><th>Role</th><th>Tournaments</th><th></th></tr></thead>
-        <tbody id="players-tbody"></tbody>
+        <tbody id="players-tbody" class="mg-skel-tbody">
+          <tr><td><div class="skel" style="width:60%"></div></td><td><div class="skel" style="width:50%"></div></td><td><div class="skel" style="width:45px"></div></td><td><div class="skel" style="width:30px"></div></td><td><div class="skel" style="width:40px"></div></td></tr>
+          <tr><td><div class="skel" style="width:48%"></div></td><td><div class="skel" style="width:40%"></div></td><td><div class="skel" style="width:45px"></div></td><td><div class="skel" style="width:30px"></div></td><td><div class="skel" style="width:40px"></div></td></tr>
+          <tr><td><div class="skel" style="width:56%"></div></td><td><div class="skel" style="width:35%"></div></td><td><div class="skel" style="width:45px"></div></td><td><div class="skel" style="width:30px"></div></td><td><div class="skel" style="width:40px"></div></td></tr>
+        </tbody>
       </table>
       <div id="players-empty" class="mg-empty" style="display:none;">No players found yet.</div>
     </div>
@@ -234,7 +251,11 @@ table.mg-table tr:last-child td{border-bottom:none;}
     <div class="chart-wrap">
       <table class="mg-table" id="matches-table">
         <thead><tr><th>Match</th><th>Day</th><th>Tournament</th><th>Map</th><th></th></tr></thead>
-        <tbody id="matches-tbody"></tbody>
+        <tbody id="matches-tbody" class="mg-skel-tbody">
+          <tr><td><div class="skel" style="width:65%"></div></td><td><div class="skel" style="width:40px"></div></td><td><div class="skel" style="width:50%"></div></td><td><div class="skel" style="width:55px"></div></td><td><div class="skel" style="width:40px"></div></td></tr>
+          <tr><td><div class="skel" style="width:50%"></div></td><td><div class="skel" style="width:40px"></div></td><td><div class="skel" style="width:42%"></div></td><td><div class="skel" style="width:55px"></div></td><td><div class="skel" style="width:40px"></div></td></tr>
+          <tr><td><div class="skel" style="width:58%"></div></td><td><div class="skel" style="width:40px"></div></td><td><div class="skel" style="width:46%"></div></td><td><div class="skel" style="width:55px"></div></td><td><div class="skel" style="width:40px"></div></td></tr>
+        </tbody>
       </table>
       <div id="matches-empty" class="mg-empty" style="display:none;">No matches found for this filter.</div>
     </div>
@@ -337,7 +358,10 @@ let _booted = false;
   if (session) {
     _booted = true; currentUser = session.user;
     document.getElementById('auth-screen').classList.add('hidden');
+    document.getElementById('app-body').classList.add('fade-in');
     await loadAllData();
+  } else {
+    document.getElementById('auth-screen').classList.remove('hidden');
   }
   sb.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session) {
@@ -414,7 +438,7 @@ function renderTeamsTab() {
   }
   document.getElementById('teams-empty').style.display = 'none';
 
-  allTeamIdentities.forEach(ti => {
+  allTeamIdentities.forEach((ti, i) => {
     const teamRows = allTeams.filter(t => t.team_identity_id === ti.id);
     const ttRows = allTournamentTeams.filter(t => t.team_identity_id === ti.id);
     const tournamentIds = new Set([
@@ -437,6 +461,8 @@ function renderTeamsTab() {
         <button class="mg-btn" onclick="openSplitRow('${ti.id}')" ${(teamRows.length + ttRows.length) < 2 ? 'disabled' : ''}>SPLIT</button>
       </td>
     `;
+    tr.className = 'mg-row-in';
+    tr.style.animationDelay = (Math.min(i, 12) * 0.03) + 's';
     tbody.appendChild(tr);
 
     // Expandable merge/split row, hidden by default
@@ -462,8 +488,9 @@ async function saveRenameIdentity(id) {
   const input = document.getElementById(`ti-name-input-${id}`);
   const newName = input.value.trim();
   if (!newName) { toast('Name cannot be empty.', 'err'); return; }
+  input.disabled = true;
   const { error } = await sb.from('team_identities').update({ canonical_name: newName }).eq('id', id);
-  if (error) { toast('Rename failed: ' + error.message, 'err'); return; }
+  if (error) { input.disabled = false; toast('Rename failed: ' + error.message, 'err'); return; }
   const ti = allTeamIdentities.find(x => x.id === id);
   if (ti) ti.canonical_name = newName;
   toast('Renamed.', 'ok');
@@ -590,7 +617,7 @@ function renderPlayersTab() {
   }
   document.getElementById('players-empty').style.display = 'none';
 
-  allPlayers.forEach(p => {
+  allPlayers.forEach((p, i) => {
     const tCount = allTournamentPlayers.filter(tp => tp.player_id === p.id).length;
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -599,10 +626,12 @@ function renderPlayersTab() {
       <td><input class="mg-inline-input" style="width:90px;" id="pl-role-${p.id}" value="${esc(p.role || '')}" placeholder="—"></td>
       <td>${tCount}</td>
       <td style="white-space:nowrap;">
-        <button class="mg-btn" onclick="savePlayerEdit('${p.id}')">SAVE</button>
+        <button class="mg-btn" onclick="savePlayerEdit('${p.id}', this)">SAVE</button>
         <button class="mg-btn" onclick="openRosterEditor('${p.id}')">ROSTERS</button>
       </td>
     `;
+    tr.className = 'mg-row-in';
+    tr.style.animationDelay = (Math.min(i, 12) * 0.03) + 's';
     tbody.appendChild(tr);
 
     const expandTr = document.createElement('tr');
@@ -613,12 +642,15 @@ function renderPlayersTab() {
   });
 }
 
-async function savePlayerEdit(playerId) {
+async function savePlayerEdit(playerId, btn) {
   const name = document.getElementById(`pl-name-${playerId}`).value.trim();
   const ign = document.getElementById(`pl-ign-${playerId}`).value.trim();
   const role = document.getElementById(`pl-role-${playerId}`).value.trim();
   if (!name) { toast('Name cannot be empty.', 'err'); return; }
+  const origLabel = btn ? btn.textContent : null;
+  if (btn) { btn.disabled = true; btn.classList.add('loading'); btn.textContent = 'SAVING…'; }
   const { error } = await sb.from('players').update({ name, ign: ign || null, role: role || null }).eq('id', playerId);
+  if (btn) { btn.disabled = false; btn.classList.remove('loading'); btn.textContent = origLabel; }
   if (error) { toast('Update failed: ' + error.message, 'err'); return; }
   const p = allPlayers.find(x => x.id === playerId);
   if (p) { p.name = name; p.ign = ign || null; p.role = role || null; }
@@ -646,18 +678,23 @@ function openRosterEditor(playerId) {
       <select class="mg-select" id="roster-add-select-${playerId}">
         ${availableTournaments.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('')}
       </select>
-      <button class="mg-btn" onclick="addPlayerToTournamentRoster(document.getElementById('roster-add-select-${playerId}').value,'${playerId}')" ${!availableTournaments.length ? 'disabled' : ''}>ADD TO TOURNAMENT</button>
+      <button class="mg-btn" onclick="addPlayerToTournamentRoster(document.getElementById('roster-add-select-${playerId}').value,'${playerId}', this)" ${!availableTournaments.length ? 'disabled' : ''}>ADD TO TOURNAMENT</button>
       <button class="mg-btn" onclick="document.getElementById('pl-expand-${playerId}').style.display='none'">CLOSE</button>
     </div>
   `;
   expandTr.style.display = 'table-row';
 }
 
-async function addPlayerToTournamentRoster(tournamentId, playerId) {
+async function addPlayerToTournamentRoster(tournamentId, playerId, btn) {
   if (!tournamentId) { toast('No tournament selected.', 'err'); return; }
+  const origLabel = btn ? btn.textContent : null;
+  if (btn) { btn.disabled = true; btn.classList.add('loading'); btn.textContent = 'ADDING…'; }
   const { data, error } = await sb.from('tournament_players')
     .insert({ tournament_id: tournamentId, player_id: playerId, user_id: currentUser.id }).select('id,tournament_id,player_id').single();
-  if (error) { toast('Add failed: ' + error.message, 'err'); return; }
+  if (error) {
+    if (btn) { btn.disabled = false; btn.classList.remove('loading'); btn.textContent = origLabel; }
+    toast('Add failed: ' + error.message, 'err'); return;
+  }
   allTournamentPlayers.push(data);
   toast('Added to roster.', 'ok');
   renderPlayersTab();
@@ -718,7 +755,7 @@ function renderMatchesTab() {
   }
   document.getElementById('matches-empty').style.display = 'none';
 
-  rows.forEach(m => {
+  rows.forEach((m, i) => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${esc(m.name)}</td>
@@ -731,6 +768,8 @@ function renderMatchesTab() {
         <button class="mg-btn danger" onclick="deleteMatchFromManage('${m.id}')">DELETE</button>
       </td>
     `;
+    tr.className = 'mg-row-in';
+    tr.style.animationDelay = (Math.min(i, 12) * 0.03) + 's';
     tbody.appendChild(tr);
   });
 }

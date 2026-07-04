@@ -254,7 +254,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);height:
 <body>
 
 <!-- AUTH SCREEN -->
-<div id="auth-screen">
+<div id="auth-screen" class="hidden">
   <div class="auth-box">
     <div style="text-align:center;">
       <div class="auth-logo-icon">
@@ -643,6 +643,8 @@ let _booted = false;
     document.getElementById('auth-screen').classList.add('hidden');
     _detectTeamIdentityCols();
     init();
+  } else {
+    document.getElementById('auth-screen').classList.remove('hidden');
   }
   sb.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session) {

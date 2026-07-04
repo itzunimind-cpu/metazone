@@ -202,11 +202,11 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);height:
 .toast.warn{border-left-color:var(--orange);color:var(--orange);}
 @keyframes toastIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
 
-/* LOADING */
-#loading-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:500;flex-direction:column;gap:16px;}
+/* LOADING — content-shaped skeleton mimicking the day/match tree, not a plain spinner */
+#loading-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:500;flex-direction:column;gap:20px;padding:40px;}
 #loading-screen.hidden{display:none;}
-.loading-spinner{width:32px;height:32px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
-@keyframes spin{to{transform:rotate(360deg);}}
+@keyframes shimmer{0%{background-position:-800px 0}100%{background-position:800px 0}}
+.skel{background:linear-gradient(90deg,#DDD5C4 25%,#EDE7DC 50%,#DDD5C4 75%);background-size:1600px 100%;animation:shimmer 1.6s infinite linear;border-radius:3px;}
 .loading-text{font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:3px;text-transform:uppercase;}
 
 /* empty state */
@@ -232,7 +232,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);height:
 <body>
 
 <!-- AUTH SCREEN -->
-<div id="auth-screen">
+<div id="auth-screen" class="hidden">
   <div class="auth-box">
     <div style="text-align:center;">
       <div class="auth-logo-icon"><iconify-icon icon="lucide:layers"></iconify-icon></div>
@@ -245,9 +245,25 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);height:
   </div>
 </div>
 
-<!-- LOADING SCREEN -->
+<!-- LOADING SCREEN — tree-branch-shaped shimmer, mimics the day/match tree it precedes -->
 <div id="loading-screen">
-  <div class="loading-spinner"></div>
+  <div style="display:flex;gap:32px;align-items:flex-start;">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+      <div class="skel" style="width:140px;height:20px;"></div>
+      <div style="display:flex;gap:8px;">
+        <div class="skel" style="width:90px;height:36px;"></div>
+        <div class="skel" style="width:90px;height:36px;"></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+      <div class="skel" style="width:140px;height:20px;"></div>
+      <div style="display:flex;gap:8px;">
+        <div class="skel" style="width:90px;height:36px;"></div>
+        <div class="skel" style="width:90px;height:36px;"></div>
+        <div class="skel" style="width:90px;height:36px;"></div>
+      </div>
+    </div>
+  </div>
   <div class="loading-text">Loading tournament data…</div>
 </div>
 
@@ -421,6 +437,7 @@ let _booted = false;
     document.getElementById('auth-screen').classList.add('hidden');
     await loadAllData();
   } else {
+    document.getElementById('auth-screen').classList.remove('hidden');
     showLoading(false);
   }
 

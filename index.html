@@ -507,7 +507,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text-body);he
 <body>
 
 <!-- AUTH -->
-<div id="auth-screen">
+<div id="auth-screen" class="hidden">
   <div class="auth-box">
     <div style="text-align:center;">
       <div class="auth-logo-icon"><iconify-icon icon="lucide:layers"></iconify-icon></div>
@@ -687,6 +687,7 @@ let _booted=false;
 (async()=>{
   const{data:{session}}=await sb.auth.getSession();
   if(session){_booted=true;currentUser=session.user;document.getElementById('auth-screen').classList.add('hidden');await loadAll();}
+  else{document.getElementById('auth-screen').classList.remove('hidden');}
   sb.auth.onAuthStateChange(async(event,session)=>{
     if(event==='SIGNED_IN'&&session){if(_booted)return;_booted=true;currentUser=session.user;document.getElementById('auth-screen').classList.add('hidden');await loadAll();}
     if(event==='SIGNED_OUT'){_booted=false;currentUser=null;document.getElementById('auth-screen').classList.remove('hidden');resetLocalState();}
