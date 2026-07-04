@@ -104,6 +104,8 @@
     .view-btn:hover:not(.active) { color: var(--text); border-color: var(--border-mid); }
     .view-btn:first-child { border-radius: 3px 0 0 3px; }
     .view-btn:last-child { border-radius: 0 3px 3px 0; }
+    .view-btn-tool { border-style: dashed; opacity: 0.85; border-radius: 3px; }
+    .view-btn-tool.active { border-style: solid; opacity: 1; }
 
     /* Scope pills */
     .scope-pill {
@@ -536,7 +538,7 @@
           </div>
           <h1 class="font-display" id="tournament-name-display" style="font-size:28px;font-weight:800;letter-spacing:-0.02em;">—</h1>
         </div>
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <div id="scope-filters-row" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
           <!-- Team selector -->
           <div style="display:flex;align-items:center;gap:8px;">
             <span class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.15em;text-transform:uppercase;">TEAM</span>
@@ -556,6 +558,28 @@
           </div>
         </div>
         </div>
+      </div>
+
+      <!-- ── VIEW TOGGLE (always visible — Coach/Analyst grouped; Routes separated as a cross-tournament tool) ── -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;">
+        <div style="display:flex;align-items:center;gap:16px;">
+          <div style="display:flex;gap:0;">
+            <button class="view-btn active" id="btn-coach" onclick="setView('coach')">
+              <iconify-icon icon="lucide:user-cog" style="margin-right:5px;"></iconify-icon>COACH VIEW
+            </button>
+            <button class="view-btn" id="btn-analyst" onclick="setView('analyst')">
+              <iconify-icon icon="lucide:microscope" style="margin-right:5px;"></iconify-icon>ANALYST VIEW
+            </button>
+          </div>
+          <div style="width:1px;height:22px;background:var(--border-mid);"></div>
+          <div style="display:flex;flex-direction:column;gap:3px;">
+            <span class="font-mono" style="font-size:8px;color:var(--muted);letter-spacing:0.15em;">CROSS-TOURNAMENT TOOL</span>
+            <button class="view-btn view-btn-tool" id="btn-routes" onclick="setView('routes')">
+              <iconify-icon icon="lucide:route" style="margin-right:5px;"></iconify-icon>ROUTES
+            </button>
+          </div>
+        </div>
+        <p class="font-mono" id="view-desc" style="font-size:9px;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;">Strategy &amp; pattern summary for coaching decisions</p>
       </div>
 
       <!-- ── TOURNAMENT-SCOPED CHARTS (hidden when ROUTES view is active) ── -->
@@ -599,23 +623,7 @@
         </div>
       </div>
 
-      <!-- ── VIEW TOGGLE ── -->
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
-        <div style="display:flex;gap:0;">
-          <button class="view-btn active" id="btn-coach" onclick="setView('coach')">
-            <iconify-icon icon="lucide:user-cog" style="margin-right:5px;"></iconify-icon>COACH VIEW
-          </button>
-          <button class="view-btn" id="btn-analyst" onclick="setView('analyst')">
-            <iconify-icon icon="lucide:microscope" style="margin-right:5px;"></iconify-icon>ANALYST VIEW
-          </button>
-          <button class="view-btn" id="btn-routes" onclick="setView('routes')">
-            <iconify-icon icon="lucide:route" style="margin-right:5px;"></iconify-icon>ROUTES
-          </button>
-        </div>
-        <p class="font-mono" id="view-desc" style="font-size:9px;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;">Strategy & pattern summary for coaching decisions</p>
-      </div>
-
-      <!-- ── LOBBY ACTIVITY TIMELINE (always visible) ── -->
+      <!-- ── LOBBY ACTIVITY TIMELINE (always visible within Coach/Analyst — hidden in Routes since it's tournament-scoped and Routes is cross-tournament) ── -->
       <div class="chart-wrap" style="margin-bottom:24px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
           <div>
@@ -649,12 +657,12 @@
       <div id="coach-view" class="fade-in">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
 
-          <!-- Chart 1: KP vs PP Scatter (2-col span) -->
+          <!-- Chart 1: Strategy Quadrant — KP vs PP, with aggression trend line -->
           <div class="chart-wrap" style="grid-column:span 2;">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
               <div>
                 <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Strategy Quadrant — KP vs PP</h3>
-                <p style="font-size:10px;color:var(--muted);margin-top:3px;">Kill Points vs Placement Points across all matches. Each dot = one match.</p>
+                <p style="font-size:10px;color:var(--muted);margin-top:3px;">Kill Points vs Placement Points across all matches, with a kills-vs-score aggression trend line. Each dot = one match.</p>
               </div>
               <span class="font-mono" style="font-size:9px;color:var(--accent);border:1px solid rgba(44,74,46,0.3);padding:3px 8px;border-radius:2px;">TIER 1 CHART</span>
             </div>
@@ -664,31 +672,19 @@
             <div id="scatter-insight" class="insight neutral">Computing strategy profile...</div>
           </div>
 
-          <!-- Chart 2: Points Race Timeline -->
-          <div class="chart-wrap">
+          <!-- Chart 2: Points, Composition & Consistency (merged Points Race + KP/PP Breakdown + Score Variance) -->
+          <div class="chart-wrap" style="grid-column:span 2;">
             <div style="margin-bottom:16px;">
-              <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Points Race</h3>
-              <p style="font-size:10px;color:var(--muted);margin-top:3px;">Total points per match — momentum curve</p>
+              <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Points, Composition &amp; Consistency</h3>
+              <p style="font-size:10px;color:var(--muted);margin-top:3px;">KP/PP composition per match (bars), total-points momentum (solid line), and rolling score variance (dashed line) — how points are built, and how stable that is over time.</p>
             </div>
-            <div style="position:relative;height:180px;">
-              <canvas id="points-race-chart" style="width:100%;height:100%;"></canvas>
-            </div>
-            <div id="points-race-insight" class="insight neutral">Loading...</div>
-          </div>
-
-          <!-- Chart 3: KP vs PP Stacked Bar -->
-          <div class="chart-wrap">
-            <div style="margin-bottom:16px;">
-              <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">KP / PP Breakdown</h3>
-              <p style="font-size:10px;color:var(--muted);margin-top:3px;">Kill points vs placement points per match</p>
-            </div>
-            <div style="position:relative;height:180px;">
+            <div style="position:relative;height:220px;">
               <canvas id="kp-pp-chart" style="width:100%;height:100%;"></canvas>
             </div>
             <div id="kp-pp-insight" class="insight neutral">Loading...</div>
           </div>
 
-          <!-- Chart 4: Placement Distribution -->
+          <!-- Chart 3: Placement Distribution -->
           <div class="chart-wrap" style="grid-column:span 2;">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
               <div>
@@ -707,7 +703,7 @@
       <div id="analyst-view" class="fade-in" style="display:none;">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
 
-          <!-- Chart A: Survival Time Bar -->
+          <!-- Chart A: Survival Time Bar (+ folded-in Elimination Phase badges) -->
           <div class="chart-wrap" style="grid-column:span 2;">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
               <div>
@@ -716,6 +712,7 @@
               </div>
             </div>
             <div id="survival-chart" style="display:flex;align-items:flex-end;gap:3px;height:140px;padding-bottom:28px;position:relative;"></div>
+            <div id="survival-phase-badges" style="display:flex;gap:8px;margin-top:12px;"></div>
             <div id="survival-insight" class="insight neutral">Loading...</div>
           </div>
 
@@ -729,41 +726,17 @@
             <div id="kill-dist-insight" class="insight neutral">Loading...</div>
           </div>
 
-          <!-- Chart C: Consistency Score Trend -->
+          <!-- Chart C: Damage Output (new) -->
           <div class="chart-wrap">
             <div style="margin-bottom:16px;">
-              <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Score Variance Trend</h3>
-              <p style="font-size:10px;color:var(--muted);margin-top:3px;">Rolling standard deviation of total points. Low = consistent. High = feast-or-famine.</p>
+              <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Damage Output</h3>
+              <p style="font-size:10px;color:var(--muted);margin-top:3px;">Team damage dealt per match, with kills marked. High damage + low kills = knocks without finishes.</p>
             </div>
-            <div style="position:relative;height:140px;">
-              <canvas id="variance-chart" style="width:100%;height:100%;"></canvas>
-            </div>
-            <div id="variance-insight" class="insight neutral">Loading...</div>
+            <div id="damage-output-chart" style="display:flex;align-items:flex-end;gap:4px;height:140px;padding-bottom:24px;position:relative;"></div>
+            <div id="damage-output-insight" class="insight neutral">Loading...</div>
           </div>
 
-          <!-- Chart D: Total Points vs Kills Scatter -->
-          <div class="chart-wrap" style="grid-column:span 2;">
-            <div style="margin-bottom:16px;">
-              <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Kill Aggression vs Final Score</h3>
-              <p style="font-size:10px;color:var(--muted);margin-top:3px;">Does going for kills help or hurt? Each dot = one match. Upward slope = aggression pays off.</p>
-            </div>
-            <div style="position:relative;height:220px;">
-              <canvas id="aggression-chart" style="width:100%;height:100%;"></canvas>
-            </div>
-            <div id="aggression-insight" class="insight neutral">Loading...</div>
-          </div>
-
-          <!-- Chart E: Elimination Phase Profile -->
-          <div class="chart-wrap" style="grid-column:span 2;">
-            <div style="margin-bottom:16px;">
-              <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Elimination Phase Profile</h3>
-              <p style="font-size:10px;color:var(--muted);margin-top:3px;">Which phase of the match does this team typically get eliminated? Early / Mid / Late breakdown.</p>
-            </div>
-            <div id="phase-chart" style="display:flex;gap:12px;align-items:stretch;height:80px;"></div>
-            <div id="phase-insight" class="insight neutral">Loading...</div>
-          </div>
-
-          <!-- Chart F: Lobby Survival Curve -->
+          <!-- Chart D: Lobby Survival Curve -->
           <div class="chart-wrap" style="grid-column:span 2;">
             <div style="margin-bottom:16px;">
               <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Lobby Survival Curve</h3>
@@ -775,34 +748,14 @@
             <div id="lobby-survival-insight" class="insight neutral">Loading...</div>
           </div>
 
-          <!-- Chart G: Wipe Time Distribution -->
-          <div class="chart-wrap">
-            <div style="margin-bottom:16px;">
-              <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Wipe Time Distribution</h3>
-              <p style="font-size:10px;color:var(--muted);margin-top:3px;">When do you typically die vs when the average team dies? Your bars vs lobby average bars.</p>
-            </div>
-            <div id="wipe-dist-chart" style="display:flex;align-items:flex-end;gap:2px;height:140px;padding-bottom:28px;position:relative;"></div>
-            <div id="wipe-dist-insight" class="insight neutral">Loading...</div>
-          </div>
-
-          <!-- Chart H: Zone Phase Death -->
-          <div class="chart-wrap">
+          <!-- Chart E: Zone Phase Death -->
+          <div class="chart-wrap" style="grid-column:span 2;">
             <div style="margin-bottom:16px;">
               <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Zone Phase Death</h3>
               <p style="font-size:10px;color:var(--muted);margin-top:3px;">Which zone phase do you die in most? Cross-references your wipe time with recorded zone circle timestamps.</p>
             </div>
             <div id="zone-phase-chart" style="display:flex;align-items:flex-end;gap:4px;height:140px;padding-bottom:28px;position:relative;"></div>
             <div id="zone-phase-insight" class="insight neutral">Loading...</div>
-          </div>
-
-          <!-- Chart I: Fight Timing -->
-          <div class="chart-wrap" style="grid-column:span 2;">
-            <div style="margin-bottom:16px;">
-              <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Fight Timing Across Matches</h3>
-              <p style="font-size:10px;color:var(--muted);margin-top:3px;">When in the match do your fights happen? Each dot = a logged fight. Clusters reveal your engagement pattern.</p>
-            </div>
-            <div id="fight-timing-chart" style="position:relative;min-height:100px;"></div>
-            <div id="fight-timing-insight" class="insight neutral">Loading...</div>
           </div>
 
         </div>
@@ -840,11 +793,11 @@
 
       <!-- ── ROUTES VIEW (cross-tournament map/path tool, hidden by default) ── -->
       <div id="routes-view" style="display:none;">
-        <div style="display:flex;gap:0;margin-bottom:20px;">
-          <button class="view-btn active" id="btn-routes-compare" onclick="setRoutesMode('compare')">
+        <div style="display:flex;align-items:center;gap:3px;padding:4px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;width:fit-content;margin-bottom:20px;">
+          <button class="scope-pill active" id="btn-routes-compare" onclick="setRoutesMode('compare')">
             <iconify-icon icon="lucide:columns-3" style="margin-right:5px;"></iconify-icon>COMPARE
           </button>
-          <button class="view-btn" id="btn-routes-heatmap" onclick="setRoutesMode('heatmap')">
+          <button class="scope-pill" id="btn-routes-heatmap" onclick="setRoutesMode('heatmap')">
             <iconify-icon icon="lucide:flame" style="margin-right:5px;"></iconify-icon>HEATMAP
           </button>
         </div>
@@ -1054,16 +1007,16 @@ async function loadAllData() {
     const { data: teams } = await sb.from('teams').select('id,name,color,match_id,is_self,placement,kills,time_of_wipe,confirmed_position').in('match_id', matchIds);
     allTeams = teams || [];
 
-    // Shapes: fights + zone circles for timeline, fight timing, zone phase death charts
+    // Shapes: fights + zone circles for lobby timeline, zone phase death charts
     const { data: shapes } = await sb.from('shapes')
       .select('id,team_id,match_id,type,tag,time_seconds,zone_phase,pin_x,pin_y,fight_team_a,fight_team_b')
       .in('match_id', matchIds)
       .in('type', ['fight', 'circle']);
     allShapes = shapes || [];
 
-    // Match players: player loss timestamps for timeline
+    // Match players: player loss timestamps for timeline, team_id + damage for Damage Output chart
     const { data: mps } = await sb.from('match_players')
-      .select('id,match_id,player_id,time_of_loss,killed_by_team_id')
+      .select('id,match_id,team_id,player_id,time_of_loss,killed_by_team_id,damage')
       .in('match_id', matchIds);
     allMatchPlayers = mps || [];
   }
@@ -1254,6 +1207,7 @@ function setView(view) {
   if (view === 'routes') {
     wrapEl.style.display = 'none';
     routesEl.style.display = 'block';
+    document.getElementById('scope-filters-row').style.display = 'none';
     document.getElementById('view-desc').textContent = 'Cross-tournament map & path comparison — not scoped to this tournament';
     initRoutesView();
     return;
@@ -1261,6 +1215,7 @@ function setView(view) {
 
   wrapEl.style.display = 'block';
   routesEl.style.display = 'none';
+  document.getElementById('scope-filters-row').style.display = 'flex';
   if (view === 'coach') {
     coachEl.style.display = 'block';
     analystEl.style.display = 'none';
@@ -1314,7 +1269,10 @@ function enrichRow(row, match) {
   const survivalPct = (match && match.duration_seconds && row.time_of_wipe)
     ? Math.min(100, Math.round((row.time_of_wipe / match.duration_seconds) * 100))
     : (row.placement === 1 ? 100 : null);
-  return { ...row, kp, placementPts, total, survivalPct, match };
+  const totalDamage = allMatchPlayers
+    .filter(mp => mp.match_id === row.match_id && mp.team_id === row.id)
+    .reduce((a, mp) => a + (mp.damage || 0), 0);
+  return { ...row, kp, placementPts, total, survivalPct, totalDamage, match };
 }
 
 function getEnrichedRows() {
@@ -1414,12 +1372,11 @@ function deriveProfile(rows) {
 // ══════════════════════════════════════════════════════
 function renderCoachCharts(rows) {
   renderScatterChart(rows);
-  renderPointsRaceChart(rows);
-  renderKpPpChart(rows);
+  renderPointsCompositionChart(rows);
   renderPlacementDist(rows);
 }
 
-// ── Scatter: KP vs PP ──
+// ── Scatter: KP vs PP, with absorbed aggression-conversion regression trend ──
 function renderScatterChart(rows) {
   const canvas = document.getElementById('scatter-chart');
   const ctx = canvas.getContext('2d');
@@ -1466,6 +1423,25 @@ function renderScatterChart(rows) {
   ctx.fillText('PLACEMENT PTS (PP) →', 0, 0);
   ctx.restore();
 
+  // Aggression-conversion regression: does more KP correlate with more or less PP?
+  let slope = null;
+  if (rows.length >= 3) {
+    const n = rows.length;
+    const sumX = rows.reduce((a, r) => a + r.kp, 0);
+    const sumY = rows.reduce((a, r) => a + r.placementPts, 0);
+    const sumXY = rows.reduce((a, r) => a + r.kp * r.placementPts, 0);
+    const sumX2 = rows.reduce((a, r) => a + r.kp * r.kp, 0);
+    slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX || 1);
+    const intercept = (sumY - slope * sumX) / n;
+    const x1 = 0, y1 = intercept;
+    const x2 = maxKP * 1.1, y2 = slope * x2 + intercept;
+    ctx.beginPath();
+    ctx.moveTo(pad.l + (x1 / (maxKP * 1.1)) * pw, pad.t + ph - (Math.max(0, Math.min(maxPP * 1.1, y1)) / (maxPP * 1.1)) * ph);
+    ctx.lineTo(pad.l + (x2 / (maxKP * 1.1)) * pw, pad.t + ph - (Math.max(0, Math.min(maxPP * 1.1, y2)) / (maxPP * 1.1)) * ph);
+    ctx.strokeStyle = 'rgba(124,90,0,0.4)'; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+
   // Points
   rows.forEach((r, i) => {
     const x = pad.l + (r.kp / (maxKP * 1.1)) * pw;
@@ -1488,7 +1464,7 @@ function renderScatterChart(rows) {
     ctx.fillText(`M${i+1}`, x, y - 9);
   });
 
-  // Insight
+  // Insight — profile classification, plus (3+ matches) the aggression-conversion trend
   const avgKP = rows.reduce((a, r) => a + r.kp, 0) / rows.length;
   const avgPP = rows.reduce((a, r) => a + r.placementPts, 0) / rows.length;
   let insightClass = 'neutral', insightText = '';
@@ -1497,31 +1473,36 @@ function renderScatterChart(rows) {
   else if (avgKP > 4 && avgPP <= 2) { insightClass = 'warn'; insightText = '⚠ RECKLESS PROFILE — High kills but dying early. Aggression is not converting to points.'; }
   else { insightClass = 'warn'; insightText = '⚠ STRUGGLING — Low kills and low placements. Strategy needs fundamental adjustment.'; }
 
+  if (slope !== null) {
+    if (slope > 0.3) insightText += ' Dashed trend: more kills also correlates with better placement — aggression is converting.';
+    else if (slope < -0.3) insightText += ' Dashed trend: more kills correlates with worse placement — dying after engagements, play safer.';
+  }
+
   const el = document.getElementById('scatter-insight');
   el.className = `insight ${insightClass}`;
   el.textContent = insightText;
 }
 
-// ── Points Race ──
-function renderPointsRaceChart(rows) {
-  const canvas = document.getElementById('points-race-chart');
+// ── Points, Composition & Consistency (merged Points Race + KP/PP Breakdown + Score Variance) ──
+function renderPointsCompositionChart(rows) {
+  const canvas = document.getElementById('kp-pp-chart');
   const ctx = canvas.getContext('2d');
   const W = canvas.offsetWidth; const H = canvas.offsetHeight;
   canvas.width = W * devicePixelRatio; canvas.height = H * devicePixelRatio;
   ctx.scale(devicePixelRatio, devicePixelRatio);
   ctx.clearRect(0, 0, W, H);
 
-  const pad = { l: 36, r: 12, t: 12, b: 28 };
+  const pad = { l: 36, r: 12, t: 16, b: 28 };
   const pw = W - pad.l - pad.r;
   const ph = H - pad.t - pad.b;
 
-  if (rows.length < 2) { drawEmpty(ctx, W, H, '2+ MATCHES NEEDED'); return; }
+  if (rows.length === 0) { drawEmpty(ctx, W, H, '— NO MATCHES IN FILTER —'); return; }
 
-  const totals = rows.map(r => r.total);
-  const maxTotal = Math.max(1, ...totals);
-  const minTotal = Math.min(...totals);
+  const maxTotal = Math.max(1, ...rows.map(r => r.total));
+  const barW = Math.min(32, (pw / rows.length) - 4);
+  const xCenter = i => pad.l + ((i + 0.5) / rows.length) * pw;
 
-  // Grid lines
+  // Grid
   for (let i = 0; i <= 4; i++) {
     const y = pad.t + (ph / 4) * i;
     ctx.strokeStyle = 'rgba(201,191,168,0.8)'; ctx.lineWidth = 1;
@@ -1532,101 +1513,65 @@ function renderPointsRaceChart(rows) {
     ctx.fillText(val, pad.l - 4, y + 3);
   }
 
-  // Area fill
-  ctx.beginPath();
+  // Bars: KP/PP composition per match
   rows.forEach((r, i) => {
-    const x = pad.l + (i / (rows.length - 1)) * pw;
-    const y = pad.t + ph - ((r.total - 0) / (maxTotal * 1.1)) * ph;
-    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-  });
-  ctx.lineTo(pad.l + pw, pad.t + ph);
-  ctx.lineTo(pad.l, pad.t + ph);
-  ctx.closePath();
-  const grad = ctx.createLinearGradient(0, pad.t, 0, pad.t + ph);
-  grad.addColorStop(0, 'rgba(44,74,46,0.15)');
-  grad.addColorStop(1, 'rgba(44,74,46,0)');
-  ctx.fillStyle = grad; ctx.fill();
+    const x = xCenter(i) - barW / 2;
+    const ppH = (r.placementPts / (maxTotal * 1.1)) * ph;
+    const kpH = (r.kp / (maxTotal * 1.1)) * ph;
 
-  // Line
-  ctx.beginPath();
-  rows.forEach((r, i) => {
-    const x = pad.l + (i / (rows.length - 1)) * pw;
-    const y = pad.t + ph - ((r.total - 0) / (maxTotal * 1.1)) * ph;
-    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-  });
-  ctx.strokeStyle = '#2C4A2E'; ctx.lineWidth = 2; ctx.stroke();
-
-  // Dots + match labels
-  rows.forEach((r, i) => {
-    const x = pad.l + (i / Math.max(rows.length - 1, 1)) * pw;
-    const y = pad.t + ph - ((r.total - 0) / (maxTotal * 1.1)) * ph;
-    ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI*2);
-    ctx.fillStyle = '#2C4A2E'; ctx.fill();
-    ctx.font = '500 8px Lexend Deca'; ctx.fillStyle = '#6B6048';
-    ctx.textAlign = 'center';
-    ctx.fillText(`M${i+1}`, x, pad.t + ph + 18);
-  });
-
-  // Insight
-  const last3 = totals.slice(-3);
-  const first3 = totals.slice(0, 3);
-  const trend = last3.reduce((a, b) => a+b, 0) / last3.length - first3.reduce((a, b) => a+b, 0) / first3.length;
-  const el = document.getElementById('points-race-insight');
-  if (rows.length < 3) {
-    el.className = 'insight neutral'; el.textContent = 'Need more matches to detect trend.';
-  } else if (trend > 2) {
-    el.className = 'insight good'; el.textContent = `↑ UPWARD TREND — Avg score up ${trend.toFixed(1)} pts in recent matches. Momentum is building.`;
-  } else if (trend < -2) {
-    el.className = 'insight warn'; el.textContent = `↓ SLUMP DETECTED — Avg score down ${Math.abs(trend).toFixed(1)} pts recently. Review recent match strategy.`;
-  } else {
-    el.className = 'insight neutral'; el.textContent = `→ STABLE — Score variance is within normal range across all matches.`;
-  }
-}
-
-// ── KP vs PP Stacked Bar ──
-function renderKpPpChart(rows) {
-  const canvas = document.getElementById('kp-pp-chart');
-  const ctx = canvas.getContext('2d');
-  const W = canvas.offsetWidth; const H = canvas.offsetHeight;
-  canvas.width = W * devicePixelRatio; canvas.height = H * devicePixelRatio;
-  ctx.scale(devicePixelRatio, devicePixelRatio);
-  ctx.clearRect(0, 0, W, H);
-
-  const pad = { l: 32, r: 12, t: 12, b: 28 };
-  const pw = W - pad.l - pad.r;
-  const ph = H - pad.t - pad.b;
-
-  if (rows.length === 0) { drawEmpty(ctx, W, H, '— NO MATCHES IN FILTER —'); return; }
-
-  const maxTotal = Math.max(1, ...rows.map(r => r.total));
-  const barW = Math.min(32, (pw / rows.length) - 4);
-
-  rows.forEach((r, i) => {
-    const x = pad.l + (i / rows.length) * pw + (pw / rows.length - barW) / 2;
-    const ppH = (r.placementPts / maxTotal) * ph;
-    const kpH = (r.kp / maxTotal) * ph;
-    const totalH = ppH + kpH;
-
-    // PP bar (bottom)
-    ctx.fillStyle = 'rgba(78,124,47,0.7)';
+    ctx.fillStyle = 'rgba(78,124,47,0.55)';
     ctx.fillRect(x, pad.t + ph - ppH, barW, ppH);
-
-    // KP bar (top)
-    ctx.fillStyle = 'rgba(44,74,46,0.7)';
+    ctx.fillStyle = 'rgba(44,74,46,0.55)';
     ctx.fillRect(x, pad.t + ph - ppH - kpH, barW, kpH);
 
-    // Value label
-    if (r.total > 0) {
-      ctx.font = '600 8px Lexend Deca'; ctx.fillStyle = 'rgba(28,26,20,0.8)';
-      ctx.textAlign = 'center';
-      ctx.fillText(r.total, x + barW/2, pad.t + ph - totalH - 4);
-    }
-
-    // X label
     ctx.font = '500 8px Lexend Deca'; ctx.fillStyle = '#6B6048';
     ctx.textAlign = 'center';
-    ctx.fillText(`M${i+1}`, x + barW/2, pad.t + ph + 18);
+    ctx.fillText(`M${i+1}`, xCenter(i), pad.t + ph + 18);
   });
+
+  // Line: total-points momentum
+  if (rows.length >= 2) {
+    ctx.beginPath();
+    rows.forEach((r, i) => {
+      const x = xCenter(i);
+      const y = pad.t + ph - (r.total / (maxTotal * 1.1)) * ph;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = '#2C4A2E'; ctx.lineWidth = 2; ctx.stroke();
+    rows.forEach((r, i) => {
+      const x = xCenter(i);
+      const y = pad.t + ph - (r.total / (maxTotal * 1.1)) * ph;
+      ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI*2);
+      ctx.fillStyle = '#2C4A2E'; ctx.fill();
+    });
+  }
+
+  // Dashed line: rolling 3-match score variance (own scale, no separate axis drawn)
+  let latestSD = null;
+  if (rows.length >= 3) {
+    const win = 3;
+    const sdValues = [];
+    for (let i = win - 1; i < rows.length; i++) {
+      const slice = rows.slice(i - win + 1, i + 1).map(r => r.total);
+      sdValues.push({ i, sd: stdDev(slice) });
+    }
+    const maxSD = Math.max(1, ...sdValues.map(v => v.sd));
+    ctx.beginPath();
+    sdValues.forEach((v, idx) => {
+      const x = xCenter(v.i);
+      const y = pad.t + ph - (v.sd / (maxSD * 1.1)) * ph;
+      idx === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = '#4A3870'; ctx.lineWidth = 2; ctx.setLineDash([5, 4]);
+    ctx.stroke(); ctx.setLineDash([]);
+    sdValues.forEach(v => {
+      const x = xCenter(v.i);
+      const y = pad.t + ph - (v.sd / (maxSD * 1.1)) * ph;
+      ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI*2);
+      ctx.fillStyle = '#4A3870'; ctx.fill();
+    });
+    latestSD = sdValues[sdValues.length - 1].sd;
+  }
 
   // Y axis
   ctx.strokeStyle = 'rgba(107,96,72,0.3)'; ctx.lineWidth = 1;
@@ -1634,22 +1579,50 @@ function renderKpPpChart(rows) {
 
   // Legend
   ctx.font = '600 8px Lexend Deca';
-  ctx.fillStyle = 'rgba(44,74,46,0.8)'; ctx.fillRect(W - 80, 8, 8, 8);
-  ctx.fillStyle = '#A89880'; ctx.fillText('KP', W - 68, 16);
-  ctx.fillStyle = 'rgba(78,124,47,0.8)'; ctx.fillRect(W - 50, 8, 8, 8);
-  ctx.fillStyle = '#A89880'; ctx.fillText('PP', W - 38, 16);
+  ctx.fillStyle = 'rgba(44,74,46,0.7)'; ctx.fillRect(W - 132, 8, 8, 8);
+  ctx.fillStyle = '#A89880'; ctx.fillText('KP', W - 120, 16);
+  ctx.fillStyle = 'rgba(78,124,47,0.7)'; ctx.fillRect(W - 100, 8, 8, 8);
+  ctx.fillStyle = '#A89880'; ctx.fillText('PP', W - 88, 16);
+  ctx.strokeStyle = '#2C4A2E'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(W - 70, 12); ctx.lineTo(W - 60, 12); ctx.stroke();
+  ctx.fillStyle = '#A89880'; ctx.fillText('TOTAL', W - 30, 16);
+  if (latestSD !== null) {
+    ctx.strokeStyle = '#4A3870'; ctx.lineWidth = 2; ctx.setLineDash([4, 3]);
+    ctx.beginPath(); ctx.moveTo(W - 132, 24); ctx.lineTo(W - 122, 24); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = '#A89880'; ctx.fillText('VARIANCE', W - 78, 28);
+  }
 
-  // Insight
+  // Insight — priority: composition anomaly → variance spike → trend → balanced/stable
   const avgKP = rows.reduce((a, r) => a + r.kp, 0) / rows.length;
   const avgPP = rows.reduce((a, r) => a + r.placementPts, 0) / rows.length;
   const ratio = avgKP / Math.max(avgPP, 0.1);
+  const totals = rows.map(r => r.total);
   const el = document.getElementById('kp-pp-insight');
+
   if (ratio > 2) {
-    el.className = 'insight warn'; el.textContent = `⚠ KILL-HEAVY — ${Math.round(avgKP)}pts avg from kills vs ${Math.round(avgPP)}pts from placement. Survival discipline needed.`;
+    el.className = 'insight warn';
+    el.textContent = `⚠ KILL-HEAVY — ${Math.round(avgKP)}pts avg from kills vs ${Math.round(avgPP)}pts from placement. Survival discipline needed.`;
   } else if (ratio < 0.5) {
-    el.className = 'insight neutral'; el.textContent = `PLACEMENT-SAFE — Low kill aggression, high placement points. Consider taking more fights.`;
+    el.className = 'insight neutral';
+    el.textContent = 'PLACEMENT-SAFE — Low kill aggression, high placement points. Consider taking more fights.';
+  } else if (latestSD !== null && latestSD > 6) {
+    el.className = 'insight warn';
+    el.textContent = `⚠ HIGH VARIANCE (SD=${latestSD.toFixed(1)}) — Feast-or-famine results. Strategy is inconsistent across matches.`;
+  } else if (rows.length >= 3) {
+    const last3 = totals.slice(-3);
+    const first3 = totals.slice(0, 3);
+    const trend = last3.reduce((a, b) => a + b, 0) / last3.length - first3.reduce((a, b) => a + b, 0) / first3.length;
+    const sdNote = latestSD !== null ? ` Consistency SD=${latestSD.toFixed(1)}.` : '';
+    if (trend > 2) {
+      el.className = 'insight good'; el.textContent = `↑ UPWARD TREND — Avg score up ${trend.toFixed(1)} pts in recent matches. Momentum is building.${sdNote}`;
+    } else if (trend < -2) {
+      el.className = 'insight warn'; el.textContent = `↓ SLUMP DETECTED — Avg score down ${Math.abs(trend).toFixed(1)} pts recently. Review recent match strategy.`;
+    } else {
+      el.className = 'insight good'; el.textContent = `✓ BALANCED SPLIT & STABLE — Good mix of kill/placement points, consistent scoring.${sdNote}`;
+    }
   } else {
-    el.className = 'insight good'; el.textContent = `✓ BALANCED SPLIT — Good mix of kill and placement points. Keep this strategy.`;
+    el.className = 'insight good';
+    el.textContent = '✓ BALANCED SPLIT — Good mix of kill and placement points. Need 3+ matches to assess trend and consistency.';
   }
 }
 
@@ -1730,13 +1703,9 @@ function renderPlacementDist(rows) {
 function renderAnalystCharts(rows, filteredMatches) {
   renderSurvivalChart(rows);
   renderKillDist(rows);
-  renderVarianceChart(rows);
-  renderAggressionChart(rows);
-  renderPhaseChart(rows);
+  renderDamageOutputChart(rows);
   renderLobbySurvivalCurve(rows, filteredMatches);
-  renderWipeDistChart(rows, filteredMatches);
   renderZonePhaseChart(rows, filteredMatches);
-  renderFightTimingChart(filteredMatches);
 }
 
 // ── Survival Time Bar ──
@@ -1792,6 +1761,9 @@ function renderSurvivalChart(rows) {
     container.appendChild(col);
   });
 
+  // Phase badges (folded in from the former standalone Elimination Phase Profile chart)
+  _renderPhaseBadges(rows);
+
   // Insight
   const validRows = rows.filter(r => r.survivalPct !== null);
   const el = document.getElementById('survival-insight');
@@ -1806,8 +1778,39 @@ function renderSurvivalChart(rows) {
   } else if (avgSurv < 40) {
     el.className = 'insight critical'; el.textContent = `✗ LOW SURVIVAL — Average elimination at ${avgSurv.toFixed(0)}% of match duration. Dying in mid-game. Rotation timing issue.`;
   } else {
-    el.className = 'insight good'; el.textContent = `✓ SOLID SURVIVAL — Average ${avgSurv.toFixed(0)}% of match duration survived. Late-game presence confirmed.`;
+    const early = validRows.filter(r => r.survivalPct < 33).length;
+    const late = validRows.filter(r => r.survivalPct >= 66).length;
+    let phaseNote = '';
+    if (early > validRows.length * 0.4) phaseNote = ' Most eliminations still land early — hot-drop risk.';
+    else if (late > validRows.length * 0.5) phaseNote = ' Consistently reaching late-game circles.';
+    el.className = 'insight good'; el.textContent = `✓ SOLID SURVIVAL — Average ${avgSurv.toFixed(0)}% of match duration survived.${phaseNote}`;
   }
+}
+
+// Compact EARLY/MID/LATE elimination-phase badge row (folded in from the former standalone Elimination Phase Profile chart)
+function _renderPhaseBadges(rows) {
+  const container = document.getElementById('survival-phase-badges');
+  container.innerHTML = '';
+  const validRows = rows.filter(r => r.survivalPct !== null);
+  if (validRows.length === 0) return;
+
+  const early = validRows.filter(r => r.survivalPct < 33).length;
+  const mid = validRows.filter(r => r.survivalPct >= 33 && r.survivalPct < 66).length;
+  const late = validRows.filter(r => r.survivalPct >= 66).length;
+  const total = validRows.length;
+  const phases = [
+    { label: 'EARLY', count: early, color: '#9B1C11' },
+    { label: 'MID', count: mid, color: '#7C5A00' },
+    { label: 'LATE', count: late, color: '#4E7C2F' },
+  ];
+  phases.forEach(p => {
+    const pct = Math.round((p.count / total) * 100);
+    const badge = document.createElement('span');
+    badge.className = 'font-mono';
+    badge.style.cssText = `display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:3px;font-size:9px;font-weight:700;letter-spacing:0.08em;background:${p.color}15;border:1px solid ${p.color}40;color:${p.color};`;
+    badge.textContent = `${p.label} ${p.count} (${pct}%)`;
+    container.appendChild(badge);
+  });
 }
 
 // ── Kill Distribution ──
@@ -1871,200 +1874,69 @@ function renderKillDist(rows) {
   }
 }
 
-// ── Variance Chart ──
-function renderVarianceChart(rows) {
-  const canvas = document.getElementById('variance-chart');
-  const ctx = canvas.getContext('2d');
-  const W = canvas.offsetWidth; const H = canvas.offsetHeight;
-  canvas.width = W * devicePixelRatio; canvas.height = H * devicePixelRatio;
-  ctx.scale(devicePixelRatio, devicePixelRatio);
-  ctx.clearRect(0, 0, W, H);
-
-  const pad = { l: 32, r: 12, t: 16, b: 28 };
-  const pw = W - pad.l - pad.r;
-  const ph = H - pad.t - pad.b;
-
-  if (rows.length < 3) { drawEmpty(ctx, W, H, '3+ MATCHES NEEDED FOR VARIANCE'); return; }
-  const window = 3;
-  const sdValues = [];
-  for (let i = window - 1; i < rows.length; i++) {
-    const slice = rows.slice(i - window + 1, i + 1).map(r => r.total);
-    sdValues.push({ i, sd: stdDev(slice) });
-  }
-
-  const maxSD = Math.max(1, ...sdValues.map(v => v.sd));
-
-  // Grid
-  for (let i = 0; i <= 3; i++) {
-    const y = pad.t + (ph / 3) * i;
-    ctx.strokeStyle = 'rgba(201,191,168,0.8)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + pw, y); ctx.stroke();
-    ctx.font = '500 8px Lexend Deca'; ctx.fillStyle = '#6B6048';
-    ctx.textAlign = 'right';
-    ctx.fillText(Math.round(maxSD - (maxSD / 3) * i), pad.l - 4, y + 3);
-  }
-
-  // Line
-  ctx.beginPath();
-  sdValues.forEach((v, idx) => {
-    const x = pad.l + (v.i / (rows.length - 1)) * pw;
-    const y = pad.t + ph - (v.sd / (maxSD * 1.1)) * ph;
-    idx === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-  });
-  ctx.strokeStyle = '#4A3870'; ctx.lineWidth = 2; ctx.stroke();
-
-  sdValues.forEach(v => {
-    const x = pad.l + (v.i / (rows.length - 1)) * pw;
-    const y = pad.t + ph - (v.sd / (maxSD * 1.1)) * ph;
-    ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI*2);
-    ctx.fillStyle = '#4A3870'; ctx.fill();
-  });
-
-  // Insight
-  const latestSD = sdValues[sdValues.length - 1]?.sd || 0;
-  const el = document.getElementById('variance-insight');
-  if (latestSD < 3) {
-    el.className = 'insight good'; el.textContent = `✓ LOW VARIANCE (SD=${latestSD.toFixed(1)}) — Highly consistent performance. Reliable scoring pattern.`;
-  } else if (latestSD > 6) {
-    el.className = 'insight warn'; el.textContent = `⚠ HIGH VARIANCE (SD=${latestSD.toFixed(1)}) — Feast-or-famine results. Strategy is inconsistent across matches.`;
-  } else {
-    el.className = 'insight neutral'; el.textContent = `Moderate variance (SD=${latestSD.toFixed(1)}). Some inconsistency present.`;
-  }
-}
-
-// ── Aggression vs Score Scatter ──
-function renderAggressionChart(rows) {
-  const canvas = document.getElementById('aggression-chart');
-  const ctx = canvas.getContext('2d');
-  const W = canvas.offsetWidth; const H = canvas.offsetHeight;
-  canvas.width = W * devicePixelRatio; canvas.height = H * devicePixelRatio;
-  ctx.scale(devicePixelRatio, devicePixelRatio);
-  ctx.clearRect(0, 0, W, H);
-
-  const pad = { l: 40, r: 20, t: 16, b: 36 };
-  const pw = W - pad.l - pad.r;
-  const ph = H - pad.t - pad.b;
-
-  if (rows.length < 3) { drawEmpty(ctx, W, H, '3+ MATCHES NEEDED FOR CORRELATION'); return; }
-  const maxTotal = Math.max(1, ...rows.map(r => r.total));
-
-  ctx.strokeStyle = 'rgba(107,96,72,0.4)'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t + ph); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(pad.l, pad.t + ph); ctx.lineTo(pad.l + pw, pad.t + ph); ctx.stroke();
-
-  // Axis labels
-  ctx.font = '500 9px Lexend Deca'; ctx.fillStyle = '#6B6048';
-  ctx.textAlign = 'center';
-  ctx.fillText('KILLS IN MATCH →', pad.l + pw/2, pad.t + ph + 28);
-  ctx.save(); ctx.translate(12, pad.t + ph/2); ctx.rotate(-Math.PI/2);
-  ctx.fillText('TOTAL POINTS →', 0, 0); ctx.restore();
-
-  // Regression line
-  const n = rows.length;
-  const sumX = rows.reduce((a, r) => a + r.kp, 0);
-  const sumY = rows.reduce((a, r) => a + r.total, 0);
-  const sumXY = rows.reduce((a, r) => a + r.kp * r.total, 0);
-  const sumX2 = rows.reduce((a, r) => a + r.kp * r.kp, 0);
-  const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX || 1);
-  const intercept = (sumY - slope * sumX) / n;
-
-  const x1 = 0, y1 = slope * x1 + intercept;
-  const x2 = maxKP * 1.1, y2 = slope * x2 + intercept;
-  ctx.beginPath();
-  ctx.moveTo(pad.l + (x1 / (maxKP * 1.1)) * pw, pad.t + ph - (Math.max(0, y1) / (maxTotal * 1.1)) * ph);
-  ctx.lineTo(pad.l + (x2 / (maxKP * 1.1)) * pw, pad.t + ph - (Math.min(maxTotal * 1.1, y2) / (maxTotal * 1.1)) * ph);
-  ctx.strokeStyle = 'rgba(124,90,0,0.3)'; ctx.lineWidth = 1; ctx.setLineDash([6, 4]);
-  ctx.stroke(); ctx.setLineDash([]);
-
-  // Points
-  rows.forEach(r => {
-    const x = pad.l + (r.kp / (maxKP * 1.1)) * pw;
-    const y = pad.t + ph - (r.total / (maxTotal * 1.1)) * ph;
-    ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI*2);
-    ctx.fillStyle = 'rgba(44,74,46,0.8)'; ctx.fill();
-    ctx.strokeStyle = 'rgba(12,10,7,0.15)'; ctx.lineWidth = 1; ctx.stroke();
-  });
-
-  const el = document.getElementById('aggression-insight');
-  if (slope > 0.5) {
-    el.className = 'insight good'; el.textContent = `↑ AGGRESSION PAYS OFF — Each additional kill adds ~${slope.toFixed(1)} pts to final score. Prioritize engagements.`;
-  } else if (slope < -0.2) {
-    el.className = 'insight critical'; el.textContent = `✗ AGGRESSION HURTS — More kills correlates with lower final score. Dying after kills. Play safer.`;
-  } else {
-    el.className = 'insight neutral'; el.textContent = `Weak correlation between kills and final score. Placement points are the dominant driver.`;
-  }
-}
-
-// ── Phase Profile ──
-function renderPhaseChart(rows) {
-  const container = document.getElementById('phase-chart');
+// ── Damage Output (new) ──
+function renderDamageOutputChart(rows) {
+  const container = document.getElementById('damage-output-chart');
   container.innerHTML = '';
 
-  const validRows = rows.filter(r => r.survivalPct !== null);
-  if (validRows.length === 0) {
-    if (rows.length === 0) {
-      container.innerHTML = chartEmpty('lucide:layers-3', 'No match data', 'No matches found for the current filter. Adjust the Day or Map scope.');
-    } else {
-      container.innerHTML = chartEmpty('lucide:clock-x', 'Wipe time not recorded', 'Set time_of_wipe when logging eliminations to enable phase analysis.');
-    }
-    document.getElementById('phase-insight').className = 'insight neutral';
-    document.getElementById('phase-insight').textContent = rows.length === 0
-      ? 'Select a different filter scope to see phase data.'
-      : 'Record time_of_wipe on team eliminations to unlock this chart.';
+  if (rows.length === 0) {
+    container.innerHTML = chartEmpty('lucide:swords', 'No damage data', 'No matches found for the current filter. Adjust the Day or Map scope.');
+    document.getElementById('damage-output-insight').className = 'insight neutral';
+    document.getElementById('damage-output-insight').textContent = 'Select a different filter scope to see damage output.';
     return;
   }
 
-  const early = validRows.filter(r => r.survivalPct < 33).length;
-  const mid = validRows.filter(r => r.survivalPct >= 33 && r.survivalPct < 66).length;
-  const late = validRows.filter(r => r.survivalPct >= 66).length;
-  const total = validRows.length;
+  const maxDmg = Math.max(1, ...rows.map(r => r.totalDamage || 0));
 
-  const phases = [
-    { label: 'EARLY', count: early, color: '#9B1C11', desc: 'Hot drop / early wipe' },
-    { label: 'MID', count: mid, color: '#7C5A00', desc: 'Rotation / zone death' },
-    { label: 'LATE', count: late, color: '#4E7C2F', desc: 'Circle fight / clutch' },
-  ];
+  rows.forEach((r, i) => {
+    const dmg = r.totalDamage || 0;
+    const barH = Math.max(2, Math.round((dmg / maxDmg) * 112));
 
-  phases.forEach(p => {
-    const pct = Math.round((p.count / total) * 100);
-    const block = document.createElement('div');
-    block.style.cssText = `flex:${Math.max(1, p.count)};background:${p.color}18;border:1px solid ${p.color}40;border-radius:3px;padding:12px;display:flex;flex-direction:column;gap:4px;`;
+    const col = document.createElement('div');
+    col.style.cssText = `display:flex;flex-direction:column;align-items:center;flex:1;gap:2px;justify-content:flex-end;`;
 
-    const topRow = document.createElement('div');
-    topRow.style.cssText = `display:flex;align-items:baseline;gap:6px;`;
-    const big = document.createElement('span');
-    big.className = 'font-display';
-    big.style.cssText = `font-size:28px;font-weight:800;color:${p.color};`;
-    big.textContent = p.count;
-    const pctSpan = document.createElement('span');
-    pctSpan.className = 'font-mono';
-    pctSpan.style.cssText = `font-size:11px;color:${p.color};opacity:0.7;`;
-    pctSpan.textContent = `${pct}%`;
-    topRow.appendChild(big); topRow.appendChild(pctSpan);
+    const dmgLabel = document.createElement('div');
+    dmgLabel.textContent = dmg;
+    dmgLabel.style.cssText = `font-family:'Lexend Deca',monospace;font-size:9px;font-weight:700;color:#C85E0A;`;
 
-    const lbl = document.createElement('div');
-    lbl.className = 'font-mono';
-    lbl.style.cssText = `font-size:9px;font-weight:700;letter-spacing:0.12em;color:${p.color};text-transform:uppercase;`;
-    lbl.textContent = p.label;
+    const bar = document.createElement('div');
+    bar.style.cssText = `width:100%;max-width:40px;height:${barH}px;background:#C85E0A;border-radius:2px 2px 0 0;opacity:${dmg > 0 ? '0.75' : '0.15'};position:relative;`;
+    bar.title = `${r.kp} kills`;
 
-    const desc = document.createElement('div');
-    desc.style.cssText = `font-size:9px;color:var(--muted);margin-top:2px;`;
-    desc.textContent = p.desc;
+    // Kills marker — small dot near the top of the bar
+    if (r.kp > 0) {
+      const marker = document.createElement('div');
+      marker.style.cssText = `position:absolute;top:-6px;left:50%;transform:translateX(-50%);width:6px;height:6px;border-radius:50%;background:#2C4A2E;border:1px solid rgba(12,10,7,0.2);`;
+      bar.appendChild(marker);
+    }
 
-    block.appendChild(topRow);
-    block.appendChild(lbl);
-    block.appendChild(desc);
-    container.appendChild(block);
+    const label = document.createElement('div');
+    label.textContent = `M${i+1}`;
+    label.style.cssText = `font-family:'Lexend Deca',monospace;font-size:8px;color:var(--muted);text-align:center;position:absolute;bottom:0;left:50%;transform:translateX(-50%);`;
+
+    const labelWrap = document.createElement('div');
+    labelWrap.style.cssText = `position:relative;height:20px;width:100%;`;
+    labelWrap.appendChild(label);
+
+    col.appendChild(dmgLabel);
+    col.appendChild(bar);
+    col.appendChild(labelWrap);
+    container.appendChild(col);
   });
 
-  const el = document.getElementById('phase-insight');
-  const dominant = phases.reduce((a, b) => a.count > b.count ? a : b);
-  if (dominant.label === 'EARLY') {
-    el.className = 'insight critical'; el.textContent = `✗ HOT DROP PROBLEM — ${early}/${total} eliminations happen before 33% of match time. Avoid contested landing zones.`;
-  } else if (dominant.label === 'MID') {
-    el.className = 'insight warn'; el.textContent = `⚠ ROTATION DEATHS — ${mid}/${total} eliminations in mid-phase. Caught in the open during zone moves.`;
+  // Insight
+  const el = document.getElementById('damage-output-insight');
+  const avgDmg = rows.reduce((a, r) => a + (r.totalDamage || 0), 0) / rows.length;
+  const avgKp = rows.reduce((a, r) => a + r.kp, 0) / rows.length;
+  if (avgDmg === 0) {
+    el.className = 'insight neutral'; el.textContent = 'No damage recorded for these matches yet.';
   } else {
-    el.className = 'insight good'; el.textContent = `✓ LATE-GAME PRESENCE — ${late}/${total} eliminations in late phase. Team consistently reaches final circles.`;
+    const dmgPerKill = avgKp > 0 ? avgDmg / avgKp : avgDmg;
+    if (avgKp < 1 && avgDmg > 300) {
+      el.className = 'insight warn'; el.textContent = `⚠ KNOCKS WITHOUT FINISHES — Avg ${Math.round(avgDmg)} damage but only ${avgKp.toFixed(1)} kills/match. Engagements aren't converting to eliminations.`;
+    } else {
+      el.className = 'insight neutral'; el.textContent = `Avg ${Math.round(avgDmg)} damage/match, ~${Math.round(dmgPerKill)} damage per kill.`;
+    }
   }
 }
 
@@ -2335,98 +2207,7 @@ function renderLobbySurvivalCurve(rows, filteredMatches) {
 }
 
 // ══════════════════════════════════════════════════════
-// CHART G: WIPE TIME DISTRIBUTION
-// ══════════════════════════════════════════════════════
-function renderWipeDistChart(rows, filteredMatches) {
-  const container = document.getElementById('wipe-dist-chart');
-  container.innerHTML = '';
-  const el = document.getElementById('wipe-dist-insight');
-
-  const selfWipes = rows.filter(r => r.time_of_wipe != null && r.match && r.match.duration_seconds);
-  const allEnemyWipes = allTeams.filter(t => !t.is_self && t.time_of_wipe != null && filteredMatches.some(m => m.id === t.match_id));
-
-  if (selfWipes.length === 0 && allEnemyWipes.length === 0) {
-    container.innerHTML = chartEmpty('lucide:clock-x', 'No wipe times recorded', 'Log enemy wipes in the editor to unlock this chart.');
-    el.className='insight neutral'; el.textContent='Record wipe times to compare your timing to the lobby average.';
-    return;
-  }
-
-  // Bucket wipe times into 30s intervals, expressed as % of match
-  const BUCKETS = 10; // 10 buckets = 0-10%, 10-20%, ... 90-100% of match
-  const selfCounts = Array(BUCKETS).fill(0);
-  const lobbyCounts = Array(BUCKETS).fill(0);
-
-  selfWipes.forEach(r => {
-    const pct = Math.min(0.999, r.time_of_wipe / r.match.duration_seconds);
-    selfCounts[Math.floor(pct * BUCKETS)]++;
-  });
-
-  allEnemyWipes.forEach(t => {
-    const match = allMatches.find(m => m.id === t.match_id);
-    if (!match || !match.duration_seconds) return;
-    const pct = Math.min(0.999, t.time_of_wipe / match.duration_seconds);
-    lobbyCounts[Math.floor(pct * BUCKETS)]++;
-  });
-
-  const maxCount = Math.max(1, ...selfCounts, ...lobbyCounts);
-  const chartH = 112;
-
-  BUCKETS_LOOP: for (let i = 0; i < BUCKETS; i++) {
-    const col = document.createElement('div');
-    col.style.cssText = 'display:flex;flex-direction:column;align-items:center;flex:1;gap:1px;justify-content:flex-end;';
-
-    // Self bar (cyan)
-    const selfH = Math.max(selfCounts[i] > 0 ? 3 : 0, Math.round((selfCounts[i]/maxCount)*chartH));
-    const selfBar = document.createElement('div');
-    selfBar.style.cssText = `width:100%;max-width:18px;height:${selfH}px;background:var(--accent);border-radius:2px 2px 0 0;opacity:0.85;`;
-    selfBar.title = `Your team: ${selfCounts[i]} wipes`;
-
-    // Lobby bar (grey, behind)
-    const lobbyH = Math.max(lobbyCounts[i] > 0 ? 3 : 0, Math.round((lobbyCounts[i]/maxCount)*chartH));
-    const lobbyBar = document.createElement('div');
-    lobbyBar.style.cssText = `width:100%;max-width:18px;height:${lobbyH}px;background:rgba(107,96,72,0.5);border-radius:2px 2px 0 0;`;
-    lobbyBar.title = `Lobby avg: ${lobbyCounts[i]} wipes`;
-
-    const barsWrap = document.createElement('div');
-    barsWrap.style.cssText = 'display:flex;gap:1px;align-items:flex-end;width:100%;justify-content:center;';
-    barsWrap.appendChild(lobbyBar);
-    barsWrap.appendChild(selfBar);
-
-    const lbl = document.createElement('div');
-    const pctLabel = `${i*10}%`;
-    lbl.style.cssText = 'font-family:\'Lexend Deca\',monospace;font-size:7px;color:var(--muted);text-align:center;position:absolute;bottom:0;left:50%;transform:translateX(-50%);white-space:nowrap;';
-    lbl.textContent = pctLabel;
-    const lblWrap = document.createElement('div');
-    lblWrap.style.cssText = 'position:relative;height:20px;width:100%;';
-    lblWrap.appendChild(lbl);
-
-    col.appendChild(barsWrap);
-    col.appendChild(lblWrap);
-    container.appendChild(col);
-  }
-
-  // Legend
-  const legend = document.createElement('div');
-  legend.style.cssText = 'position:absolute;top:0;right:0;display:flex;gap:10px;';
-  legend.innerHTML = `<span style="font-family:'Lexend Deca',monospace;font-size:8px;color:var(--accent);">■ YOUR TEAM</span><span style="font-family:'Lexend Deca',monospace;font-size:8px;color:rgba(107,96,72,0.8);">■ LOBBY</span>`;
-  container.style.position = 'relative';
-  container.appendChild(legend);
-
-  // Insight
-  const selfPeak = selfCounts.indexOf(Math.max(...selfCounts));
-  if (selfWipes.length === 0) {
-    el.className='insight neutral'; el.textContent='No self wipe times recorded.';
-  } else if (selfPeak < 3) {
-    el.className='insight critical'; el.textContent=`✗ EARLY EXITS — Most of your deaths cluster in the first 30% of match time. You're dying significantly earlier than the lobby.`;
-  } else if (selfPeak >= 7) {
-    el.className='insight good'; el.textContent=`✓ LATE GAME — Your deaths are concentrated in the final phases of matches. You're reaching endgame consistently.`;
-  } else {
-    el.className='insight neutral'; el.textContent=`Mid-game wipe cluster. Your exits peak around ${selfPeak*10}–${(selfPeak+1)*10}% of match time.`;
-  }
-}
-
-// ══════════════════════════════════════════════════════
-// CHART H: ZONE PHASE DEATH
+// ZONE PHASE DEATH
 // ══════════════════════════════════════════════════════
 function renderZonePhaseChart(rows, filteredMatches) {
   const container = document.getElementById('zone-phase-chart');
@@ -2500,107 +2281,6 @@ function renderZonePhaseChart(rows, filteredMatches) {
     el.className='insight good'; el.textContent=`✓ ZONE ${dominantPhase} PRESENCE — You consistently reach late circles before dying. Final ring fighting is your main challenge.`;
   } else {
     el.className='insight neutral'; el.textContent=`Mid-game exits most common in Zone ${dominantPhase}. Rotation timing and mid-game positioning to examine.`;
-  }
-}
-
-// ══════════════════════════════════════════════════════
-// CHART I: FIGHT TIMING
-// ══════════════════════════════════════════════════════
-function renderFightTimingChart(filteredMatches) {
-  const container = document.getElementById('fight-timing-chart');
-  container.innerHTML = '';
-  const el = document.getElementById('fight-timing-insight');
-
-  // Get self team fight shapes for filtered matches
-  const selfFights = [];
-  filteredMatches.forEach(match => {
-    const selfTeam = allTeams.find(t => t.match_id === match.id && t.is_self);
-    if (!selfTeam) return;
-    const fights = allShapes.filter(s => s.match_id === match.id && s.type === 'fight' && s.team_id === selfTeam.id);
-    fights.forEach(f => selfFights.push({ ...f, match, matchDur: match.duration_seconds || 120 }));
-  });
-
-  if (selfFights.length === 0) {
-    container.innerHTML = chartEmpty('lucide:swords', 'No fight data', 'Log fight markers in the editor to see your engagement timing pattern.');
-    el.className='insight neutral'; el.textContent='Use the Fight marker in the editor to record engagements.';
-    return;
-  }
-
-  const globalMax = Math.max(...filteredMatches.map(m => m.duration_seconds || 120), 120);
-
-  // One row per match, dots placed at fight times
-  filteredMatches.forEach((match, mi) => {
-    const matchFights = selfFights.filter(f => f.match_id === match.id);
-    if (!matchFights.length && filteredMatches.length > 6) return; // skip empty rows when many matches
-
-    const row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:4px;';
-
-    const label = document.createElement('div');
-    label.style.cssText = 'font-family:\'Lexend Deca\',monospace;font-size:8px;color:var(--muted);width:52px;flex-shrink:0;text-align:right;';
-    label.textContent = match.name || `M${mi+1}`;
-    row.appendChild(label);
-
-    const track = document.createElement('div');
-    track.style.cssText = 'flex:1;position:relative;height:20px;background:rgba(237,231,220,0.6);border:1px solid rgba(201,191,168,0.6);border-radius:2px;';
-
-    // Zone ticks (faint)
-    allShapes.filter(s => s.match_id === match.id && s.type === 'circle').forEach(z => {
-      const pct = Math.min(99, ((z.time_seconds||0)/globalMax)*100);
-      const tick = document.createElement('div');
-      tick.style.cssText = `position:absolute;left:${pct}%;top:0;bottom:0;width:1px;background:rgba(44,74,46,0.2);`;
-      track.appendChild(tick);
-    });
-
-    matchFights.forEach(f => {
-      const t = f.time_seconds || 0;
-      const pct = Math.min(98, (t/globalMax)*100);
-      const dot = document.createElement('div');
-      dot.style.cssText = `position:absolute;left:${pct}%;top:50%;transform:translate(-50%,-50%);width:9px;height:9px;border-radius:50%;background:#C85E0A;border:1px solid rgba(200,94,10,0.4);`;
-      dot.title = `Fight: ${f.fight_team_a||'?'} vs ${f.fight_team_b||'?'} @ ${fmtSec(t)}`;
-      track.appendChild(dot);
-    });
-
-    row.appendChild(track);
-
-    const countEl = document.createElement('div');
-    countEl.style.cssText = 'font-family:\'Lexend Deca\',monospace;font-size:8px;color:var(--orange);width:20px;flex-shrink:0;';
-    countEl.textContent = matchFights.length ? `×${matchFights.length}` : '';
-    row.appendChild(countEl);
-
-    container.appendChild(row);
-  });
-
-  // X axis
-  const axisRow = document.createElement('div');
-  axisRow.style.cssText = 'display:flex;align-items:center;gap:10px;margin-top:4px;';
-  const axisLabel = document.createElement('div');
-  axisLabel.style.cssText = 'width:52px;flex-shrink:0;';
-  axisRow.appendChild(axisLabel);
-  const axisTrack = document.createElement('div');
-  axisTrack.style.cssText = 'flex:1;position:relative;height:12px;';
-  [0, 0.25, 0.5, 0.75, 1].forEach(pct => {
-    const t = document.createElement('div');
-    t.style.cssText = `position:absolute;left:${pct*100}%;font-family:'Lexend Deca',monospace;font-size:7px;color:var(--muted);transform:translateX(-50%);`;
-    t.textContent = fmtSec(Math.round(pct*globalMax));
-    axisTrack.appendChild(t);
-  });
-  axisRow.appendChild(axisTrack);
-  container.appendChild(axisRow);
-
-  // Insight
-  const fightTimes = selfFights.map(f => f.time_seconds || 0);
-  const avgFightTime = fightTimes.reduce((a,b)=>a+b,0)/fightTimes.length;
-  const avgPct = avgFightTime / globalMax;
-  const totalFights = selfFights.length;
-  const avgPerMatch = (totalFights / filteredMatches.length).toFixed(1);
-
-  if (avgPct < 0.33) {
-    el.className='insight warn'; el.textContent=`⚠ EARLY AGGRESSORS — Average fight @ ${fmtSec(Math.round(avgFightTime))} (first third of match). ${avgPerMatch} fights/match. Hot drop tendency.`;
-  } else if (avgPct > 0.66) {
-    el.className='insight good'; el.textContent=`✓ LATE GAME FIGHTERS — Avg engagement @ ${fmtSec(Math.round(avgFightTime))}. ${avgPerMatch} fights/match. Patient, circle-oriented style.`;
-  } else {
-    el.className='insight neutral'; el.textContent=`Mid-game engagement style. Avg fight @ ${fmtSec(Math.round(avgFightTime))}. ${avgPerMatch} logged fights per match.`;
   }
 }
 
