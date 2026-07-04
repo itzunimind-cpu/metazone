@@ -399,10 +399,12 @@ canvas.path-mode{ cursor:cell; }
   box-shadow:0 4px 20px rgba(0,0,0,.5);white-space:nowrap;
 }
 #pin-prompt-banner.wipe-mode{ border-color:var(--orange); }
+#pin-prompt-banner.elim-mode{ border-color:#7BC47F; }
 .ppb-icon{ font-size:16px; }
 .ppb-text{ font-family:var(--font-mono);font-size:10px;color:var(--text);letter-spacing:.08em; }
 .ppb-text span{ color:var(--yellow); }
 #pin-prompt-banner.wipe-mode .ppb-text span{ color:var(--orange); }
+#pin-prompt-banner.elim-mode .ppb-text span{ color:#7BC47F; }
 #pin-prompt-skip{
   pointer-events:all;cursor:pointer;
   font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;
@@ -1715,11 +1717,11 @@ let drawing=false, circleP1=null, dSX=0, dSY=0, preview=null;
 let pathPoints=[], pathDrawing=false;
 let pendingPin=null, cpTeamId=null;
 let _moveDrag=null; // {shape, kind, startWX, startWY, orig, moved}
+let _altMoveKeyDown=false; // Alt held → quick-move a shape from within any draw mode, no need to switch to MOVE mode first
 
 // ── PIN PROMPT STATE (death/wipe position capture) ──
 let _pinPromptActive = false;
 let _pinPromptCallback = null; // fn(wx, wy) called on tap, or null on skip
-let _pinPromptOnClose = null;  // fired after prompt closes (click or skip) — used to defer markMatchEnd
 
 const TEAM_COLORS=[
   '#22d3ee','#4ade80','#f87171','#fb923c','#facc15',
@@ -2676,6 +2678,11 @@ function onKeyDown(e) {
   }
   if((e.ctrlKey||e.metaKey)&&e.key==='z'){ e.preventDefault(); undo(); }
   if((e.ctrlKey||e.metaKey)&&e.key==='s'){ e.preventDefault(); manualSave(); }
+  if(e.key==='Alt') _altMoveKeyDown=true;
+}
+
+function onKeyUp(e) {
+  if(e.key==='Alt') _altMoveKeyDown=false;
 }
 
 // ── Touch pinch state (E2) ──────────────────────────────
@@ -2711,6 +2718,8 @@ function initCanvas() {
   canvas.addEventListener('touchmove',  onPointerMove, {passive:false});
   canvas.addEventListener('touchend',   onPointerUp,   {passive:false});
   window.addEventListener('keydown', onKeyDown);
+  window.addEventListener('keyup', onKeyUp);
+  window.addEventListener('blur', ()=>{ _altMoveKeyDown=false; }); // Alt-tabbing away shouldn't leave the modifier stuck "on"
   updateSliders(); setMode('zone');
 }
 
@@ -2765,6 +2774,17 @@ function onPointerDown(e) {
   }
   const shapes=getActiveShapes();
   if(!shapes){ toast('SELECT A MATCH FIRST','warn'); return; }
+  // Quick-move: hold Alt to grab and drag a shape from within any draw mode, without
+  // switching the toolbar to MOVE first. Same hit-test/drag/persist pipeline as MOVE mode —
+  // falls through to the current mode's normal behavior if nothing is under the cursor.
+  if(_altMoveKeyDown && state.mode!=='move'){
+    const hit=hitTestMovable(wx, wy);
+    if(hit){
+      _moveDrag={ shape:hit.shape, kind:hit.kind, startWX:wx, startWY:wy, orig:snapshotShapePos(hit.shape), moved:false };
+      canvas.style.cursor='grabbing';
+      return;
+    }
+  }
   if(state.mode==='erase'){ eraseAtPosition(wx, wy); return; }
   if(state.mode==='move'){
     const hit=hitTestMovable(wx, wy);
@@ -2831,6 +2851,9 @@ function onPointerMove(e) {
   if(state.mode==='move'){
     canvas.style.cursor = hitTestMovable(wx,wy) ? 'grab' : 'default';
     return;
+  }
+  if(_altMoveKeyDown && isAnnotationMode){
+    canvas.style.cursor = hitTestMovable(wx,wy) ? 'grab' : (state.mode==='erase' ? 'not-allowed' : 'crosshair');
   }
   if(!drawing&&!pathDrawing&&!circleP1){
     const hit=hitTestPins(wx,wy);
@@ -4391,10 +4414,19 @@ function downloadSnapshot() {
 // ══════════════════════════════════════════════════════
 // ══ [E5] SELF ELIM MODAL ══════════════════════════════
 let semSelectedPlayerId = null;
+let semPendingCoords = null;
 
+// Place-pin-first: tap the fight location on the map, then the modal opens with coords in hand.
 function markSelfElim() {
   if(!state.matchId){ toast('SELECT A MATCH FIRST','warn'); return; }
+  openPinPrompt('SELF ELIM — tap fight location', 'elim', (wx, wy) => {
+    _openSelfElimModal(wx, wy);
+  });
+}
+
+function _openSelfElimModal(wx, wy) {
   semSelectedPlayerId = null;
+  semPendingCoords = {wx, wy};
   document.getElementById('sem-time').textContent = fmtTime(state.time);
   document.getElementById('sem-finish-count').value = '1';
   document.getElementById('sem-confirm-btn').disabled = true;
@@ -4442,6 +4474,7 @@ async function confirmSelfElim() {
   const player = matchPlayers.find(p => p.id === semSelectedPlayerId);
   if (!player) return;
   const finishes = Math.max(1, parseInt(document.getElementById('sem-finish-count').value, 10) || 1);
+  const coords = semPendingCoords; semPendingCoords = null;
   closeSelfElimModal();
 
   let elimRow = { id:'local_elim_'+Date.now(), match_id:state.matchId, player_id:player.player_id, time_seconds:state.time, finish_count:finishes };
@@ -4466,13 +4499,24 @@ async function confirmSelfElim() {
   }
 
   selfElims.push(elimRow);
+
+  // FEAT-1: fight-location marker for the elim, at the pin the user placed before this modal opened.
+  if (coords && state.activeTeamId) {
+    const shapes = getActiveShapes();
+    const shape = { type:'fight', tag:'fight', x:coords.wx, y:coords.wy, time:state.time, teamA:'SELF', teamB:'??' };
+    shapes.push(shape);
+    queueForSave(shape);
+  }
+
   renderAnnotationLog({scrollToTop:true});
   toast(`${player.name} — ${finishes} finish${finishes!==1?'es':''} @ ${fmtTime(state.time)}`,'ok');
+  draw();
 }
 
 function closeSelfElimModal() {
   document.getElementById('self-elim-modal').classList.remove('show');
   semSelectedPlayerId = null;
+  semPendingCoords = null;
 }
 
 // ══ [C8] UNIFIED WIPE MODAL ══════════════════════════
@@ -4486,9 +4530,13 @@ function _calcWipePosition() {
   return Math.max(1, matchTeams.length - wipedSoFar);
 }
 
-function openWipeModal(teamId, isSelf) {
+let _wipePendingCoords = null;
+
+// coords: {wx,wy} already captured by the pin prompt before this modal opens.
+function openWipeModal(teamId, isSelf, coords) {
   _wipePendingTeamId = teamId;
   _wipeIsSelf = isSelf;
+  _wipePendingCoords = coords || null;
   const team = teams.find(t=>t.id===teamId);
   const pos = _calcWipePosition();
   document.getElementById('wm-title').textContent = isSelf ? 'SELF WIPED' : `${team?.name||'Team'} Eliminated`;
@@ -4500,6 +4548,7 @@ function openWipeModal(teamId, isSelf) {
 function closeWipeModal() {
   document.getElementById('wipe-modal').classList.remove('show');
   _wipePendingTeamId = null;
+  _wipePendingCoords = null;
 }
 
 async function confirmWipe() {
@@ -4507,31 +4556,21 @@ async function confirmWipe() {
   const team = teams.find(t=>t.id===_wipePendingTeamId);
   if(!team) return;
   const pos = parseInt(document.getElementById('wm-position').value,10)||null;
+  const coords = _wipePendingCoords; _wipePendingCoords = null;
   closeWipeModal();
 
   team.time_of_wipe = state.time;
   team.confirmed_position = pos;
+  if(coords){ team.wipe_x = coords.wx; team.wipe_y = coords.wy; }
   if(sb && !String(team.id).startsWith('local_')){
     const upd = { time_of_wipe: state.time };
     if(pos) upd.confirmed_position = pos;
+    if(coords){ upd.wipe_x = coords.wx; upd.wipe_y = coords.wy; }
     await sb.from('teams').update(upd).eq('id', team.id);
   }
   const posLabel = pos ? ` — #${pos}` : '';
   toast(`${_wipeIsSelf?'SELF':team.name} wiped at ${fmtTime(state.time)}${posLabel}`, 'ok');
-  renderTimelineTicks(); renderAnnotationLog({scrollToTop:true}); updateSelfButtonState();
-
-  // ── PIN PROMPT: ask user to tap wipe location on map ──
-  if(sb && !String(team.id).startsWith('local_')) {
-    const label = _wipeIsSelf ? 'SELF wipe location' : `${team.name} wipe location`;
-    openPinPrompt(label, true, async (wx, wy) => {
-      try {
-        await sb.from('teams').update({ wipe_x: wx, wipe_y: wy }).eq('id', team.id);
-        const lt=teams.find(t=>t.id===team.id); if(lt){ lt.wipe_x=wx; lt.wipe_y=wy; }
-        toast(`${_wipeIsSelf ? 'Self' : team.name} wipe pinned`, 'ok');
-        draw();
-      } catch(e) { console.warn('[PLAYER_ANALYTICS] wipe pin save failed:', e); }
-    });
-  }
+  renderTimelineTicks(); renderAnnotationLog({scrollToTop:true}); updateSelfButtonState(); draw();
 
   // ── AUTO MATCH END: check if only 1 team is left standing after this wipe ──
   // Covers 3 scenarios:
@@ -4568,7 +4607,7 @@ async function confirmWipe() {
       toast(`🏆 SELF wins — marked #1, ending match…`, 'ok');
       renderTimelineTicks(); renderAnnotationLog({scrollToTop:true});
       await _clearMatchEndIfSet();
-      if (_pinPromptActive) { _pinPromptOnClose = markMatchEnd; } else { setTimeout(()=>markMatchEnd(), 600); }
+      setTimeout(()=>markMatchEnd(), 600); // pin prompt already closed before this modal opened — no defer needed
 
     // Scenario A — 1 enemy left, self alive → enemy wins, self is #2
     } else if(survivingEnemies.length === 1 && selfAlive) {
@@ -4584,7 +4623,7 @@ async function confirmWipe() {
       toast(`🏆 ${winner.name} marked #1 · SELF marked #2 — ending match…`, 'ok');
       renderTimelineTicks(); renderAnnotationLog({scrollToTop:true});
       await _clearMatchEndIfSet();
-      if (_pinPromptActive) { _pinPromptOnClose = markMatchEnd; } else { setTimeout(()=>markMatchEnd(), 600); }
+      setTimeout(()=>markMatchEnd(), 600); // pin prompt already closed before this modal opened — no defer needed
 
     // Scenario B — 1 enemy left, self already wiped → that enemy is the winner
     } else if(survivingEnemies.length === 1 && !selfAlive) {
@@ -4596,7 +4635,7 @@ async function confirmWipe() {
       toast(`🏆 ${winner.name} marked #1 — ending match…`, 'ok');
       renderTimelineTicks(); renderAnnotationLog({scrollToTop:true});
       await _clearMatchEndIfSet();
-      if (_pinPromptActive) { _pinPromptOnClose = markMatchEnd; } else { setTimeout(()=>markMatchEnd(), 600); }
+      setTimeout(()=>markMatchEnd(), 600); // pin prompt already closed before this modal opened — no defer needed
     }
   }
 }
@@ -4614,7 +4653,10 @@ function markSelfWipe() {
     toast('Self wipe removed','ok');
     renderTimelineTicks(); renderAnnotationLog(); updateSelfButtonState(); return;
   }
-  openWipeModal(selfTeam.id, true);
+  // New wipe (not an undo): place the pin first, then confirm placement position in the modal.
+  openPinPrompt('SELF WIPE — tap wipe location', 'wipe', (wx, wy) => {
+    openWipeModal(selfTeam.id, true, {wx, wy});
+  });
 }
 
 function markEnemyWipe() {
@@ -4648,8 +4690,10 @@ async function confirmEnemyWipe() {
     toast(`${team.name} wipe removed`,'ok');
     renderTimelineTicks(); renderAnnotationLog({scrollToTop:true}); return;
   }
-  // New wipe — open position modal
-  openWipeModal(teamId, false);
+  // New wipe (not an undo): place the pin first, then confirm placement position in the modal.
+  openPinPrompt(`${team.name} wipe location`, 'wipe', (wx, wy) => {
+    openWipeModal(teamId, false, {wx, wy});
+  });
 }
 function closeEnemyWipeModal(){ document.getElementById('enemy-wipe-modal').classList.remove('show'); }
 
@@ -4667,10 +4711,19 @@ function updateSelfButtonState() {
 
 // ══ [C6] SELF LOSS MODAL ══════════════════════════════
 let slmSelectedPlayerId = null;
+let slmPendingCoords = null;
 
+// Place-pin-first: tap the death location on the map, then the modal opens with coords in hand.
 function markSelfLoss() {
   if(!state.matchId){ toast('SELECT A MATCH FIRST','warn'); return; }
+  openPinPrompt('SELF LOSS — tap death location', 'loss', (wx, wy) => {
+    _openSelfLossModal(wx, wy);
+  });
+}
+
+function _openSelfLossModal(wx, wy) {
   slmSelectedPlayerId = null;
+  slmPendingCoords = {wx, wy};
   document.getElementById('slm-time').textContent = fmtTime(state.time);
   document.getElementById('btn-slm-confirm').disabled = true;
   const sel = document.getElementById('slm-killedby');
@@ -4722,14 +4775,17 @@ async function confirmSelfLoss() {
   const player = matchPlayers.find(p => p.id === slmSelectedPlayerId);
   if(!player) return;
   const killedByTeamId = document.getElementById('slm-killedby').value || null;
+  const coords = slmPendingCoords; slmPendingCoords = null;
   closeSelfLossModal();
 
-  // Update pool — mark time_of_loss
+  // Update pool — mark time_of_loss (+ death position, already captured by the pin prompt)
   player.time_of_loss = state.time;
+  if(coords){ player.death_x = coords.wx; player.death_y = coords.wy; }
   if(sb && !String(player.id).startsWith('local_')) {
     try {
       const upd = { time_of_loss: state.time };
       if(killedByTeamId) upd.killed_by_team_id = killedByTeamId;
+      if(coords){ upd.death_x = coords.wx; upd.death_y = coords.wy; }
       await sb.from('match_players').update(upd).eq('id', player.id);
     } catch(e) { toast('SAVE ERROR: '+e.message,'err'); }
   }
@@ -4737,18 +4793,7 @@ async function confirmSelfLoss() {
   renderAnnotationLog({scrollToTop:true});
   const killedByTeam = killedByTeamId ? teams.find(t=>t.id===killedByTeamId) : null;
   toast(`${player.name} down${killedByTeam ? ` — killed by ${killedByTeam.name}` : ''}`, 'ok');
-
-  // ── PIN PROMPT: ask user to tap death location on map ──
-  if(sb && !String(player.id).startsWith('local_')) {
-    openPinPrompt(`${player.name} death`, false, async (wx, wy) => {
-      try {
-        await sb.from('match_players').update({ death_x: wx, death_y: wy }).eq('id', player.id);
-        const lp=matchPlayers.find(p=>p.id===player.id); if(lp){ lp.death_x=wx; lp.death_y=wy; }
-        toast(`${player.name} death pinned`, 'ok');
-        draw();
-      } catch(e) { console.warn('[PLAYER_ANALYTICS] death pin save failed:', e); }
-    });
-  }
+  draw();
 
   // If last alive player → auto-trigger Self Wipe
   const stillAlive = matchPlayers.filter(p => p.time_of_loss == null || p.time_of_loss > state.time);
@@ -4761,21 +4806,24 @@ async function confirmSelfLoss() {
 function closeSelfLossModal() {
   document.getElementById('self-loss-modal').classList.remove('show');
   slmSelectedPlayerId = null;
+  slmPendingCoords = null;
 }
 
 // ══════════════════════════════════════════════════════
 // PIN PROMPT — death/wipe position capture
 // ══════════════════════════════════════════════════════
-function openPinPrompt(label, isWipe, callback) {
+// eventType: 'elim' | 'loss' | 'wipe' — drives the banner accent + crosshair color.
+function openPinPrompt(label, eventType, callback) {
   _pinPromptActive = true;
   _pinPromptCallback = callback;
   const overlay = document.getElementById('pin-prompt-overlay');
   const banner = document.getElementById('pin-prompt-banner');
   document.getElementById('ppb-label').textContent = label;
-  banner.className = isWipe ? 'wipe-mode' : '';
+  banner.className = eventType==='wipe' ? 'wipe-mode' : (eventType==='elim' ? 'elim-mode' : '');
   // Update SVG crosshair color
   const svg = overlay.querySelector('svg');
-  const col = isWipe ? '#fb923c' : '#f87171';
+  const CROSSHAIR_COLOR = { elim:'#7BC47F', loss:'#f87171', wipe:'#fb923c' };
+  const col = CROSSHAIR_COLOR[eventType] || '#f87171';
   svg.querySelectorAll('circle,line').forEach(el => el.setAttribute('stroke', col));
   overlay.classList.add('show');
 }
@@ -4784,7 +4832,6 @@ function skipPinPrompt() {
   _pinPromptActive = false;
   _pinPromptCallback = null;
   document.getElementById('pin-prompt-overlay').classList.remove('show');
-  if (_pinPromptOnClose) { const fn = _pinPromptOnClose; _pinPromptOnClose = null; setTimeout(fn, 300); }
 }
 
 function _handlePinPromptClick(e) {

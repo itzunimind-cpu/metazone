@@ -113,6 +113,7 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 .vlt-btn.vlt-start-active{ background:var(--muted2);color:var(--text); }
 .vlt-btn.vlt-end{ border-color:rgba(155,28,17,.4);color:var(--red);background:rgba(155,28,17,.08); }
 .vlt-btn.vlt-end:hover:not(:disabled){ background:rgba(155,28,17,.16); }
+/* Shared 4-way event-color family (also used by the placement banner + event log): elim=forest/green, loss=yellow, wipe=red, ewipe=orange */
 .vlt-btn.vlt-ev-elim{  border-color:rgba(44,74,46,.4); color:var(--accent); background:rgba(44,74,46,.08); }
 .vlt-btn.vlt-ev-loss{  border-color:rgba(124,90,0,.4); color:var(--yellow); background:rgba(124,90,0,.08); }
 .vlt-btn.vlt-ev-wipe{  border-color:rgba(155,28,17,.4); color:var(--red); background:rgba(155,28,17,.08); }
@@ -1297,6 +1298,7 @@ let pendingEventCoords = null; // {wx, wy} from placement click
 let drawing = false, circleP1 = null, dSX = 0, dSY = 0, preview = null;
 let pathPoints = [], pathDrawing = false;
 let _moveDrag = null; // {shape, kind, startWX, startWY, orig, moved}
+let _altMoveKeyDown = false; // Alt held → quick-move a shape from within any draw mode, no need to switch to MOVE mode first
 let isPanning = false, spaceDown = false;
 let panSX = 0, panSY = 0, panPX = 0, panPY = 0;
 let pinchActive = false, pinchDist0 = 0, pinchMid0 = {x:0,y:0}, pinchZoom0 = 1, pinchPan0 = {x:0,y:0};
@@ -2931,8 +2933,13 @@ function onKeyDown(e) {
   }
   if(e.key==='z'&&!e.ctrlKey&&!e.metaKey&&!e.target.matches('input,textarea,select')) toggleOverlayCanvas();
   if(e.key==='p'&&!e.ctrlKey&&!e.metaKey&&!e.target.matches('input,textarea,select')) togglePlayPause();
+  if(e.key==='Alt') _altMoveKeyDown=true;
 }
-function onKeyUp(e){ if(e.code==='Space'){ spaceDown=false; canvas.style.cursor='crosshair'; } }
+function onKeyUp(e){
+  if(e.code==='Space'){ spaceDown=false; canvas.style.cursor='crosshair'; }
+  if(e.key==='Alt') _altMoveKeyDown=false;
+}
+window.addEventListener('blur', ()=>{ _altMoveKeyDown=false; }); // Alt-tabbing away shouldn't leave the modifier stuck "on"
 
 // ══════════════════════════════════════════════════════
 // POINTER EVENTS
@@ -2992,6 +2999,17 @@ function onPointerDown(e) {
 
   const shapes = getActiveShapes();
 
+  // Quick-move: hold Alt to grab and drag a shape from within any draw mode, without
+  // switching the toolbar to MOVE first. Same hit-test/drag/persist pipeline as MOVE mode —
+  // falls through to the current mode's normal behavior if nothing is under the cursor.
+  if(_altMoveKeyDown && state.mode!=='move'){
+    const hit=hitTestMovable(wx, wy);
+    if(hit){
+      _moveDrag={ shape:hit.shape, kind:hit.kind, startWX:wx, startWY:wy, orig:snapshotShapePos(hit.shape), moved:false };
+      canvas.style.cursor='grabbing';
+      return;
+    }
+  }
   if(state.mode==='erase'){
     eraseAt(wx,wy); return;
   }
@@ -3057,6 +3075,9 @@ function onPointerMove(e) {
   if(state.mode==='move'){
     canvas.style.cursor = hitTestMovable(wx,wy) ? 'grab' : 'default';
     return;
+  }
+  if(_altMoveKeyDown){
+    canvas.style.cursor = hitTestMovable(wx,wy) ? 'grab' : (state.mode==='erase' ? 'not-allowed' : 'crosshair');
   }
   if(pathDrawing&&pathPoints.length>0){
     if(e.touches) pathPoints.push({x:wx,y:wy,t:matchActive?matchTime:state.time});
@@ -3361,6 +3382,16 @@ function draw() {
     if(activeTeam) drawShape(preview,true,activeTeam.color,1);
   }
 
+  // Wipe pins (teams.wipe_x / wipe_y) — ported from editor.html
+  teams.filter(t=>t.match_id===state.matchId).forEach(t=>{
+    if(t.wipe_x!=null&&t.wipe_y!=null) drawWipePin(t.wipe_x,t.wipe_y);
+  });
+
+  // Death pins (match_players.death_x / death_y) — ported from editor.html
+  matchPlayers.forEach(p=>{
+    if(p.death_x!=null&&p.death_y!=null) drawDeathPin(p.death_x,p.death_y);
+  });
+
   // Circle p1 indicator
   if(circleP1){
     ctx.strokeStyle='rgba(255,255,255,.5)'; ctx.lineWidth=1.5/zoom;
@@ -3377,9 +3408,8 @@ function draw() {
 function drawShape(s, isPreview, teamColor, alphaMult) {
   const am=alphaMult??1;
   const lw=2/zoom, op=0.85;
-  let rgb;
-  rgb = hexRgb(teamColor||'#2C4A2E');
-  const [r,g,b]=rgb;
+  // Ported from editor.html: shapes are colored by fixed type (tagRgb), not by team.
+  const [r,g,b]=tagRgb(s.tag);
   const stroke=`rgba(${r},${g},${b},${(op*am).toFixed(2)})`;
   const fill  =`rgba(${r},${g},${b},${(op*am*.12).toFixed(2)})`;
   const vodDash=s.source==='vod'?[4/zoom,3/zoom]:[]; // Session 42: subtle provenance tell
@@ -3389,8 +3419,7 @@ function drawShape(s, isPreview, teamColor, alphaMult) {
   } else if(s.type==='path'){
     drawPath(s.points,stroke,lw,isPreview,vodDash);
   } else if(s.type==='pin'||s.type==='fight'){
-    const pin=`rgba(${r},${g},${b},${am.toFixed(2)})`;
-    drawPinMarker(s.x,s.y,pin,isPreview,s.source==='vod');
+    drawPinMarker(s,isPreview,am);
     if(s.type==='fight'&&s.teamA){
       ctx.fillStyle=`rgba(${r},${g},${b},${am.toFixed(2)})`;
       ctx.font=`bold ${9/zoom}px JetBrains Mono,monospace`;
@@ -3400,15 +3429,11 @@ function drawShape(s, isPreview, teamColor, alphaMult) {
 }
 
 function drawZoneCircle(s, isPreview) {
+  // Ported from editor.html: stroke-only white ring, no fill, no label.
   const lw=2/zoom, op=.85;
-  const stroke=`rgba(44,74,46,${op.toFixed(2)})`, fill=`rgba(44,74,46,${(op*.12).toFixed(2)})`;
-  ctx.strokeStyle=stroke; ctx.fillStyle=fill; ctx.lineWidth=lw;
-  ctx.setLineDash(s.source==='vod'?[4/zoom,3/zoom]:[]);
-  ctx.beginPath(); ctx.arc(s.cx,s.cy,s.r,0,Math.PI*2); ctx.fill(); ctx.stroke();
-  ctx.fillStyle=`rgba(44,74,46,.9)`; ctx.font=`bold ${13/zoom}px JetBrains Mono,monospace`;
-  ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText(`Z${s.zone_phase||''}`,s.cx,s.cy);
-  ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+  ctx.beginPath(); ctx.arc(s.cx,s.cy,s.r,0,Math.PI*2);
+  ctx.strokeStyle=`rgba(255,255,255,${op.toFixed(2)})`; ctx.lineWidth=lw;
+  ctx.setLineDash(s.source==='vod'?[4/zoom,3/zoom]:[]); ctx.stroke();
 }
 
 function drawArrow(x1,y1,x2,y2,stroke,lw) {
@@ -3435,16 +3460,68 @@ function drawPath(points, stroke, lw, isPreview, vodDash) {
   if(points.length>=2) drawArrow(points[points.length-2].x,points[points.length-2].y,points[points.length-1].x,points[points.length-1].y,stroke,lw);
 }
 
-function drawPinMarker(x,y,pin,isPreview,isVodSourced) {
-  const r=(isPreview?6:7)/zoom;
-  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fillStyle=pin; ctx.fill();
-  ctx.beginPath(); ctx.arc(x,y,r*.35,0,Math.PI*2); ctx.fillStyle='rgba(0,0,0,.6)'; ctx.fill();
+function drawPinMarker(s, isPreview, alphaMult) {
+  // Ported from editor.html: fight = orange diamond + white X; plain pin = small teal circle.
+  const x=s.x, y=s.y;
+  const dr=mpx(isPreview?9:11);
+
+  if(s.tag==='fight'||s.type==='fight'){
+    const [r,g,b]=tagRgb('fight');
+    ctx.beginPath();
+    ctx.moveTo(x,y-dr); ctx.lineTo(x+dr,y); ctx.lineTo(x,y+dr); ctx.lineTo(x-dr,y);
+    ctx.closePath(); ctx.fillStyle=`rgb(${r},${g},${b})`; ctx.fill();
+    const d=mpx(6);
+    ctx.beginPath();
+    ctx.moveTo(x-d,y-d); ctx.lineTo(x+d,y+d); ctx.moveTo(x+d,y-d); ctx.lineTo(x-d,y+d);
+    ctx.strokeStyle='#fff'; ctx.lineWidth=mpx(2.2); ctx.lineCap='round'; ctx.stroke();
+  } else {
+    const cr=mpx(6);
+    ctx.beginPath(); ctx.arc(x,y,cr,0,Math.PI*2);
+    ctx.fillStyle='rgb(45,212,191)'; ctx.fill();
+  }
+
   // Session 42: subtle provenance ring for VOD-sourced pin/fight markers
-  if(isVodSourced){
-    ctx.beginPath(); ctx.arc(x,y,r+3/zoom,0,Math.PI*2);
+  if(s.source==='vod'){
+    ctx.beginPath(); ctx.arc(x,y,dr+mpx(4),0,Math.PI*2);
     ctx.setLineDash([3/zoom,2/zoom]); ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.lineWidth=1/zoom; ctx.stroke();
     ctx.setLineDash([]);
   }
+}
+
+function drawWipePin(x, y) {
+  // Ported from editor.html: teal diamond + white circle (top) + white X (bottom) + stem.
+  const dr=mpx(11);
+  ctx.beginPath();
+  ctx.moveTo(x,y-dr); ctx.lineTo(x+dr,y); ctx.lineTo(x,y+dr); ctx.lineTo(x-dr,y);
+  ctx.closePath(); ctx.fillStyle='rgb(45,212,191)'; ctx.fill();
+  ctx.beginPath(); ctx.arc(x,y-mpx(7),mpx(4),0,Math.PI*2);
+  ctx.strokeStyle='#fff'; ctx.lineWidth=mpx(2); ctx.stroke();
+  const d=mpx(5);
+  ctx.beginPath();
+  ctx.moveTo(x-d,y+mpx(5)-d*.7); ctx.lineTo(x+d,y+mpx(5)+d*.7);
+  ctx.moveTo(x+d,y+mpx(5)-d*.7); ctx.lineTo(x-d,y+mpx(5)+d*.7);
+  ctx.strokeStyle='#fff'; ctx.lineWidth=mpx(2); ctx.lineCap='round'; ctx.stroke();
+}
+
+function drawDeathPin(x, y) {
+  // Ported from editor.html: orange diamond + white X + 4 corner chevron ticks + stem.
+  const dr=mpx(13);
+  const fc='rgb(200,94,10)';
+  const wh='#fff';
+  ctx.beginPath();
+  ctx.moveTo(x,y-dr); ctx.lineTo(x+dr,y); ctx.lineTo(x,y+dr); ctx.lineTo(x-dr,y);
+  ctx.closePath(); ctx.fillStyle=fc; ctx.fill();
+  const d=mpx(6);
+  ctx.beginPath();
+  ctx.moveTo(x-d,y-d); ctx.lineTo(x+d,y+d); ctx.moveTo(x+d,y-d); ctx.lineTo(x-d,y+d);
+  ctx.strokeStyle=wh; ctx.lineWidth=mpx(2.2); ctx.lineCap='round'; ctx.stroke();
+  const od=mpx(11), os=mpx(3.5);
+  ctx.lineWidth=mpx(1.8); ctx.lineJoin='round'; ctx.lineCap='round';
+  ctx.strokeStyle=wh;
+  ctx.beginPath(); ctx.moveTo(x-od,y-os); ctx.lineTo(x-od+os,y); ctx.lineTo(x-od,y+os); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x+od,y-os); ctx.lineTo(x+od-os,y); ctx.lineTo(x+od,y+os); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x-os,y-od); ctx.lineTo(x,y-od+os); ctx.lineTo(x+os,y-od); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x-os,y+od); ctx.lineTo(x,y+od-os); ctx.lineTo(x+os,y+od); ctx.stroke();
 }
 
 // ══════════════════════════════════════════════════════
@@ -4097,6 +4174,10 @@ async function manualSave() {
 function getActiveTeam(){ return state.activeTeamId?teams.find(t=>t.id===state.activeTeamId)||null:null; }
 function getActiveShapes(){ if(!state.activeTeamId)return null; if(!shapesCache[state.activeTeamId])shapesCache[state.activeTeamId]=[]; return shapesCache[state.activeTeamId]; }
 function hexRgb(hex){ const h=hex.replace('#',''); return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; }
+// Fixed type-based marker palette — ported from editor.html so shape colors read the same on both pages.
+function tagRgb(tag){ if(tag==='zone') return [255,255,255]; if(tag==='fight') return [200,94,10]; if(tag==='rotation') return [74,222,128]; if(tag==='pin') return [200,94,10]; return [200,200,200]; }
+// World-space marker size helper (ported from editor.html) — markers scale 1:1 with map zoom.
+function mpx(base){ return base*0.075; }
 function fmtTime(s){ s=Math.max(0,Math.round(s||0)); return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0'); }
 function setSyncState(s){ /* nav sync badge removed — kept as a no-op since save/autosave flow still calls this at ~16 sites */ }
 function setActiveTeam(teamId) {
