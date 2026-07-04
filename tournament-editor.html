@@ -203,7 +203,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);height:
 @keyframes toastIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
 
 /* LOADING — content-shaped skeleton mimicking the day/match tree, not a plain spinner */
-#loading-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:500;flex-direction:column;gap:20px;padding:40px;}
+#loading-screen{position:fixed;top:55px;left:0;right:0;bottom:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:500;flex-direction:column;gap:20px;padding:40px;}
 #loading-screen.hidden{display:none;}
 @keyframes shimmer{0%{background-position:-800px 0}100%{background-position:800px 0}}
 .skel{background:linear-gradient(90deg,#DDD5C4 25%,#EDE7DC 50%,#DDD5C4 75%);background-size:1600px 100%;animation:shimmer 1.6s infinite linear;border-radius:3px;}
