@@ -115,9 +115,6 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 }
 .vlt-btn:hover{ border-color:var(--muted2);color:var(--text); }
 .vlt-btn:disabled{ opacity:.35;cursor:not-allowed; }
-.vlt-btn.vlt-pill{
-  width:auto;padding:0 12px;gap:6px;font-family:var(--font-display);font-size:11px;font-weight:800;
-}
 .vlt-btn.vlt-start-idle{ border-color:rgba(44,74,46,.4);color:var(--accent);background:rgba(44,74,46,.08); }
 .vlt-btn.vlt-start-idle:hover:not(:disabled){ background:rgba(44,74,46,.16); }
 .vlt-btn.vlt-start-active{ background:var(--muted2);color:var(--text); }
@@ -280,8 +277,8 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 
 /* ── SQUAD PANEL (floating, top-right over canvas) ── */
 #squad-panel{
-  position:absolute;top:14px;right:14px;z-index:15;
-  width:280px;max-height:calc(100% - 28px - 56px); /* leaves ~56px clear at the bottom for YT's native control bar */
+  position:absolute;top:100px;right:14px;z-index:15;
+  width:280px;max-height:calc(100% - 100px - 14px - 56px); /* top offset + bottom margin + ~56px clear for YT's native control bar */
   background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;
   display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;
   box-shadow:0 4px 20px rgba(12,10,7,.28);
@@ -872,7 +869,7 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 
         <div class="vlt-divider"></div>
 
-        <button class="vlt-btn vlt-pill vlt-start-idle" id="btn-start-match" onclick="toggleMatchActive()" disabled title="Start Match"><iconify-icon icon="lucide:play"></iconify-icon> START MATCH</button>
+        <button class="vlt-btn vlt-start-idle" id="btn-start-match" onclick="toggleMatchActive()" disabled title="Start Match"><iconify-icon icon="lucide:play"></iconify-icon></button>
         <button class="vlt-btn vlt-end" id="btn-match-end" onclick="openEndMatchConfirm()" disabled title="End Match"><iconify-icon icon="lucide:square"></iconify-icon></button>
       </div>
 
@@ -1756,14 +1753,16 @@ function updateMatchTimeDisplay() {
 
 function _setStartMatchIdle() {
   const btn = document.getElementById('btn-start-match');
-  btn.innerHTML = '<iconify-icon icon="lucide:play"></iconify-icon> START MATCH';
+  btn.innerHTML = '<iconify-icon icon="lucide:play"></iconify-icon>';
+  btn.title = 'Start Match';
   btn.classList.remove('vlt-start-active');
   btn.classList.add('vlt-start-idle');
 }
 
 function _setStartMatchActive() {
   const btn = document.getElementById('btn-start-match');
-  btn.innerHTML = '<iconify-icon icon="lucide:square"></iconify-icon> RESET OFFSET';
+  btn.innerHTML = '<iconify-icon icon="lucide:square"></iconify-icon>';
+  btn.title = 'Reset Offset';
   btn.classList.remove('vlt-start-idle');
   btn.classList.add('vlt-start-active');
 }
