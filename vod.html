@@ -90,13 +90,6 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 .nav-link:hover{color:rgba(255,255,255,.9);}
 .nav-link.active{color:#fff;border-bottom-color:var(--orange);}
 .header-right{display:flex;align-items:center;gap:10px;}
-.sync-badge{ display:flex;align-items:center;gap:6px;padding:5px 10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:6px; }
-.sync-dot{ width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.4);transition:background .3s;flex-shrink:0; }
-.sync-dot.syncing{ background:var(--yellow);animation:pulse 1s infinite; }
-.sync-dot.saved{ background:#8FD18A; }
-.sync-dot.error{ background:#F08A80; }
-@keyframes pulse{ 0%,100%{opacity:1}50%{opacity:.4} }
-.sync-label{ font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.6);letter-spacing:.08em;text-transform:uppercase; }
 .btn-logout{font-family:var(--font-mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:5px 11px;background:none;border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.6);border-radius:3px;cursor:pointer;transition:all .15s;}
 .btn-logout:hover{border-color:rgba(255,255,255,.5);color:#fff;}
 
@@ -214,8 +207,8 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 #overlay-canvas{ position:absolute;inset:0;z-index:2;cursor:crosshair;opacity:0;transition:opacity .4s ease; }
 #overlay-canvas.map-ready{ opacity:1; }
 #toast-container{
-  position:absolute;top:12px;right:12px;z-index:100;
-  display:flex;flex-direction:column;gap:8px;pointer-events:none;
+  position:absolute;bottom:70px;left:50%;transform:translateX(-50%);z-index:100;
+  display:flex;flex-direction:column-reverse;align-items:center;gap:8px;pointer-events:none;
 }
 .toast{
   background:var(--bg);
@@ -711,12 +704,15 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 }
 .btn-sfd-skip:hover{ border-color:var(--muted);color:var(--text); }
 
-/* ══ SKIP TO MATCH START BANNER ══ */
+/* ══ SKIP TO MATCH START BANNER — a centered floating pill, not a full-width bar,
+   so it never competes with the left toolbar or the squad panel for space ══ */
 #skip-to-start-banner{
-  display:none;align-items:center;gap:10px;padding:7px 14px;
-  background:rgba(44,74,46,.08);border-bottom:1px solid rgba(44,74,46,.2);
+  display:none;align-items:center;gap:10px;padding:9px 12px 9px 16px;
+  background:var(--bg-panel);border:1px solid rgba(44,74,46,.3);border-radius:10px;
+  box-shadow:0 4px 20px rgba(12,10,7,.28);
   font-family:var(--font-mono);font-size:11px;color:var(--accent);flex-shrink:0;
-  position:absolute;top:0;left:0;right:0;width:100%;z-index:20;
+  position:absolute;top:14px;left:50%;transform:translateX(-50%);
+  max-width:min(560px,calc(100% - 100px));z-index:20;
 }
 #skip-to-start-banner.show{ display:flex; }
 .stb-text{ flex:1;letter-spacing:.04em; }
@@ -795,10 +791,6 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
     </nav>
   </div>
   <div class="header-right">
-    <div class="sync-badge">
-      <div class="sync-dot" id="sync-dot"></div>
-      <span class="sync-label" id="sync-label">—</span>
-    </div>
     <button class="btn-logout" onclick="signOut()">LOGOUT</button>
   </div>
 </div>
@@ -4106,7 +4098,7 @@ function getActiveTeam(){ return state.activeTeamId?teams.find(t=>t.id===state.a
 function getActiveShapes(){ if(!state.activeTeamId)return null; if(!shapesCache[state.activeTeamId])shapesCache[state.activeTeamId]=[]; return shapesCache[state.activeTeamId]; }
 function hexRgb(hex){ const h=hex.replace('#',''); return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; }
 function fmtTime(s){ s=Math.max(0,Math.round(s||0)); return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0'); }
-function setSyncState(s){ document.getElementById('sync-dot').className='sync-dot '+s; document.getElementById('sync-label').textContent={syncing:'SAVING…',saved:'SYNCED',error:'ERROR'}[s]||'—'; }
+function setSyncState(s){ /* nav sync badge removed — kept as a no-op since save/autosave flow still calls this at ~16 sites */ }
 function setActiveTeam(teamId) {
   state.activeTeamId = teamId || null;
   draw();
