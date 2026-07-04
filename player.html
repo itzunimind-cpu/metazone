@@ -501,7 +501,6 @@ async function signOut() { await sb.auth.signOut(); window.location.reload(); }
 // ══════════════════════════════════════════════════════
 let _booted = false;
 (async () => {
-  document.getElementById('loading-screen').classList.add('hidden');
   const { data: { session } } = await sb.auth.getSession();
   if (session) {
     currentUser = session.user;
