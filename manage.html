@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>METAZONE — Manage</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Lexend+Deca:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  /* Core palette — parchment design system, copied verbatim from tournament-editor.html */
+  --bg:         #F2EDE4;
+  --bg-panel:   #E8E1D5;
+  --bg-card:    #EDE7DC;
+  --border:     #C9BFA8;
+  --border-dim: #C9BFA8;
+  --border-mid: #A89880;
+  --forest:     #2C4A2E;
+  --olive:      #4E7C2F;
+  --accent:     #2C4A2E;
+  --accent-dim: rgba(44,74,46,.1);
+  --green:      #4E7C2F;
+  --red:        #9B1C11;
+  --orange:     #C85E0A;
+  --yellow:     #7C5A00;
+  --purple:     #4A3870;
+  --text:       #1C1A14;
+  --text-hero:  #0C0A07;
+  --text-label: #2C4A2E;
+  --muted:      #6B6048;
+  --muted2:     #A89880;
+  --font-display: 'Oswald', sans-serif;
+  --font-body:    'Manrope', sans-serif;
+  --font-mono:    'Lexend Deca', sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;}
+
+/* AUTH */
+#auth-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:1000;flex-direction:column;gap:16px;}
+#auth-screen.hidden{display:none;}
+.auth-box{background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:36px 32px;width:360px;display:flex;flex-direction:column;gap:14px;}
+.auth-logo{font-family:var(--font-display);font-size:28px;font-weight:700;color:var(--text-hero);text-align:center;letter-spacing:1px;text-transform:uppercase;}
+.auth-logo-icon{width:44px;height:44px;background:var(--orange);display:inline-flex;align-items:center;justify-content:center;border-radius:3px;margin-bottom:12px;}
+.auth-logo-icon iconify-icon{color:#fff;font-size:22px;}
+.auth-sub{font-family:var(--font-mono);font-size:10px;color:var(--muted);text-align:center;letter-spacing:3px;text-transform:uppercase;}
+.auth-input{width:100%;padding:11px 14px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:8px;font-family:var(--font-body);font-size:14px;outline:none;transition:border-color .2s;}
+.auth-input:focus{border-color:var(--accent);}
+.auth-btn{width:100%;padding:12px;background:var(--accent);color:var(--bg);border:none;border-radius:8px;font-family:var(--font-display);font-size:14px;font-weight:700;cursor:pointer;letter-spacing:.5px;transition:opacity .15s;}
+.auth-btn:hover{opacity:.88;}
+.auth-msg{font-family:var(--font-mono);font-size:11px;color:var(--muted);text-align:center;min-height:16px;}
+.auth-msg.ok{color:var(--green);}.auth-msg.err{color:var(--red);}
+
+/* HEADER */
+#app-header{height:52px;min-height:52px;background:var(--forest);border-bottom:3px solid var(--forest);display:flex;align-items:center;justify-content:space-between;padding:0 20px;z-index:50;flex-shrink:0;}
+.header-left{display:flex;align-items:center;gap:36px;}
+.logo-mark{display:flex;align-items:center;gap:10px;}
+.logo-icon{width:28px;height:28px;background:var(--orange);display:flex;align-items:center;justify-content:center;border-radius:2px;flex-shrink:0;}
+.logo-icon-inner{color:#fff;font-size:15px;display:flex;}
+.logo-text{font-family:var(--font-display);font-size:19px;font-weight:600;letter-spacing:2px;color:#fff;text-transform:uppercase;}
+.header-nav{display:flex;align-items:center;gap:2px;height:52px;}
+.nav-link{font-family:var(--font-mono);font-size:10px;font-weight:500;color:rgba(255,255,255,.6);text-decoration:none;letter-spacing:1px;text-transform:uppercase;padding:0 13px;height:100%;display:flex;align-items:center;border-bottom:3px solid transparent;margin-bottom:-3px;transition:all .15s;}
+.nav-link:hover{color:rgba(255,255,255,.9);}
+.nav-link.active{color:#fff;border-bottom-color:var(--orange);}
+.header-right{display:flex;align-items:center;gap:10px;}
+.btn-logout{font-family:var(--font-mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:5px 11px;background:none;border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.6);border-radius:3px;cursor:pointer;transition:all .15s;}
+.btn-logout:hover{border-color:rgba(255,255,255,.5);color:#fff;}
+
+/* MAIN */
+#app-body{flex:1;overflow-y:auto;padding:28px 32px;}
+.mg-header-row{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:16px;}
+.mg-eyebrow{font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:.2em;text-transform:uppercase;margin-bottom:6px;}
+.mg-title{font-family:var(--font-display);font-size:28px;font-weight:800;letter-spacing:-.02em;color:var(--text-hero);}
+
+/* Tab toggle — segmented pill, same convention as analytics.html's Coach/Analyst tabs */
+.mg-tab{
+  padding:6px 18px;font-size:10px;font-family:var(--font-mono);font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;
+}
+.mg-tab.active{background:var(--accent);color:#F2EDE4;border-color:var(--accent);}
+.mg-tab:hover:not(.active){color:var(--text);border-color:var(--border-mid);}
+.mg-tab:first-child{border-radius:3px 0 0 3px;}
+.mg-tab:last-child{border-radius:0 3px 3px 0;}
+
+.mg-panel{display:none;}
+.mg-panel.active{display:block;}
+
+.chart-wrap{background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:20px;transition:border-color .2s;margin-bottom:20px;}
+.chart-wrap:hover{border-color:rgba(44,74,46,.25);}
+
+.mg-scope-note{font-family:var(--font-mono);font-size:10px;color:var(--muted);line-height:1.6;margin-bottom:16px;padding:10px 14px;background:rgba(107,96,72,.08);border-left:2px solid var(--border-mid);border-radius:2px;}
+
+table.mg-table{width:100%;border-collapse:collapse;}
+table.mg-table th{padding:8px 12px 10px 0;font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;text-align:left;border-bottom:1px solid var(--border);font-weight:700;}
+table.mg-table td{padding:10px 12px 10px 0;font-size:13px;color:var(--text);border-bottom:1px solid var(--border-dim);vertical-align:middle;}
+table.mg-table tr:last-child td{border-bottom:none;}
+.mg-empty{font-family:var(--font-mono);font-size:11px;color:var(--muted);text-align:center;padding:32px;}
+
+.mg-inline-input{padding:5px 8px;font-family:var(--font-body);font-size:12px;border:1px solid var(--border-mid);border-radius:4px;background:var(--bg);color:var(--text);outline:none;}
+.mg-inline-input:focus{border-color:var(--accent);}
+.mg-select{padding:5px 8px;font-family:var(--font-body);font-size:12px;border:1px solid var(--border-mid);border-radius:4px;background:var(--bg);color:var(--text);outline:none;}
+
+.mg-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--border-mid);background:var(--bg);color:var(--muted);border-radius:4px;cursor:pointer;transition:all .15s;}
+.mg-btn:hover{border-color:var(--accent);color:var(--accent);}
+.mg-btn.danger:hover{border-color:var(--red);color:var(--red);}
+.mg-btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);}
+.mg-btn.primary:hover{opacity:.88;color:#fff;}
+.mg-btn[disabled]{opacity:.4;cursor:not-allowed;}
+
+.mg-row-expand{background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:14px;margin-top:8px;display:flex;flex-direction:column;gap:10px;}
+.mg-check-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:4px;font-size:12px;}
+.mg-check-row:hover{background:rgba(44,74,46,.05);}
+
+.mg-filter-bar{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;}
+.mg-filter-bar label{font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;}
+
+.mg-gate-note{font-family:var(--font-mono);font-size:11px;color:var(--orange);background:rgba(200,94,10,.08);border:1px solid rgba(200,94,10,.25);border-radius:4px;padding:12px 14px;}
+
+/* TOAST */
+#toast-container{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:8px;z-index:9999;}
+.toast{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--bg-panel);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:3px;font-family:var(--font-mono);font-size:11px;color:var(--text);letter-spacing:1px;box-shadow:0 2px 16px rgba(12,10,7,.18);animation:toastIn .25s ease;max-width:340px;}
+.toast.ok{border-left-color:var(--green);color:var(--green);}
+.toast.err{border-left-color:var(--red);color:var(--red);}
+.toast.warn{border-left-color:var(--orange);color:var(--orange);}
+@keyframes toastIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+/* CONFIRM MODAL (mirrors index.html's #idx-delete-modal pattern, own ids since this is a separate page) */
+#mg-confirm-modal{position:fixed;inset:0;background:rgba(13,13,13,.55);backdrop-filter:blur(4px);z-index:600;display:none;align-items:center;justify-content:center;}
+#mg-confirm-modal.show{display:flex;}
+.mgm-box{background:var(--bg);border:1px solid var(--red);border-radius:4px;padding:24px;width:340px;display:flex;flex-direction:column;gap:14px;}
+.mgm-box.info{border-color:var(--border-mid);}
+.mgm-icon{font-size:26px;text-align:center;}
+.mgm-title{font-family:var(--font-display);font-size:17px;font-weight:600;color:var(--text-hero);text-align:center;text-transform:uppercase;}
+.mgm-body{font-family:var(--font-mono);font-size:10px;color:var(--muted);text-align:center;line-height:1.7;letter-spacing:.03em;}
+.mgm-actions{display:flex;gap:8px;}
+.btn-mgm-cancel{flex:1;padding:9px;background:none;border:1px solid var(--border-mid);color:var(--muted);border-radius:3px;font-family:var(--font-mono);font-size:10px;letter-spacing:.8px;text-transform:uppercase;cursor:pointer;transition:all .15s;}
+.btn-mgm-cancel:hover{border-color:var(--forest);color:var(--forest);}
+.btn-mgm-confirm{flex:1;padding:9px;background:var(--red);border:none;color:#fff;border-radius:3px;font-family:var(--font-mono);font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;cursor:pointer;transition:opacity .15s;}
+.btn-mgm-confirm:hover{opacity:.85;}
+
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <div style="text-align:center;">
+      <div class="auth-logo-icon"><iconify-icon icon="lucide:layers"></iconify-icon></div>
+      <div class="auth-logo">METAZONE</div>
+      <div class="auth-sub" style="margin-top:4px;">INTELLIGENCE SYSTEMS</div>
+    </div>
+    <input id="auth-email" class="auth-input" type="email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')sendMagicLink()">
+    <button class="auth-btn" onclick="sendMagicLink()">SEND MAGIC LINK</button>
+    <div id="auth-msg" class="auth-msg"></div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header id="app-header">
+  <div class="header-left">
+    <div class="logo-mark">
+      <div class="logo-icon"><div class="logo-icon-inner"><iconify-icon icon="lucide:layers"></iconify-icon></div></div>
+      <span class="logo-text">METAZONE</span>
+    </div>
+    <nav class="header-nav">
+      <a href="index.html" class="nav-link">DASHBOARD</a>
+      <a href="editor.html" class="nav-link">EDITOR</a>
+      <a href="vod.html" class="nav-link">VOD REVIEW</a>
+      <a href="tournament-create.html" class="nav-link">NEW TOURNAMENT</a>
+      <a href="tournament-editor.html" class="nav-link">TOURNAMENT EDITOR</a>
+      <a href="analytics.html" class="nav-link">TEAM ANALYTICS</a>
+      <a href="player.html" class="nav-link">PLAYER ANALYTICS</a>
+      <a href="manage.html" class="nav-link active">MANAGE</a>
+    </nav>
+  </div>
+  <div class="header-right">
+    <button class="btn-logout" onclick="signOut()">SIGN OUT</button>
+  </div>
+</header>
+
+<!-- APP BODY -->
+<div id="app-body">
+  <div class="mg-header-row">
+    <div>
+      <div class="mg-eyebrow">Cross-tournament management</div>
+      <div class="mg-title">MANAGE</div>
+    </div>
+    <div>
+      <button class="mg-tab active" data-tab="teams" onclick="setTab('teams')">TEAMS</button>
+      <button class="mg-tab" data-tab="players" onclick="setTab('players')">PLAYERS</button>
+      <button class="mg-tab" data-tab="matches" onclick="setTab('matches')">MATCHES</button>
+    </div>
+  </div>
+
+  <!-- ══ TEAMS TAB ══ -->
+  <div class="mg-panel active" id="tab-teams">
+    <div class="mg-scope-note">Rename, merge, or split team identities — these are the canonical cross-tournament records each roster/match team links to. Renaming here does not change existing per-match team labels; those stay editable individually in Editor. Applies to pool-format tournament rosters and per-match teams — group-stage tournament rosters (which store team names without an identity link) are unaffected.</div>
+    <div id="teams-gate-note" style="display:none;" class="mg-gate-note">Team identity management needs the Session 43 DB migration (adds <code>team_identity_id</code> to <code>teams</code>/<code>tournament_teams</code>). Ask an admin to run it — until then this tab is read-only.</div>
+    <div class="chart-wrap">
+      <table class="mg-table" id="teams-table">
+        <thead><tr><th>Team Identity</th><th>Match Teams</th><th>Roster Entries</th><th>Tournaments</th><th></th></tr></thead>
+        <tbody id="teams-tbody"></tbody>
+      </table>
+      <div id="teams-empty" class="mg-empty" style="display:none;">No team identities found yet.</div>
+    </div>
+  </div>
+
+  <!-- ══ PLAYERS TAB ══ -->
+  <div class="mg-panel" id="tab-players">
+    <div class="mg-scope-note">Edit a player's name/IGN/role, or manage which tournaments they're rostered on.</div>
+    <div class="chart-wrap">
+      <table class="mg-table" id="players-table">
+        <thead><tr><th>Name</th><th>IGN</th><th>Role</th><th>Tournaments</th><th></th></tr></thead>
+        <tbody id="players-tbody"></tbody>
+      </table>
+      <div id="players-empty" class="mg-empty" style="display:none;">No players found yet.</div>
+    </div>
+  </div>
+
+  <!-- ══ MATCHES TAB ══ -->
+  <div class="mg-panel" id="tab-matches">
+    <div class="mg-filter-bar">
+      <label>Tournament</label>
+      <select class="mg-select" id="matches-filter-tournament" onchange="renderMatchesTab()"><option value="all">ALL</option></select>
+      <label>Map</label>
+      <select class="mg-select" id="matches-filter-map" onchange="renderMatchesTab()"><option value="all">ALL</option></select>
+    </div>
+    <div class="chart-wrap">
+      <table class="mg-table" id="matches-table">
+        <thead><tr><th>Match</th><th>Day</th><th>Tournament</th><th>Map</th><th></th></tr></thead>
+        <tbody id="matches-tbody"></tbody>
+      </table>
+      <div id="matches-empty" class="mg-empty" style="display:none;">No matches found for this filter.</div>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div id="mg-confirm-modal">
+  <div class="mgm-box" id="mgm-box">
+    <div class="mgm-icon" id="mgm-icon">⚠️</div>
+    <div class="mgm-title" id="mgm-title">Are you sure?</div>
+    <div class="mgm-body" id="mgm-body">This action cannot be undone.</div>
+    <div class="mgm-actions">
+      <button class="btn-mgm-cancel" onclick="closeConfirmModal()">CANCEL</button>
+      <button class="btn-mgm-confirm" id="mgm-confirm-btn" onclick="_mgmConfirm()">CONFIRM</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<script>
+const SUPA_URL='https://qsiqgtdgpcyishtayqhy.supabase.co';
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFzaXFndGRncGN5aXNodGF5cWh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5OTMxNTYsImV4cCI6MjA5MjU2OTE1Nn0.tqr45OipzZEr7kMZBIQaSK7mXyUIdWAS_9y1kFabhYI';
+const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
+
+let currentUser=null;
+let currentTab='teams';
+
+// Data caches
+let allTeamIdentities=[], allTeams=[], allTournamentTeams=[];
+let allPlayers=[], allTournamentPlayers=[];
+let allTournaments=[], allDays=[], allMatches=[];
+let _hasTeamIdentityCols=false;
+
+// ══════════════════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════════════════
+function toast(msg, type='ok') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+// ══════════════════════════════════════════════════════
+// CONFIRM MODAL (generic — used for merges and deletes)
+// ══════════════════════════════════════════════════════
+let _mgmCb=null;
+function showConfirmModal(title, body, onConfirm, confirmLabel, tone) {
+  _mgmCb = onConfirm;
+  document.getElementById('mgm-title').textContent = title;
+  document.getElementById('mgm-body').textContent = body;
+  document.getElementById('mgm-confirm-btn').textContent = confirmLabel || 'CONFIRM';
+  document.getElementById('mgm-box').className = 'mgm-box' + (tone === 'info' ? ' info' : '');
+  document.getElementById('mgm-icon').textContent = tone === 'info' ? 'ℹ️' : '⚠️';
+  document.getElementById('mg-confirm-modal').classList.add('show');
+}
+function closeConfirmModal() {
+  document.getElementById('mg-confirm-modal').classList.remove('show');
+  _mgmCb = null;
+}
+function _mgmConfirm() {
+  const cb = _mgmCb;
+  closeConfirmModal();
+  if (typeof cb === 'function') cb();
+}
+
+// ══════════════════════════════════════════════════════
+// TABS
+// ══════════════════════════════════════════════════════
+function setTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.mg-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.querySelectorAll('.mg-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + tab));
+}
+
+// ══════════════════════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════════════════════
+async function sendMagicLink() {
+  const email = document.getElementById('auth-email').value.trim();
+  const msg = document.getElementById('auth-msg');
+  if (!email) { msg.textContent = 'Enter your email.'; msg.className = 'auth-msg err'; return; }
+  msg.textContent = 'Sending…'; msg.className = 'auth-msg';
+  const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.href } });
+  if (error) { msg.textContent = error.message; msg.className = 'auth-msg err'; }
+  else { msg.textContent = '✓ Check your inbox for the link'; msg.className = 'auth-msg ok'; }
+}
+async function signOut() { if (sb) await sb.auth.signOut(); }
+
+// ══════════════════════════════════════════════════════
+// BOOT — plain getSession() → loadAllData(), mirrors index.html's pattern
+// ══════════════════════════════════════════════════════
+let _booted = false;
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    _booted = true; currentUser = session.user;
+    document.getElementById('auth-screen').classList.add('hidden');
+    await loadAllData();
+  }
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      if (_booted) return;
+      _booted = true; currentUser = session.user;
+      document.getElementById('auth-screen').classList.add('hidden');
+      await loadAllData();
+    }
+    if (event === 'SIGNED_OUT') {
+      _booted = false; currentUser = null;
+      document.getElementById('auth-screen').classList.remove('hidden');
+    }
+  });
+})();
+
+async function _detectTeamIdentityCols() {
+  const { error } = await sb.from('teams').select('team_identity_id').limit(1);
+  _hasTeamIdentityCols = !error;
+}
+
+async function loadAllData() {
+  const uid = currentUser.id;
+  await _detectTeamIdentityCols();
+  const [tn, dy, mt, ti, tm, tt, pl, tp] = await Promise.all([
+    sb.from('tournaments').select('id,name').eq('user_id', uid).order('created_at'),
+    sb.from('days').select('id,tournament_id,name').eq('user_id', uid).order('order_index'),
+    sb.from('matches').select('id,day_id,name,map_key,duration_seconds,created_at').order('created_at', { ascending: false }),
+    sb.from('team_identities').select('id,canonical_name,created_at').eq('user_id', uid).order('canonical_name'),
+    _hasTeamIdentityCols
+      ? sb.from('teams').select('id,match_id,name,team_identity_id').eq('user_id', uid)
+      : Promise.resolve({ data: [] }),
+    _hasTeamIdentityCols
+      ? sb.from('tournament_teams').select('id,tournament_id,team_name,team_identity_id').eq('user_id', uid)
+      : Promise.resolve({ data: [] }),
+    sb.from('players').select('id,name,ign,role,created_at').eq('user_id', uid).order('name'),
+    sb.from('tournament_players').select('id,tournament_id,player_id').eq('user_id', uid),
+  ]);
+  allTournaments = tn.data || [];
+  allDays = dy.data || [];
+  // matches has no user_id column — scope by day ownership instead (matches Section 2's "never assume ownership columns exist" caution)
+  const ownedDayIds = new Set(allDays.map(d => d.id));
+  allMatches = (mt.data || []).filter(m => ownedDayIds.has(m.day_id));
+  allTeamIdentities = ti.data || [];
+  allTeams = tm.data || [];
+  allTournamentTeams = tt.data || [];
+  allPlayers = pl.data || [];
+  allTournamentPlayers = tp.data || [];
+
+  document.getElementById('teams-gate-note').style.display = _hasTeamIdentityCols ? 'none' : 'block';
+
+  renderTeamsTab();
+  renderPlayersTab();
+  buildMatchesFilters();
+  renderMatchesTab();
+}
+
+// Derive a teams-row's tournament id via match_id -> days.tournament_id
+function _tournamentIdForMatch(matchId) {
+  const m = allMatches.find(x => x.id === matchId);
+  if (!m) return null;
+  const d = allDays.find(x => x.id === m.day_id);
+  return d ? d.tournament_id : null;
+}
+
+// ══════════════════════════════════════════════════════
+// TEAMS TAB
+// ══════════════════════════════════════════════════════
+function renderTeamsTab() {
+  const tbody = document.getElementById('teams-tbody');
+  tbody.innerHTML = '';
+  if (!_hasTeamIdentityCols || !allTeamIdentities.length) {
+    document.getElementById('teams-empty').style.display = 'block';
+    return;
+  }
+  document.getElementById('teams-empty').style.display = 'none';
+
+  allTeamIdentities.forEach(ti => {
+    const teamRows = allTeams.filter(t => t.team_identity_id === ti.id);
+    const ttRows = allTournamentTeams.filter(t => t.team_identity_id === ti.id);
+    const tournamentIds = new Set([
+      ...ttRows.map(t => t.tournament_id),
+      ...teamRows.map(t => _tournamentIdForMatch(t.match_id)).filter(Boolean),
+    ]);
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>
+        <span class="mg-name-display" id="ti-name-${ti.id}">${esc(ti.canonical_name)}</span>
+        <input class="mg-inline-input" id="ti-name-input-${ti.id}" style="display:none;" value="${esc(ti.canonical_name)}" onkeydown="if(event.key==='Enter')saveRenameIdentity('${ti.id}')">
+      </td>
+      <td>${teamRows.length}</td>
+      <td>${ttRows.length}</td>
+      <td>${tournamentIds.size}</td>
+      <td style="white-space:nowrap;">
+        <button class="mg-btn" id="ti-rename-btn-${ti.id}" onclick="startRenameIdentity('${ti.id}')">RENAME</button>
+        <button class="mg-btn" onclick="openMergeRow('${ti.id}')">MERGE</button>
+        <button class="mg-btn" onclick="openSplitRow('${ti.id}')" ${(teamRows.length + ttRows.length) < 2 ? 'disabled' : ''}>SPLIT</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+
+    // Expandable merge/split row, hidden by default
+    const expandTr = document.createElement('tr');
+    expandTr.id = `ti-expand-${ti.id}`;
+    expandTr.style.display = 'none';
+    expandTr.innerHTML = `<td colspan="5"><div class="mg-row-expand" id="ti-expand-body-${ti.id}"></div></td>`;
+    tbody.appendChild(expandTr);
+  });
+}
+
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function startRenameIdentity(id) {
+  document.getElementById(`ti-name-${id}`).style.display = 'none';
+  document.getElementById(`ti-name-input-${id}`).style.display = 'inline-block';
+  document.getElementById(`ti-rename-btn-${id}`).textContent = 'SAVE';
+  document.getElementById(`ti-rename-btn-${id}`).setAttribute('onclick', `saveRenameIdentity('${id}')`);
+  document.getElementById(`ti-name-input-${id}`).focus();
+}
+
+async function saveRenameIdentity(id) {
+  const input = document.getElementById(`ti-name-input-${id}`);
+  const newName = input.value.trim();
+  if (!newName) { toast('Name cannot be empty.', 'err'); return; }
+  const { error } = await sb.from('team_identities').update({ canonical_name: newName }).eq('id', id);
+  if (error) { toast('Rename failed: ' + error.message, 'err'); return; }
+  const ti = allTeamIdentities.find(x => x.id === id);
+  if (ti) ti.canonical_name = newName;
+  toast('Renamed.', 'ok');
+  renderTeamsTab();
+}
+
+function openMergeRow(sourceId) {
+  const expandTr = document.getElementById(`ti-expand-${sourceId}`);
+  const isOpen = expandTr.style.display !== 'none';
+  document.querySelectorAll('tr[id^="ti-expand-"]').forEach(e => e.style.display = 'none');
+  if (isOpen) return;
+  const others = allTeamIdentities.filter(x => x.id !== sourceId);
+  const body = document.getElementById(`ti-expand-body-${sourceId}`);
+  body.innerHTML = `
+    <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:.05em;">Merge into which identity? All teams/roster entries under this identity move to the target, and this identity is deleted.</div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <select class="mg-select" id="merge-target-${sourceId}">
+        ${others.map(o => `<option value="${o.id}">${esc(o.canonical_name)}</option>`).join('')}
+      </select>
+      <button class="mg-btn primary" onclick="confirmMergeStart('${sourceId}')" ${!others.length ? 'disabled' : ''}>MERGE</button>
+      <button class="mg-btn" onclick="document.getElementById('ti-expand-${sourceId}').style.display='none'">CANCEL</button>
+    </div>
+  `;
+  expandTr.style.display = 'table-row';
+}
+
+function confirmMergeStart(sourceId) {
+  const targetId = document.getElementById(`merge-target-${sourceId}`).value;
+  const source = allTeamIdentities.find(x => x.id === sourceId);
+  const target = allTeamIdentities.find(x => x.id === targetId);
+  showConfirmModal(
+    'Merge team identities?',
+    `"${source.canonical_name}" will be merged into "${target.canonical_name}" and deleted. This cannot be undone.`,
+    () => confirmMergeIdentities(sourceId, targetId),
+    'MERGE'
+  );
+}
+
+async function confirmMergeIdentities(sourceId, targetId) {
+  if (sourceId === targetId) { toast('Cannot merge an identity into itself.', 'err'); return; }
+  const uid = currentUser.id;
+  const { error: e1 } = await sb.from('teams').update({ team_identity_id: targetId }).eq('team_identity_id', sourceId).eq('user_id', uid);
+  if (e1) { toast('Merge failed at step 1 (teams): ' + e1.message, 'err'); return; }
+  const { error: e2 } = await sb.from('tournament_teams').update({ team_identity_id: targetId }).eq('team_identity_id', sourceId).eq('user_id', uid);
+  if (e2) { toast('Merge partially applied (teams reassigned, tournament_teams failed): ' + e2.message, 'err'); return; }
+  const { error: e3 } = await sb.from('team_identities').delete().eq('id', sourceId).eq('user_id', uid);
+  if (e3) { toast('Reassignment succeeded but source identity delete failed — safe to retry delete only.', 'warn'); }
+  allTeams.forEach(t => { if (t.team_identity_id === sourceId) t.team_identity_id = targetId; });
+  allTournamentTeams.forEach(t => { if (t.team_identity_id === sourceId) t.team_identity_id = targetId; });
+  allTeamIdentities = allTeamIdentities.filter(ti => ti.id !== sourceId);
+  renderTeamsTab();
+  toast('Merged successfully.', 'ok');
+}
+
+function openSplitRow(identityId) {
+  const expandTr = document.getElementById(`ti-expand-${identityId}`);
+  const isOpen = expandTr.style.display !== 'none';
+  document.querySelectorAll('tr[id^="ti-expand-"]').forEach(e => e.style.display = 'none');
+  if (isOpen) return;
+  const teamRows = allTeams.filter(t => t.team_identity_id === identityId);
+  const ttRows = allTournamentTeams.filter(t => t.team_identity_id === identityId);
+  const body = document.getElementById(`ti-expand-body-${identityId}`);
+  const rowsHtml = [
+    ...teamRows.map(t => `<label class="mg-check-row"><input type="checkbox" class="split-team-cb" value="${t.id}"> ${esc(t.name)} <span style="color:var(--muted2);font-family:var(--font-mono);font-size:9px;">(match team)</span></label>`),
+    ...ttRows.map(t => `<label class="mg-check-row"><input type="checkbox" class="split-tt-cb" value="${t.id}"> ${esc(t.team_name)} <span style="color:var(--muted2);font-family:var(--font-mono);font-size:9px;">(roster team)</span></label>`),
+  ].join('');
+  body.innerHTML = `
+    <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:.05em;">Select which rows should split off into a brand-new identity. Unselected rows stay on this identity.</div>
+    <div id="split-rows-${identityId}">${rowsHtml}</div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <input class="mg-inline-input" id="split-new-name-${identityId}" placeholder="New identity name">
+      <button class="mg-btn primary" onclick="confirmSplitStart('${identityId}')">SPLIT SELECTED</button>
+      <button class="mg-btn" onclick="document.getElementById('ti-expand-${identityId}').style.display='none'">CANCEL</button>
+    </div>
+  `;
+  expandTr.style.display = 'table-row';
+}
+
+function confirmSplitStart(identityId) {
+  const container = document.getElementById(`split-rows-${identityId}`);
+  const teamIds = [...container.querySelectorAll('.split-team-cb:checked')].map(el => el.value);
+  const ttIds = [...container.querySelectorAll('.split-tt-cb:checked')].map(el => el.value);
+  const newName = document.getElementById(`split-new-name-${identityId}`).value.trim();
+  if (!newName) { toast('Enter a name for the new identity.', 'err'); return; }
+  if (!teamIds.length && !ttIds.length) { toast('Select at least one row to split off.', 'err'); return; }
+  showConfirmModal(
+    'Split into new identity?',
+    `Create "${newName}" and move ${teamIds.length + ttIds.length} selected row(s) onto it. The original identity keeps everything else.`,
+    () => confirmSplitIdentity(teamIds, ttIds, newName),
+    'SPLIT',
+    'info'
+  );
+}
+
+async function confirmSplitIdentity(selectedTeamRowIds, selectedTournamentTeamRowIds, newName) {
+  const uid = currentUser.id;
+  const { data: newIdentity, error: e1 } = await sb.from('team_identities')
+    .insert({ user_id: uid, canonical_name: newName }).select('id,canonical_name,created_at').single();
+  if (e1) { toast('Split failed creating new identity: ' + e1.message, 'err'); return; }
+  if (selectedTeamRowIds.length) {
+    const { error: e2 } = await sb.from('teams').update({ team_identity_id: newIdentity.id }).in('id', selectedTeamRowIds).eq('user_id', uid);
+    if (e2) { toast('New identity created but teams reassignment failed — retry split.', 'err'); return; }
+  }
+  if (selectedTournamentTeamRowIds.length) {
+    const { error: e3 } = await sb.from('tournament_teams').update({ team_identity_id: newIdentity.id }).in('id', selectedTournamentTeamRowIds).eq('user_id', uid);
+    if (e3) { toast('Teams split but tournament_teams reassignment failed — retry split for remaining rows.', 'warn'); }
+  }
+  allTeamIdentities.push(newIdentity);
+  allTeams.forEach(t => { if (selectedTeamRowIds.includes(t.id)) t.team_identity_id = newIdentity.id; });
+  allTournamentTeams.forEach(t => { if (selectedTournamentTeamRowIds.includes(t.id)) t.team_identity_id = newIdentity.id; });
+  renderTeamsTab();
+  toast('Split into new identity "' + newName + '".', 'ok');
+}
+
+// ══════════════════════════════════════════════════════
+// PLAYERS TAB
+// ══════════════════════════════════════════════════════
+function renderPlayersTab() {
+  const tbody = document.getElementById('players-tbody');
+  tbody.innerHTML = '';
+  if (!allPlayers.length) {
+    document.getElementById('players-empty').style.display = 'block';
+    return;
+  }
+  document.getElementById('players-empty').style.display = 'none';
+
+  allPlayers.forEach(p => {
+    const tCount = allTournamentPlayers.filter(tp => tp.player_id === p.id).length;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input class="mg-inline-input" style="width:120px;" id="pl-name-${p.id}" value="${esc(p.name)}"></td>
+      <td><input class="mg-inline-input" style="width:100px;" id="pl-ign-${p.id}" value="${esc(p.ign || '')}" placeholder="—"></td>
+      <td><input class="mg-inline-input" style="width:90px;" id="pl-role-${p.id}" value="${esc(p.role || '')}" placeholder="—"></td>
+      <td>${tCount}</td>
+      <td style="white-space:nowrap;">
+        <button class="mg-btn" onclick="savePlayerEdit('${p.id}')">SAVE</button>
+        <button class="mg-btn" onclick="openRosterEditor('${p.id}')">ROSTERS</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+
+    const expandTr = document.createElement('tr');
+    expandTr.id = `pl-expand-${p.id}`;
+    expandTr.style.display = 'none';
+    expandTr.innerHTML = `<td colspan="5"><div class="mg-row-expand" id="pl-expand-body-${p.id}"></div></td>`;
+    tbody.appendChild(expandTr);
+  });
+}
+
+async function savePlayerEdit(playerId) {
+  const name = document.getElementById(`pl-name-${playerId}`).value.trim();
+  const ign = document.getElementById(`pl-ign-${playerId}`).value.trim();
+  const role = document.getElementById(`pl-role-${playerId}`).value.trim();
+  if (!name) { toast('Name cannot be empty.', 'err'); return; }
+  const { error } = await sb.from('players').update({ name, ign: ign || null, role: role || null }).eq('id', playerId);
+  if (error) { toast('Update failed: ' + error.message, 'err'); return; }
+  const p = allPlayers.find(x => x.id === playerId);
+  if (p) { p.name = name; p.ign = ign || null; p.role = role || null; }
+  toast('Player updated.', 'ok');
+}
+
+function openRosterEditor(playerId) {
+  const expandTr = document.getElementById(`pl-expand-${playerId}`);
+  const isOpen = expandTr.style.display !== 'none';
+  document.querySelectorAll('tr[id^="pl-expand-"]').forEach(e => e.style.display = 'none');
+  if (isOpen) return;
+
+  const myTournamentIds = new Set(allTournamentPlayers.filter(tp => tp.player_id === playerId).map(tp => tp.tournament_id));
+  const rosteredHtml = allTournaments.filter(t => myTournamentIds.has(t.id)).map(t => {
+    const tpRow = allTournamentPlayers.find(tp => tp.player_id === playerId && tp.tournament_id === t.id);
+    return `<div class="mg-check-row" style="justify-content:space-between;">${esc(t.name)} <button class="mg-btn danger" onclick="removePlayerFromRoster('${tpRow.id}','${playerId}')">REMOVE</button></div>`;
+  }).join('') || '<div style="font-family:var(--font-mono);font-size:10px;color:var(--muted2);">Not rostered on any tournament yet.</div>';
+
+  const availableTournaments = allTournaments.filter(t => !myTournamentIds.has(t.id));
+  const body = document.getElementById(`pl-expand-body-${playerId}`);
+  body.innerHTML = `
+    <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:.05em;">TOURNAMENT ROSTERS</div>
+    ${rosteredHtml}
+    <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
+      <select class="mg-select" id="roster-add-select-${playerId}">
+        ${availableTournaments.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('')}
+      </select>
+      <button class="mg-btn" onclick="addPlayerToTournamentRoster(document.getElementById('roster-add-select-${playerId}').value,'${playerId}')" ${!availableTournaments.length ? 'disabled' : ''}>ADD TO TOURNAMENT</button>
+      <button class="mg-btn" onclick="document.getElementById('pl-expand-${playerId}').style.display='none'">CLOSE</button>
+    </div>
+  `;
+  expandTr.style.display = 'table-row';
+}
+
+async function addPlayerToTournamentRoster(tournamentId, playerId) {
+  if (!tournamentId) { toast('No tournament selected.', 'err'); return; }
+  const { data, error } = await sb.from('tournament_players')
+    .insert({ tournament_id: tournamentId, player_id: playerId, user_id: currentUser.id }).select('id,tournament_id,player_id').single();
+  if (error) { toast('Add failed: ' + error.message, 'err'); return; }
+  allTournamentPlayers.push(data);
+  toast('Added to roster.', 'ok');
+  renderPlayersTab();
+  openRosterEditor(playerId);
+}
+
+function removePlayerFromRoster(tpRowId, playerId) {
+  showConfirmModal(
+    'Remove player from this roster?',
+    'This removes them from the tournament roster — they will no longer be selectable in the Active Squad picker for that tournament.',
+    async () => {
+      const { error } = await sb.from('tournament_players').delete().eq('id', tpRowId);
+      if (error) { toast('Remove failed: ' + error.message, 'err'); return; }
+      allTournamentPlayers = allTournamentPlayers.filter(tp => tp.id !== tpRowId);
+      toast('Removed from roster.', 'ok');
+      renderPlayersTab();
+      openRosterEditor(playerId);
+    },
+    'REMOVE'
+  );
+}
+
+// ══════════════════════════════════════════════════════
+// MATCHES TAB
+// ══════════════════════════════════════════════════════
+function buildMatchesFilters() {
+  const tSel = document.getElementById('matches-filter-tournament');
+  const currentT = tSel.value;
+  tSel.innerHTML = '<option value="all">ALL</option>' + allTournaments.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('');
+  tSel.value = currentT || 'all';
+
+  const mSel = document.getElementById('matches-filter-map');
+  const currentM = mSel.value;
+  const maps = [...new Set(allMatches.map(m => m.map_key).filter(Boolean))].sort();
+  mSel.innerHTML = '<option value="all">ALL</option>' + maps.map(mk => `<option value="${mk}">${esc(mk)}</option>`).join('');
+  mSel.value = currentM || 'all';
+}
+
+function renderMatchesTab() {
+  const tFilter = document.getElementById('matches-filter-tournament').value;
+  const mFilter = document.getElementById('matches-filter-map').value;
+  const tbody = document.getElementById('matches-tbody');
+  tbody.innerHTML = '';
+
+  const rows = allMatches.map(m => {
+    const day = allDays.find(d => d.id === m.day_id);
+    const tournament = day ? allTournaments.find(t => t.id === day.tournament_id) : null;
+    return { ...m, dayName: day ? day.name : '—', tournamentId: tournament ? tournament.id : null, tournamentName: tournament ? tournament.name : '—' };
+  }).filter(m => {
+    if (tFilter !== 'all' && m.tournamentId !== tFilter) return false;
+    if (mFilter !== 'all' && m.map_key !== mFilter) return false;
+    return true;
+  });
+
+  if (!rows.length) {
+    document.getElementById('matches-empty').style.display = 'block';
+    return;
+  }
+  document.getElementById('matches-empty').style.display = 'none';
+
+  rows.forEach(m => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${esc(m.name)}</td>
+      <td>${esc(m.dayName)}</td>
+      <td>${esc(m.tournamentName)}</td>
+      <td>${esc(m.map_key || '—')}</td>
+      <td style="white-space:nowrap;">
+        <button class="mg-btn" onclick="openMatchInEditor('${m.tournamentId}','${m.day_id}','${m.id}')">EDITOR</button>
+        <button class="mg-btn" onclick="openMatchInVod('${m.tournamentId}','${m.day_id}','${m.id}')">VOD</button>
+        <button class="mg-btn danger" onclick="deleteMatchFromManage('${m.id}')">DELETE</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function openMatchInEditor(tournamentId, dayId, matchId) {
+  location.href = `editor.html?tournamentId=${tournamentId}&dayId=${dayId}&matchId=${matchId}`;
+}
+function openMatchInVod(tournamentId, dayId, matchId) {
+  location.href = `vod.html?tournamentId=${tournamentId}&dayId=${dayId}&matchId=${matchId}`;
+}
+
+function deleteMatchFromManage(matchId) {
+  const m = allMatches.find(x => x.id === matchId);
+  if (!m) return;
+  showConfirmModal(
+    `Delete "${m.name}"?`,
+    'This will permanently delete the match and all its drawings.',
+    async () => {
+      try {
+        const { data: teamRows } = await sb.from('teams').select('id').eq('match_id', matchId);
+        const tIds = (teamRows || []).map(t => t.id);
+        await sb.from('match_players').delete().eq('match_id', matchId);
+        if (tIds.length) await sb.from('shapes').delete().in('team_id', tIds);
+        if (tIds.length) await sb.from('teams').delete().in('id', tIds);
+        await sb.from('matches').delete().eq('id', matchId);
+        allMatches = allMatches.filter(x => x.id !== matchId);
+        allTeams = allTeams.filter(t => t.match_id !== matchId);
+        toast('Match deleted.', 'ok');
+        buildMatchesFilters();
+        renderMatchesTab();
+        renderTeamsTab();
+      } catch (e) {
+        toast('Delete failed: ' + e.message, 'err');
+      }
+    },
+    'DELETE MATCH'
+  );
+}
+</script>
+</body>
+</html>
