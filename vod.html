@@ -115,8 +115,12 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 }
 .vlt-btn:hover{ border-color:var(--muted2);color:var(--text); }
 .vlt-btn:disabled{ opacity:.35;cursor:not-allowed; }
-.vlt-btn.vlt-start{ border-color:rgba(44,74,46,.4);color:var(--accent);background:rgba(44,74,46,.08); }
-.vlt-btn.vlt-start:hover:not(:disabled){ background:rgba(44,74,46,.16); }
+.vlt-btn.vlt-pill{
+  width:auto;padding:0 12px;gap:6px;font-family:var(--font-display);font-size:11px;font-weight:800;
+}
+.vlt-btn.vlt-start-idle{ border-color:rgba(44,74,46,.4);color:var(--accent);background:rgba(44,74,46,.08); }
+.vlt-btn.vlt-start-idle:hover:not(:disabled){ background:rgba(44,74,46,.16); }
+.vlt-btn.vlt-start-active{ background:var(--muted2);color:var(--text); }
 .vlt-btn.vlt-end{ border-color:rgba(155,28,17,.4);color:var(--red);background:rgba(155,28,17,.08); }
 .vlt-btn.vlt-end:hover:not(:disabled){ background:rgba(155,28,17,.16); }
 .vlt-btn.vlt-ev-elim{  border-color:rgba(44,74,46,.4); color:var(--accent); background:rgba(44,74,46,.08); }
@@ -199,7 +203,7 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 
 /* ── VOD BODY ── */
 #vod-app{ flex:1;display:flex;flex-direction:column;overflow:hidden; }
-#vod-body{ flex:1;display:flex;overflow:hidden; }
+#vod-body{ flex:1;display:flex;overflow:hidden;position:relative; }
 
 /* ── VOD STAGE (center left, video + canvas) ── */
 #vod-stage{
@@ -276,7 +280,7 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 /* ── SQUAD PANEL (floating, top-right over canvas) ── */
 #squad-panel{
   position:absolute;top:14px;right:14px;z-index:15;
-  width:280px;max-height:calc(100% - 28px);
+  width:280px;max-height:calc(100% - 28px - 56px); /* leaves ~56px clear at the bottom for YT's native control bar */
   background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;
   display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;
   box-shadow:0 4px 20px rgba(12,10,7,.28);
@@ -312,6 +316,12 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 .sp-card-header{ display:flex;align-items:center;justify-content:space-between; }
 .sp-card-header .sp-label{ margin-bottom:0; }
 .sp-empty-note{ font-family:var(--font-mono);font-size:10px;color:var(--muted);text-align:center;padding:8px 0; }
+.sp-loading-note{
+  font-family:var(--font-mono);font-size:10px;color:var(--muted);text-align:center;padding:8px 0;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.sp-loading-note iconify-icon{ animation:sp-spin 1s linear infinite; }
+@keyframes sp-spin{ from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
 .btn-set-squad{
   width:100%;padding:6px;background:none;border:1px dashed var(--border);border-radius:5px;
   font-family:var(--font-mono);font-size:9px;color:var(--muted);cursor:pointer;transition:all .15s;
@@ -408,7 +418,7 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 
 /* ══ MODALS ══ */
 .modal-backdrop{
-  position:fixed;inset:0;background:rgba(2,6,23,.78);backdrop-filter:blur(5px);
+  position:fixed;inset:0;background:var(--overlay-dark);backdrop-filter:blur(5px);
   z-index:400;display:none;align-items:center;justify-content:center;
 }
 .modal-backdrop.show{ display:flex; }
@@ -647,11 +657,6 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 .lmm-align-row{ display:flex;align-items:center;gap:10px;flex-wrap:wrap; }
 
 /* ══ FIRST-TIME SETUP FLOW DIALOG ══ */
-#setup-flow-dialog{
-  position:fixed;inset:0;background:rgba(2,6,23,.85);backdrop-filter:blur(8px);
-  z-index:600;display:none;align-items:center;justify-content:center;
-}
-#setup-flow-dialog.show{ display:flex; }
 .sfd-box{
   background:var(--bg-panel);border:1px solid var(--accent);border-radius:14px;
   padding:32px;width:440px;display:flex;flex-direction:column;gap:20px;
@@ -713,6 +718,7 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
   display:none;align-items:center;gap:10px;padding:7px 14px;
   background:rgba(44,74,46,.08);border-bottom:1px solid rgba(44,74,46,.2);
   font-family:var(--font-mono);font-size:11px;color:var(--accent);flex-shrink:0;
+  position:absolute;top:0;left:0;right:0;width:100%;z-index:20;
 }
 #skip-to-start-banner.show{ display:flex; }
 .stb-text{ flex:1;letter-spacing:.04em; }
@@ -730,40 +736,14 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 
 /* ══ EDITOR DATA DIALOG ══ */
 #editor-data-dialog{
-  position:fixed;inset:0;background:rgba(2,6,23,.82);backdrop-filter:blur(6px);
+  position:fixed;inset:0;background:var(--overlay-dark);backdrop-filter:blur(6px);
   z-index:600;display:none;align-items:center;justify-content:center;
 }
 #editor-data-dialog.show{ display:flex; }
-.edd-box{
-  background:var(--bg-panel);border:1px solid var(--green);border-radius:12px;
-  padding:28px;width:400px;display:flex;flex-direction:column;gap:16px;
-}
-.edd-icon{ font-size:28px;text-align:center; }
-.edd-title{ font-family:var(--font-display);font-size:18px;font-weight:800;color:var(--text);text-align:center; }
-.edd-sub{ font-family:var(--font-mono);font-size:11px;color:var(--muted);line-height:1.7;text-align:center;letter-spacing:.03em; }
-.edd-data-summary{
-  background:var(--bg-card);border:1px solid var(--border);border-radius:8px;
-  padding:12px 16px;display:flex;flex-direction:column;gap:6px;
-}
-.edd-data-row{ display:flex;justify-content:space-between;align-items:center; }
-.edd-data-key{ font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase; }
-.edd-data-val{ font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--text); }
-.edd-data-val.ok{ color:var(--green); }
-.edd-actions{ display:flex;gap:10px; }
-.btn-edd-fresh{
-  flex:1;padding:11px;background:none;border:1px solid var(--border);color:var(--muted);
-  border-radius:8px;font-family:var(--font-mono);font-size:11px;cursor:pointer;transition:all .15s;letter-spacing:.04em;
-}
-.btn-edd-fresh:hover{ border-color:var(--red);color:var(--red); }
-.btn-edd-continue{
-  flex:2;padding:11px;background:var(--green);border:none;color:var(--bg);
-  border-radius:8px;font-family:var(--font-display);font-size:13px;font-weight:800;cursor:pointer;transition:opacity .15s;
-}
-.btn-edd-continue:hover{ opacity:.85; }
 
 /* ══ OFFSET OVERWRITE DIALOG ══ */
 #offset-overwrite-dialog{
-  position:fixed;inset:0;background:rgba(2,6,23,.82);backdrop-filter:blur(6px);
+  position:fixed;inset:0;background:var(--overlay-dark);backdrop-filter:blur(6px);
   z-index:600;display:none;align-items:center;justify-content:center;
 }
 #offset-overwrite-dialog.show{ display:flex; }
@@ -890,7 +870,7 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 
         <div class="vlt-divider"></div>
 
-        <button class="vlt-btn vlt-start" id="btn-start-match" onclick="toggleMatchActive()" disabled title="Start Match"><iconify-icon icon="lucide:play"></iconify-icon></button>
+        <button class="vlt-btn vlt-pill vlt-start-idle" id="btn-start-match" onclick="toggleMatchActive()" disabled title="Start Match"><iconify-icon icon="lucide:play"></iconify-icon> START MATCH</button>
         <button class="vlt-btn vlt-end" id="btn-match-end" onclick="openEndMatchConfirm()" disabled title="End Match"><iconify-icon icon="lucide:square"></iconify-icon></button>
       </div>
 
@@ -1002,7 +982,7 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
   <div id="vod-timeline">
     <div class="vtb-transport">
       <button class="tb-zoom-btn" onclick="skipBack()" title="Back 10s"><iconify-icon icon="lucide:rotate-ccw"></iconify-icon></button>
-      <button class="tb-btn" id="btn-play-pause" onclick="togglePlayPause()" title="Play/Pause video (P key)"><iconify-icon icon="lucide:play-circle"></iconify-icon></button>
+      <button class="tb-btn" id="btn-play-pause" onclick="togglePlayPause()" title="Play/Pause video (P key)"><iconify-icon icon="lucide:play"></iconify-icon></button>
       <button class="tb-zoom-btn" onclick="skipForward()" title="Forward 10s"><iconify-icon icon="lucide:rotate-cw"></iconify-icon></button>
     </div>
     <div class="tl-time" id="tl-time-cur">00:00</div>
@@ -1641,6 +1621,12 @@ function _onYTMessage(event) {
         _seekInProgress = false;
         updateEventButtons();
       }, 1500);
+    } else if (data.info === 1) { // playing
+      _isPlaying = true;
+      _syncPlayPauseBtn();
+    } else if (data.info === 2 || data.info === 0) { // paused or ended
+      _isPlaying = false;
+      _syncPlayPauseBtn();
     }
   }
 }
@@ -1765,6 +1751,20 @@ function updateMatchTimeDisplay() {
   if (tlCur) tlCur.textContent = fmtTime(state.time);
 }
 
+function _setStartMatchIdle() {
+  const btn = document.getElementById('btn-start-match');
+  btn.innerHTML = '<iconify-icon icon="lucide:play"></iconify-icon> START MATCH';
+  btn.classList.remove('vlt-start-active');
+  btn.classList.add('vlt-start-idle');
+}
+
+function _setStartMatchActive() {
+  const btn = document.getElementById('btn-start-match');
+  btn.innerHTML = '<iconify-icon icon="lucide:square"></iconify-icon> RESET OFFSET';
+  btn.classList.remove('vlt-start-idle');
+  btn.classList.add('vlt-start-active');
+}
+
 async function toggleMatchActive() {
   if (!ytPlayer || !_ytPlayerReady) { toast('Load a video first and wait for it to be ready','warn'); return; }
   if (!state.matchId) { toast('Select a match first','warn'); return; }
@@ -1787,9 +1787,7 @@ async function toggleMatchActive() {
     matchActive = false;
     matchTime = 0; state.time = 0;
     updateEventButtons();
-    document.getElementById('btn-start-match').innerHTML = '<iconify-icon icon="lucide:play"></iconify-icon> START MATCH';
-    document.getElementById('btn-start-match').style.background = '';
-    document.getElementById('btn-start-match').style.color = '';
+    _setStartMatchIdle();
     toast('Match reset — scrub to start and press START MATCH','ok');
     renderSquadPanel();
   }
@@ -1845,9 +1843,7 @@ async function _doStartMatch() {
     }
     startPolling();
     updateEventButtons();
-    document.getElementById('btn-start-match').innerHTML = '<iconify-icon icon="lucide:square"></iconify-icon> RESET OFFSET';
-    document.getElementById('btn-start-match').style.background = 'var(--muted2)';
-    document.getElementById('btn-start-match').style.color = 'var(--text)';
+    _setStartMatchActive();
     document.getElementById('skip-to-start-banner').classList.remove('show');
     // fix 5.5: confirmation toast listing what synced
     const matchTeams = teams.filter(t=>t.match_id===state.matchId);
@@ -2309,9 +2305,7 @@ function nextMatchSameVod() {
   closeModal('next-match-modal');
   // Reset match-active state, video stays loaded
   stopPolling(); matchActive=false; matchTime=0; state.time=0;
-  document.getElementById('btn-start-match').innerHTML='<iconify-icon icon="lucide:play"></iconify-icon> START MATCH';
-  document.getElementById('btn-start-match').style.background='';
-  document.getElementById('btn-start-match').style.color='';
+  _setStartMatchIdle();
   updateEventButtons(); updateMatchTimeDisplay();
   // Advance selector to next match in same day
   const dayMatches = matches.filter(m=>m.day_id===state.dayId).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
@@ -2332,9 +2326,7 @@ function nextMatchNewVod() {
   stopPolling(); matchActive=false; matchTime=0; state.time=0;
   if (ytPlayer && typeof ytPlayer.stopVideo === 'function') ytPlayer.stopVideo();
   document.getElementById('vod-url-input').value='';
-  document.getElementById('btn-start-match').innerHTML='<iconify-icon icon="lucide:play"></iconify-icon> START MATCH';
-  document.getElementById('btn-start-match').style.background='';
-  document.getElementById('btn-start-match').style.color='';
+  _setStartMatchIdle();
   document.getElementById('btn-start-match').disabled=true;
   updateEventButtons(); updateMatchTimeDisplay();
   toast('Paste a new YouTube URL and press LOAD','ok');
@@ -2423,6 +2415,13 @@ async function confirmActiveSquad() {
 // ══════════════════════════════════════════════════════
 // SQUAD PANEL UI
 // ══════════════════════════════════════════════════════
+function _showSquadPanelLoading() {
+  const loadingHtml = '<div class="sp-loading-note"><iconify-icon icon="lucide:loader-2"></iconify-icon>Loading match…</div>';
+  document.getElementById('sp-player-list').innerHTML = loadingHtml;
+  document.getElementById('sp-enemy-list').innerHTML = loadingHtml;
+  document.getElementById('vod-event-log').innerHTML = loadingHtml;
+}
+
 function renderSquadPanel() {
   const matchTeams = teams.filter(t=>t.match_id===state.matchId);
   const selfTeam = matchTeams.find(t=>t.is_self);
@@ -2540,6 +2539,7 @@ async function onMatchChange(val) {
 
   state.matchId=val||null; state.activeTeamId=null;
   annotations=[]; matchPlayers=[];
+  _showSquadPanelLoading();
 
   // Always hide banners/dialogs on match change
   document.getElementById('skip-to-start-banner').classList.remove('show');
@@ -2587,11 +2587,10 @@ async function onMatchChange(val) {
     await _postMatchLoadDialogs(m);
   }
   stopPolling(); matchActive=false; matchTime=0; state.time=0;
-  document.getElementById('btn-start-match').innerHTML='<iconify-icon icon="lucide:play"></iconify-icon> START MATCH';
-  document.getElementById('btn-start-match').style.background='';
-  document.getElementById('btn-start-match').style.color='';
+  _setStartMatchIdle();
+  _isPlaying=false; _syncPlayPauseBtn();
   updateEventButtons(); updateMatchTimeDisplay();
-  renderSquadPanel(); renderTimelineMarkers(); draw();
+  renderSquadPanel(); renderEventLog(); renderTimelineMarkers(); draw();
   updateMatchContextBar();
   announceMatchOpen(state.matchId);
 }
@@ -2633,6 +2632,8 @@ function skipToMatchStart() {
   if (!ytPlayer || !_ytPlayerReady) { toast('Video not ready yet','warn'); return; }
   ytPlayer.seekTo(vodStartOffset, true);
   ytPlayer.playVideo();
+  _isPlaying = true;
+  _syncPlayPauseBtn();
   toast(`Jumped to match start (${fmtTime(Math.round(vodStartOffset))})`, 'ok');
 }
 
@@ -3830,7 +3831,7 @@ function togglePlayPause() {
 function _syncPlayPauseBtn() {
   const btn = document.getElementById('btn-play-pause');
   if (!btn) return;
-  btn.innerHTML = _isPlaying ? '<iconify-icon icon="lucide:pause-circle"></iconify-icon> PAUSE' : '<iconify-icon icon="lucide:play-circle"></iconify-icon> PLAY';
+  btn.innerHTML = _isPlaying ? '<iconify-icon icon="lucide:pause"></iconify-icon>' : '<iconify-icon icon="lucide:play"></iconify-icon>';
   btn.classList.toggle('active', _isPlaying);
 }
 
