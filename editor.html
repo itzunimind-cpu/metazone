@@ -184,6 +184,7 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 .btn-mode.active[data-mode="rotation"]{ background:rgba(78,124,47,.1);color:var(--green);border-color:var(--green); }
 .btn-mode.active[data-mode="path"]    { background:rgba(78,124,47,.1);color:var(--green);border-color:var(--green); }
 .btn-mode.active[data-mode="pin"]     { background:rgba(200,94,10,.1);color:var(--orange);border-color:var(--orange); }
+.btn-mode.active[data-mode="move"]    { background:rgba(47,111,237,.1);color:#2f6fed;border-color:#2f6fed; }
 .btn-mode.active[data-mode="erase"]   { background:rgba(155,28,17,.08);color:var(--red);border-color:var(--red); }
 
 /* ── Color mode ── */
@@ -1345,6 +1346,7 @@ canvas.path-mode{ cursor:cell; }
           <button class="btn-mode"        data-mode="rotation" onclick="setMode('rotation')"><iconify-icon icon="lucide:arrow-right"></iconify-icon>ARROW</button>
           <button class="btn-mode"        data-mode="path"     onclick="setMode('path')"><iconify-icon icon="lucide:spline"></iconify-icon>PATH</button>
           <button class="btn-mode"        data-mode="pin"      onclick="setMode('pin')"><iconify-icon icon="lucide:map-pin"></iconify-icon>PIN</button>
+          <button class="btn-mode"        data-mode="move"     onclick="setMode('move')"><iconify-icon icon="lucide:move"></iconify-icon>MOVE</button>
           <button class="btn-mode"        data-mode="erase"    onclick="setMode('erase')"><iconify-icon icon="lucide:eraser"></iconify-icon>ERASE</button>
         </div>
         <div class="toolbar-divider"></div>
@@ -1713,6 +1715,7 @@ let panSX=0, panSY=0, panPX=0, panPY=0;
 let drawing=false, circleP1=null, dSX=0, dSY=0, preview=null;
 let pathPoints=[], pathDrawing=false;
 let pendingPin=null, cpTeamId=null;
+let _moveDrag=null; // {shape, kind, startWX, startWY, orig, moved}
 
 // ── PIN PROMPT STATE (death/wipe position capture) ──
 let _pinPromptActive = false;
@@ -2763,6 +2766,14 @@ function onPointerDown(e) {
   const shapes=getActiveShapes();
   if(!shapes){ toast('SELECT A MATCH FIRST','warn'); return; }
   if(state.mode==='erase'){ eraseAtPosition(wx, wy); return; }
+  if(state.mode==='move'){
+    const hit=hitTestMovable(wx, wy);
+    if(hit){
+      _moveDrag={ shape:hit.shape, kind:hit.kind, startWX:wx, startWY:wy, orig:snapshotShapePos(hit.shape), moved:false };
+      canvas.style.cursor='grabbing';
+    }
+    return;
+  }
   if(state.mode==='pin'||state.mode==='fight'){
     pendingPin={wx,wy}; showPinPopup(screenX,screenY,state.mode==='fight'); return;
   }
@@ -2810,6 +2821,17 @@ function onPointerMove(e) {
 
   const {wx,wy,screenX,screenY}=evCoords(e);
   if(isPanning){ panX=panPX+(screenX-panSX); panY=panPY+(screenY-panSY); clampPan(); draw(); return; }
+  if(_moveDrag){
+    const dx=wx-_moveDrag.startWX, dy=wy-_moveDrag.startWY;
+    if(dx!==0||dy!==0) _moveDrag.moved=true;
+    applyShapeMoveDelta(_moveDrag.shape,_moveDrag.orig,dx,dy);
+    draw();
+    return;
+  }
+  if(state.mode==='move'){
+    canvas.style.cursor = hitTestMovable(wx,wy) ? 'grab' : 'default';
+    return;
+  }
   if(!drawing&&!pathDrawing&&!circleP1){
     const hit=hitTestPins(wx,wy);
     if(hit) showHoverTip(screenX,screenY,hit); else hideHoverTip();
@@ -2840,6 +2862,16 @@ function onPointerUp(e) {
   }
 
   if(isPanning){ isPanning=false; canvas.classList.remove('panning-active'); return; }
+  if(_moveDrag){
+    const drag=_moveDrag; _moveDrag=null;
+    canvas.style.cursor = state.mode==='move' ? 'grab' : 'crosshair';
+    if(drag.moved){
+      persistShapeMove(drag.shape);
+      draw();
+      if(drag.kind==='zone') renderAnnotationLog(); else renderTimelineTicks();
+    }
+    return;
+  }
   if(state.mode==='path'){
     // Touch: finger lifted = commit the freehand path
     if(e.changedTouches&&pathDrawing&&pathPoints.length>=2){
@@ -2883,6 +2915,11 @@ function onPointerUp(e) {
 }
 
 function onPointerLeave() {
+  if(_moveDrag){
+    const drag=_moveDrag; _moveDrag=null;
+    if(drag.moved){ persistShapeMove(drag.shape); if(drag.kind==='zone') renderAnnotationLog(); else renderTimelineTicks(); }
+    draw();
+  }
   if(drawing&&state.mode!=='zone'){ drawing=false; preview=null; draw(); }
   if(isPanning){ isPanning=false; canvas.classList.remove('panning-active'); }
   hideHoverTip();
@@ -3932,12 +3969,14 @@ function setStatus(msg,ok=true){ const el=document.getElementById('status-text')
 
 function setMode(m){
   state.mode=m;
+  _moveDrag=null;
   document.querySelectorAll('.btn-mode').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
   if(m!=='path'&&pathDrawing) cancelPath();
   if(m!=='zone'){ circleP1=null; drawing=false; preview=null; draw(); }
   let cursor='crosshair';
   if(m==='erase') cursor='not-allowed';
   else if(m==='pin'||m==='fight'||m==='path') cursor='cell';
+  else if(m==='move') cursor='default';
   canvas.style.cursor=cursor;
   if(m==='path') canvas.classList.add('path-mode');
   else canvas.classList.remove('path-mode');
@@ -4186,6 +4225,79 @@ function eraseAtPosition(wx, wy) {
       if(sb&&rm.id&&!String(rm.id).startsWith('local_')) sb.from('shapes').delete().eq('id',rm.id);
       draw(); renderAnnotationLog(); return;
     }
+  }
+}
+
+// ══ MOVE TOOL — whole-shape drag-to-reposition ══
+function distToSegment(px,py,x1,y1,x2,y2) {
+  const dx=x2-x1, dy=y2-y1;
+  const lenSq=dx*dx+dy*dy;
+  if(lenSq===0) return Math.hypot(px-x1,py-y1);
+  let t=((px-x1)*dx+(py-y1)*dy)/lenSq;
+  t=Math.max(0,Math.min(1,t));
+  return Math.hypot(px-(x1+t*dx),py-(y1+t*dy));
+}
+
+function hitTestMovable(wx, wy) {
+  const GRAB_PT=12/zoom, GRAB_LINE=10/zoom;
+  const shapes=getActiveShapes();
+  if(shapes){
+    for(let i=shapes.length-1;i>=0;i--){
+      const s=shapes[i]; if(s.time>state.time) continue;
+      if((s.type==='pin'||s.type==='fight')&&Math.hypot(s.x-wx,s.y-wy)<GRAB_PT) return {shape:s,kind:'team-shape'};
+      if(s.type==='line'&&distToSegment(wx,wy,s.x1,s.y1,s.x2,s.y2)<GRAB_LINE) return {shape:s,kind:'team-shape'};
+      if(s.type==='path'&&s.points&&s.points.length){
+        if(s.points.length===1){
+          if(Math.hypot(s.points[0].x-wx,s.points[0].y-wy)<GRAB_LINE) return {shape:s,kind:'team-shape'};
+        } else {
+          for(let j=0;j<s.points.length-1;j++){
+            const a=s.points[j], b=s.points[j+1];
+            if(distToSegment(wx,wy,a.x,a.y,b.x,b.y)<GRAB_LINE) return {shape:s,kind:'team-shape'};
+          }
+        }
+      }
+    }
+  }
+  const zones=zonesCache[state.matchId]||[];
+  for(let i=zones.length-1;i>=0;i--){
+    const z=zones[i]; if(z.time>state.time) continue;
+    if(Math.hypot(z.cx-wx,z.cy-wy)<z.r) return {shape:z,kind:'zone'};
+  }
+  return null;
+}
+
+function snapshotShapePos(s) {
+  if(s.type==='circle') return {cx:s.cx,cy:s.cy};
+  if(s.type==='line')   return {x1:s.x1,y1:s.y1,x2:s.x2,y2:s.y2};
+  if(s.type==='path')   return {points:s.points.map(p=>({...p}))};
+  return {x:s.x,y:s.y}; // pin / fight
+}
+
+function applyShapeMoveDelta(s, orig, dx, dy) {
+  if(s.type==='circle'){ s.cx=orig.cx+dx; s.cy=orig.cy+dy; return; }
+  if(s.type==='line'){ s.x1=orig.x1+dx; s.y1=orig.y1+dy; s.x2=orig.x2+dx; s.y2=orig.y2+dy; return; }
+  if(s.type==='path'){ s.points=orig.points.map(p=>({...p,x:p.x+dx,y:p.y+dy})); return; }
+  s.x=orig.x+dx; s.y=orig.y+dy;
+}
+
+function moveFieldsForShape(s) {
+  if(s.type==='circle') return {cx:s.cx,cy:s.cy};
+  if(s.type==='line')   return {x1:s.x1,y1:s.y1,x2:s.x2,y2:s.y2};
+  if(s.type==='path')   return {path_points:JSON.stringify(s.points)};
+  return {pin_x:s.x,pin_y:s.y}; // pin & fight — DB column names differ from in-memory x/y
+}
+
+async function persistShapeMove(shape) {
+  if(!shape||!sb) return;
+  if(!shape.id||String(shape.id).startsWith('local_')) return; // not yet persisted — existing autosave/manualSave catch-up already covers current in-memory coords
+  setSyncState('syncing');
+  try {
+    const {error}=await sb.from('shapes').update(moveFieldsForShape(shape)).eq('id',shape.id);
+    if(error) throw error;
+    setSyncState('saved');
+  } catch(e) {
+    setSyncState('error');
+    toast('MOVE FAILED TO SAVE — try again','err');
   }
 }
 
