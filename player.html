@@ -198,10 +198,6 @@
       </nav>
     </div>
     <div class="header-right">
-      <div style="display:flex;align-items:center;gap:6px;padding:5px 10px;background:var(--bg-card);border:1px solid var(--border);border-radius:3px;">
-        <span class="pulse" style="width:6px;height:6px;background:var(--green);border-radius:50%;display:inline-block;"></span>
-        <span class="font-mono" style="font-size:9px;color:var(--muted);letter-spacing:0.15em;text-transform:uppercase;">SYSTEM ONLINE</span>
-      </div>
       <button onclick="signOut()" style="background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'Lexend Deca',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:6px 12px;border-radius:3px;cursor:pointer;transition:all 0.15s;"
         onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">SIGN OUT</button>
     </div>
@@ -850,10 +846,10 @@ function renderKillsPerMatch(rows) {
 
     const kLbl = document.createElement('div');
     kLbl.textContent = k;
-    kLbl.style.cssText = `font-family:'Lexend Deca',monospace;font-size:9px;font-weight:700;color:${color};`;
+    kLbl.style.cssText = `font-family:'Lexend Deca',monospace;font-size:9px;font-weight:700;color:var(--text);`;
 
     const bar = document.createElement('div');
-    bar.style.cssText = `width:100%;max-width:40px;height:${barH}px;background:${color};border-radius:2px 2px 0 0;opacity:0.85;`;
+    bar.style.cssText = `width:100%;max-width:24px;height:${barH}px;background:${color};border-radius:4px 4px 0 0;opacity:0.85;`;
     bar.title = `${r.match ? r.match.name : `M${i+1}`}: ${k} kills`;
 
     const lblWrap = document.createElement('div');
@@ -973,8 +969,8 @@ function renderTrend(rows) {
     const y = pad.t + ph - (v/maxVal)*ph;
     ctx.fillStyle='#A89880'; ctx.font='500 8px Lexend Deca'; ctx.textAlign='right';
     ctx.fillText(v, pad.l-5, y+3);
-    ctx.beginPath(); ctx.setLineDash([3,4]); ctx.strokeStyle='rgba(107,96,72,0.15)';
-    ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+pw,y); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.strokeStyle='rgba(107,96,72,0.15)'; ctx.lineWidth=1;
+    ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+pw,y); ctx.stroke();
   });
 
   // Career mode: tournament-boundary markers — a dashed divider + name label
@@ -1064,10 +1060,10 @@ function renderSurvivalChart(rows) {
 
     const pLbl = document.createElement('div');
     pLbl.textContent = hasData ? `${pct}%` : '?';
-    pLbl.style.cssText = `font-family:'Lexend Deca',monospace;font-size:9px;font-weight:700;color:${color};`;
+    pLbl.style.cssText = `font-family:'Lexend Deca',monospace;font-size:9px;font-weight:700;color:${hasData ? 'var(--text)' : 'var(--muted)'};`;
 
     const bar = document.createElement('div');
-    bar.style.cssText = `width:100%;max-width:40px;height:${barH}px;background:${color};border-radius:2px 2px 0 0;opacity:${hasData?'0.8':'0.2'};`;
+    bar.style.cssText = `width:100%;max-width:24px;height:${barH}px;background:${color};border-radius:4px 4px 0 0;opacity:${hasData?'0.8':'0.2'};`;
     bar.title = `${r.match?r.match.name:`M${i+1}`}: ${pct}% survived`;
 
     const lblWrap = document.createElement('div');
@@ -1231,7 +1227,7 @@ function renderDeathBreakdown(rows) {
     barWrap.appendChild(bar);
 
     const countLbl = document.createElement('div');
-    countLbl.style.cssText = `font-family:'Lexend Deca',monospace;font-size:10px;font-weight:700;color:${color};width:24px;text-align:right;`;
+    countLbl.style.cssText = `font-family:'Lexend Deca',monospace;font-size:10px;font-weight:700;color:var(--text);width:24px;text-align:right;`;
     countLbl.textContent = count;
 
     row.appendChild(nameLbl); row.appendChild(barWrap); row.appendChild(countLbl);
