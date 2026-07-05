@@ -312,9 +312,7 @@ CREATE TRIGGER trg_annotations_touch_match AFTER INSERT OR UPDATE OR DELETE ON a
 
 ```sql
 -- Session 42 — shape provenance + persisted VOD calibration
--- PENDING — user needs to run this in Supabase. Everything in editor.html/vod.html
--- that reads these columns degrades gracefully before it runs (optional-chaining
--- reads, `source` defaulting to 'editor' client-side), same pattern as prior sessions.
+-- RUN — kept here for reference only, not pending.
 
 ALTER TABLE shapes  ADD COLUMN IF NOT EXISTS source text DEFAULT 'editor';
 ALTER TABLE matches ADD COLUMN IF NOT EXISTS cal_tx double precision;
@@ -324,7 +322,7 @@ ALTER TABLE matches ADD COLUMN IF NOT EXISTS cal_sy double precision;
 ALTER TABLE matches ADD COLUMN IF NOT EXISTS cal_active boolean DEFAULT false;
 ```
 
-⚠️ Supabase/PostgREST 400s an insert or update that references a column that doesn't exist yet — so writing `source`/`cal_*` unconditionally before this migration runs would have broken every save (not just the new features). Both files probe for these columns once at boot (`_detectSession42Columns()` → `_hasSession42Cols`, `sb.from('matches').select('cal_active').limit(1)`) and gate the new fields on the result: `shapeToDbRow()` omits `source` (via `undefined`, which `JSON.stringify` drops) and `persistCalibration()` skips its write entirely (toast: session-only, not saved) until the flag is true. Existing save behavior is unaffected either way. Run this migration to actually get provenance tags and persisted calibration.
+✅ **RUN — confirmed live Session 60 (verified 2026-07-05 via direct Supabase MCP `list_tables` query against the production `MetaZone` project, not just user say-so).** `shapes.source` and `matches.cal_tx/cal_ty/cal_sx/cal_sy/cal_active` all exist in the live schema right now. This corrects a stale "PENDING" status that persisted in this doc through Sessions 43-60 despite the migration apparently having been run at some earlier point — `_hasSession42Cols`/`_detectSession42Columns()` should read `true` on next load in both `editor.html` and `vod.html`, so provenance tagging and persisted VOD calibration are both actually active now, not session-only.
 
 ✅ **RUN — Session 43.** User confirmed both the migration and the backfill ran clean in Supabase, no errors. Kept below for reference (e.g. reapplying to a fresh environment) — table/columns now documented as present in Section 1, `_hasTeamIdentityCols` will read `true` on next load in all three files (`editor.html`/`tournament-create.html`/`analytics.html`).
 
@@ -845,7 +843,9 @@ No further action needed on `history.html` — it will not be built.
 ### DB — Pending migrations
 | Priority | Item |
 |----------|------|
-| 🟡 MED | Run Session 42 SQL (Section 3) — `shapes.source`, `matches.cal_tx/ty/sx/sy/active`. Degrades gracefully until run (see Section 3 ⚠️ note). |
+| ✅ | ~~Run Session 42 SQL~~ — confirmed live in production Session 60 (direct Supabase query, 2026-07-05), corrects a stale "pending" status this doc carried since Session 43. See Section 3. |
+
+None currently pending.
 
 ---
 
