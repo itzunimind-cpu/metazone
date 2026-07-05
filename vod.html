@@ -2191,24 +2191,31 @@ async function confirmEnemyWipe() {
     }
   }
 
+  // E4: only auto-assign a placement if the team doesn't already have one (e.g. entered
+  // manually) and no other team in the match already holds that number.
+  async function _autoAssignPosition(teamToAssign, pos) {
+    if (teamToAssign.confirmed_position) return;
+    if (matchTeams.some(t2=>t2.id!==teamToAssign.id && t2.confirmed_position===pos)) return;
+    teamToAssign.confirmed_position = pos;
+    if(sb&&!String(teamToAssign.id).startsWith('local_')) await sb.from('teams').update({confirmed_position:pos}).eq('id',teamToAssign.id);
+  }
+
   // fix 3.3: on VOD, don't auto-fire markMatchEnd — show a prompt instead
   if (survivingEnemies.length === 0 && selfAlive) {
-    selfTeam.confirmed_position = 1;
-    if(sb&&!String(selfTeam.id).startsWith('local_')) await sb.from('teams').update({confirmed_position:1}).eq('id',selfTeam.id);
+    await _autoAssignPosition(selfTeam, 1);
     _showMatchEndPrompt('🏆 Your team wins! Ready to mark match end?');
 
   } else if (survivingEnemies.length === 1 && selfAlive) {
     const winner = survivingEnemies[0];
-    winner.confirmed_position=1; winner.time_of_wipe=t;
-    selfTeam.confirmed_position=2;
-    if(sb&&!String(winner.id).startsWith('local_')) await sb.from('teams').update({confirmed_position:1,time_of_wipe:t}).eq('id',winner.id);
-    if(sb&&!String(selfTeam.id).startsWith('local_')) await sb.from('teams').update({confirmed_position:2}).eq('id',selfTeam.id);
+    // V1: winner survives, it is NOT wiped — only self/losing teams get time_of_wipe.
+    await _autoAssignPosition(winner, 1);
+    await _autoAssignPosition(selfTeam, 2);
     _showMatchEndPrompt(`🏆 ${winner.name} #1 · SELF #2. Ready to mark match end?`);
 
   } else if (survivingEnemies.length === 1 && !selfAlive) {
     const winner = survivingEnemies[0];
-    winner.confirmed_position=1; winner.time_of_wipe=t;
-    if(sb&&!String(winner.id).startsWith('local_')) await sb.from('teams').update({confirmed_position:1,time_of_wipe:t}).eq('id',winner.id);
+    // V1: winner survives, it is NOT wiped — only self/losing teams get time_of_wipe.
+    await _autoAssignPosition(winner, 1);
     _showMatchEndPrompt(`🏆 ${winner.name} wins. Ready to mark match end?`);
   }
 }

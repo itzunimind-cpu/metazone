@@ -4615,12 +4615,20 @@ async function confirmWipe() {
       }
     }
 
+    // E4: only auto-assign a placement if the team doesn't already have one (e.g. entered
+    // manually) and no other team in the match already holds that number.
+    async function _autoAssignPosition(teamToAssign, pos) {
+      if (teamToAssign.confirmed_position) return;
+      if (matchTeams.some(t => t.id!==teamToAssign.id && t.confirmed_position===pos)) return;
+      teamToAssign.confirmed_position = pos;
+      if(sb && !String(teamToAssign.id).startsWith('local_')){
+        await sb.from('teams').update({confirmed_position:pos}).eq('id', teamToAssign.id);
+      }
+    }
+
     // Scenario C — no enemies left, self still alive → self wins
     if(survivingEnemies.length === 0 && selfAlive) {
-      selfTeam.confirmed_position = 1;
-      if(sb && !String(selfTeam.id).startsWith('local_')){
-        await sb.from('teams').update({confirmed_position:1}).eq('id', selfTeam.id);
-      }
+      await _autoAssignPosition(selfTeam, 1);
       toast(`🏆 SELF wins — marked #1, ending match…`, 'ok');
       renderTimelineTicks(); renderAnnotationLog({scrollToTop:true});
       await _clearMatchEndIfSet();
@@ -4629,14 +4637,8 @@ async function confirmWipe() {
     // Scenario A — 1 enemy left, self alive → enemy wins, self is #2
     } else if(survivingEnemies.length === 1 && selfAlive) {
       const winner = survivingEnemies[0];
-      winner.confirmed_position = 1;
-      if(sb && !String(winner.id).startsWith('local_')){
-        await sb.from('teams').update({confirmed_position:1}).eq('id', winner.id);
-      }
-      selfTeam.confirmed_position = 2;
-      if(sb && !String(selfTeam.id).startsWith('local_')){
-        await sb.from('teams').update({confirmed_position:2}).eq('id', selfTeam.id);
-      }
+      await _autoAssignPosition(winner, 1);
+      await _autoAssignPosition(selfTeam, 2);
       toast(`🏆 ${winner.name} marked #1 · SELF marked #2 — ending match…`, 'ok');
       renderTimelineTicks(); renderAnnotationLog({scrollToTop:true});
       await _clearMatchEndIfSet();
@@ -4645,10 +4647,7 @@ async function confirmWipe() {
     // Scenario B — 1 enemy left, self already wiped → that enemy is the winner
     } else if(survivingEnemies.length === 1 && !selfAlive) {
       const winner = survivingEnemies[0];
-      winner.confirmed_position = 1;
-      if(sb && !String(winner.id).startsWith('local_')){
-        await sb.from('teams').update({confirmed_position:1}).eq('id', winner.id);
-      }
+      await _autoAssignPosition(winner, 1);
       toast(`🏆 ${winner.name} marked #1 — ending match…`, 'ok');
       renderTimelineTicks(); renderAnnotationLog({scrollToTop:true});
       await _clearMatchEndIfSet();
