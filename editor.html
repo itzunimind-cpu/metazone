@@ -3969,8 +3969,19 @@ function startRename(team,el){
   const input=document.createElement('input'); input.type='text'; input.value=team.name;
   input.style.cssText='flex:1;background:#F2EDE4;border:1px solid #2C4A2E;color:#1C1A14;padding:2px 5px;border-radius:4px;font-size:11px;font-weight:600;font-family:Manrope,sans-serif;min-width:0;outline:none;';
   el.replaceWith(input); input.focus(); input.select();
-  const finish=async()=>{ const newName=input.value.trim()||team.name; team.name=newName; if(sb&&!String(team.id).startsWith('local_')) await sb.from('teams').update({name:newName}).eq('id',team.id); renderTeamList(); updateFactionBadges(); };
-  input.onblur=finish; input.onkeydown=e=>{ if(e.key==='Enter') input.blur(); if(e.key==='Escape') input.blur(); };
+  const finish=async(save)=>{
+    if(save){
+      const newName=input.value.trim()||team.name;
+      team.name=newName;
+      if(sb&&!String(team.id).startsWith('local_')) await sb.from('teams').update({name:newName}).eq('id',team.id);
+    }
+    renderTeamList(); updateFactionBadges();
+  };
+  input.onblur=()=>finish(true);
+  input.onkeydown=e=>{
+    if(e.key==='Enter') input.blur();
+    else if(e.key==='Escape'){ input.onblur=()=>finish(false); input.blur(); }
+  };
 }
 
 // ══════════════════════════════════════════════════════
@@ -4744,7 +4755,7 @@ function _openSelfLossModal(wx, wy) {
   document.getElementById('btn-slm-confirm').disabled = true;
   const sel = document.getElementById('slm-killedby');
   sel.innerHTML = '<option value="">— None —</option>';
-  teams.filter(t=>t.match_id===state.matchId&&!t.is_self&&!t.time_of_wipe)
+  teams.filter(t=>t.match_id===state.matchId&&!t.is_self&&(t.time_of_wipe==null||t.time_of_wipe>state.time))
     .forEach(t=>sel.add(new Option(t.name, t.id)));
   renderSlmPlayers();
   document.getElementById('self-loss-modal').classList.add('show');

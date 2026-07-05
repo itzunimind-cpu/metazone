@@ -2040,7 +2040,7 @@ function openLossModal(t, wx, wy) {
   // Populate killed-by
   const sel = document.getElementById('loss-killedby');
   sel.innerHTML = '<option value="">— None —</option>';
-  teams.filter(t2=>t2.match_id===state.matchId&&!t2.is_self&&!t2.time_of_wipe)
+  teams.filter(t2=>t2.match_id===state.matchId&&!t2.is_self&&(t2.time_of_wipe==null||t2.time_of_wipe>state.time))
     .forEach(t2=>sel.add(new Option(t2.name,t2.id)));
   renderLossPlayers();
   document.getElementById('loss-modal').classList.add('show');
@@ -2148,8 +2148,15 @@ function openEwipeModal(t, wx, wy) {
   document.getElementById('ewipe-position').value = pos;
   const sel = document.getElementById('ewipe-team-select');
   sel.innerHTML = '<option value="">— Select team —</option>';
-  teams.filter(t2=>t2.match_id===state.matchId&&!t2.is_self&&!t2.time_of_wipe)
-    .forEach(t2=>sel.add(new Option(t2.name,t2.id)));
+  // Show non-wiped teams AND teams wiped at current time (for undo)
+  teams.filter(t2=>t2.match_id===state.matchId&&!t2.is_self).forEach(t2=>{
+    const isWipedNow = t2.time_of_wipe===t;
+    const isWipedOther = t2.time_of_wipe!=null && t2.time_of_wipe!==t;
+    if(isWipedOther) return; // already wiped at a different time — skip
+    const label = isWipedNow ? `↩ ${t2.name} (undo wipe)` : t2.name;
+    sel.add(new Option(label, t2.id));
+  });
+  if(sel.options.length===1){ toast('ALL ENEMY TEAMS WIPED — seek to a wipe time to undo','warn'); return; }
   document.getElementById('ewipe-modal').classList.add('show');
 }
 
@@ -2158,11 +2165,23 @@ async function confirmEnemyWipe() {
   if (!teamId) { toast('Select a team','warn'); return; }
   const team = teams.find(t=>t.id===teamId);
   if (!team) return;
-  const pos = parseInt(document.getElementById('ewipe-position').value,10) || null;
-  const coords = pendingEventCoords;
   const t = state.time;
   closeModal('ewipe-modal');
 
+  // Undo if already wiped at current time (dropdown showed it with an "↩ ... (undo wipe)" label)
+  if (team.time_of_wipe === t) {
+    team.time_of_wipe = null; team.confirmed_position = null;
+    if (sb && !String(teamId).startsWith('local_')) {
+      await sb.from('teams').update({time_of_wipe:null, confirmed_position:null}).eq('id',teamId);
+    }
+    toast(`${team.name} wipe removed`, 'ok');
+    renderTimelineMarkers(); renderSquadPanel(); draw();
+    pendingEventCoords = null;
+    return;
+  }
+
+  const pos = parseInt(document.getElementById('ewipe-position').value,10) || null;
+  const coords = pendingEventCoords;
   team.time_of_wipe = t;
   team.confirmed_position = pos;
   if (sb && !String(teamId).startsWith('local_')) {
