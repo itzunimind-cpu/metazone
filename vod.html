@@ -1018,6 +1018,16 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 <!-- ══ MODALS ══ -->
 
 <!-- LOAD MATCH Modal -->
+<div class="modal-backdrop" id="mz-welcome-modal">
+  <div class="modal-box modal-md modal-accent">
+    <div class="modal-title"><iconify-icon icon="lucide:map"></iconify-icon> Welcome to Metazone</div>
+    <div class="modal-sub">Load a match's VOD to review it, draw over the map in real time, and log elims/losses/wipes as you watch.</div>
+    <div class="modal-actions">
+      <button class="btn-modal-confirm" style="background:var(--accent);" onclick="_mzDismissWelcome()">GOT IT</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="load-match-modal">
   <div class="modal-box modal-lg modal-accent">
     <div class="modal-title"><iconify-icon icon="lucide:folder-open"></iconify-icon> LOAD MATCH</div>
@@ -1365,6 +1375,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
   });
   loadMapKey('erangel');
+  _mzShowWelcomeIfNeeded();
 
   // fix 1.4: re-sync when user returns to this tab after it was backgrounded
   document.addEventListener('visibilitychange', () => {
@@ -1506,6 +1517,15 @@ let _ytRealOnReadyFired = false; // fix 1.1: true only when real onReady fires (
 let _lastTimeUpdate = 0;         // fix 1.6: timestamp of last _ytCurrentTime update
 let _seekInProgress = false;     // fix 1.5: blocks event logging during seek lag
 
+let _vodPosSaveTimer = null;
+function _saveVodPositionThrottled() {
+  if (!state.matchId) return;
+  const now = Date.now();
+  if (_vodPosSaveTimer && now - _vodPosSaveTimer < 3000) return;
+  _vodPosSaveTimer = now;
+  try { sessionStorage.setItem('mz_vodpos_'+state.matchId, String(Math.round(_ytCurrentTime))); } catch(e) {}
+}
+
 // Build a plain iframe and wrap it in a proxy that mimics YT.Player API
 function _createYTPlayer(videoId) {
   // fix 1.3: validate videoId before doing anything
@@ -1540,7 +1560,13 @@ function _createYTPlayer(videoId) {
       if (btn) btn.disabled = !state.matchId;
       // Show skip banner if waiting
       if (window._pendingSkipOffset != null) {
-        _showSkipBanner(window._pendingSkipOffset);
+        const savedPos = state.matchId ? sessionStorage.getItem('mz_vodpos_'+state.matchId) : null;
+        if (savedPos != null && +savedPos > window._pendingSkipOffset) {
+          ytPlayer.seekTo(+savedPos, true);
+          toast(`Resumed at ${fmtTime(+savedPos)} (last position this session)`, 'ok');
+        } else {
+          _showSkipBanner(window._pendingSkipOffset);
+        }
         window._pendingSkipOffset = null;
       }
       // Also start sync loop from fallback path
@@ -1591,7 +1617,13 @@ function _onYTMessage(event) {
     if (btn) btn.disabled = !state.matchId;
     // Show skip banner if a match offset was waiting for video to be ready
     if (window._pendingSkipOffset != null) {
-      _showSkipBanner(window._pendingSkipOffset);
+      const savedPos = state.matchId ? sessionStorage.getItem('mz_vodpos_'+state.matchId) : null;
+      if (savedPos != null && +savedPos > window._pendingSkipOffset) {
+        ytPlayer.seekTo(+savedPos, true);
+        toast(`Resumed at ${fmtTime(+savedPos)} (last position this session)`, 'ok');
+      } else {
+        _showSkipBanner(window._pendingSkipOffset);
+      }
       window._pendingSkipOffset = null;
     }
     // Keep _ytCurrentTime fresh — send both 'listening' + getDuration command every 150ms
@@ -1615,6 +1647,7 @@ function _onYTMessage(event) {
         _seekInProgress = false;
         updateEventButtons(); // re-enable event buttons
       }
+      _saveVodPositionThrottled();
     }
   }
 
@@ -1655,6 +1688,20 @@ function loadVideo() {
   const url = input.value.trim();
   const videoId = extractYTId(url);
   if (!videoId) { toast('Invalid YouTube URL', 'err'); return; }
+
+  // A calibration was tuned to the OLD video's framing — if the URL actually
+  // changed, it no longer applies. Invalidate right here, at the real point
+  // vodUrl changes (not just when Start Match happens to be pressed later).
+  const m = state.matchId ? matches.find(x => x.id === state.matchId) : null;
+  if (m && m.vod_url && url !== m.vod_url && (calActive || m.cal_active)) {
+    calTx = 0; calTy = 0; calSx = 1; calSy = 1; calActive = false;
+    if (sb && !String(state.matchId).startsWith('local_') && _hasSession42Cols) {
+      sb.from('matches').update({ cal_tx:null, cal_ty:null, cal_sx:null, cal_sy:null, cal_active:false }).eq('id', state.matchId);
+    }
+    m.cal_active = false; m.cal_tx = null; m.cal_ty = null; m.cal_sx = null; m.cal_sy = null;
+    toast('Video changed — map calibration reset, recalibration needed', 'warn');
+  }
+  if (m) m.vod_url = url;
   vodUrl = url;
 
   if (ytPlayer && _ytPlayerReady) {
@@ -1844,14 +1891,8 @@ async function _doStartMatch() {
       const upd = { vod_start_offset: Math.round(vodStartOffset) };
       const m = matches.find(x=>x.id===state.matchId);
       if (vodUrl) upd.vod_url = vodUrl;
-      // Session 42: a saved calibration was tuned to the OLD video's framing —
-      // if the URL actually changed, it no longer applies. Invalidate it.
-      const urlChanged = vodUrl && m?.vod_url && vodUrl !== m.vod_url;
-      if (urlChanged && m?.cal_active) {
-        calTx=0; calTy=0; calSx=1; calSy=1; calActive=false;
-        upd.cal_tx=null; upd.cal_ty=null; upd.cal_sx=null; upd.cal_sy=null; upd.cal_active=false;
-        toast('Video changed — map calibration reset, recalibration needed', 'warn');
-      }
+      // Calibration invalidation on a real video-URL change now happens in
+      // loadVideo() itself, at the point vodUrl actually changes — not here.
       await sb.from('matches').update(upd).eq('id', state.matchId);
       // Update local cache too
       if (m) { m.vod_start_offset = Math.round(vodStartOffset); Object.assign(m, upd); }
@@ -2598,6 +2639,8 @@ function renderEventLog() {
 // DROPDOWNS / MATCH SELECTION
 // ══════════════════════════════════════════════════════
 async function onMatchChange(val) {
+  if (calMode) exitCalibration(); // abort any in-progress calibration before switching matches
+
   // ── GUARDS: kill any in-flight video load from previous match ──
   clearTimeout(window._ytReadyFallback);          // fix 1.2: stop previous fallback timer
   window._pendingSkipOffset = null;               // fix 3.2: clear stale pending offset
@@ -2668,6 +2711,7 @@ async function onMatchChange(val) {
   updateEventButtons(); updateMatchTimeDisplay();
   renderSquadPanel(); renderEventLog(); renderTimelineMarkers(); draw();
   updateMatchContextBar();
+  mzCtxWrite();
   announceMatchOpen(state.matchId);
 }
 
@@ -2942,6 +2986,10 @@ async function applyUrlParams() {
   toast(`Auto-loaded: ${latest.name}`, 'ok');
 }
 function mzCtxRead(){try{return JSON.parse(sessionStorage.getItem('mz_ctx')||'{}');}catch(e){return{};}}
+function mzCtxWrite(extra){
+  const ctx={tournamentId:state.tournamentId,dayId:state.dayId,matchId:state.matchId,...(extra||{})};
+  try{sessionStorage.setItem('mz_ctx',JSON.stringify(ctx));}catch(e){}
+}
 
 // ══════════════════════════════════════════════════════
 // CANVAS SETUP
@@ -2972,7 +3020,7 @@ function initCanvas() {
 function resizeCanvas() {
   canvas.width  = stage.clientWidth;
   canvas.height = stage.clientHeight;
-  resetView();
+  if(!_applySavedView(state.matchId)) resetView();
 }
 
 // ══════════════════════════════════════════════════════
@@ -2983,6 +3031,34 @@ function resetView() {
   const scale = Math.min(W/WORLD_W, H/WORLD_H);
   zoom=scale; panX=(W-WORLD_W*scale)/2; panY=(H-WORLD_H*scale)/2;
   updateZoomHud(); draw();
+}
+
+// P4: session-persisted camera — stored resize-invariant (zoom-ratio + world-space
+// screen-center) so restoring after a window resize still recomputes a correct
+// pan/zoom for whatever the current canvas size is, instead of misapplying stale
+// absolute panX/panY/zoom values.
+function _saveViewNow() {
+  if (!state.matchId) return;
+  const minZoom = Math.min(canvas.width/WORLD_W, canvas.height/WORLD_H);
+  const zr = zoom / minZoom;
+  const wx = (canvas.width/2  - panX) / zoom;
+  const wy = (canvas.height/2 - panY) / zoom;
+  try { sessionStorage.setItem('mz_view_'+state.matchId, JSON.stringify({zr, wx, wy})); } catch(e) {}
+}
+let _viewSaveTimer = null;
+function _saveViewDebounced() { clearTimeout(_viewSaveTimer); _viewSaveTimer = setTimeout(_saveViewNow, 350); }
+
+function _applySavedView(matchId) {
+  if (!matchId) return false;
+  let raw; try { raw = sessionStorage.getItem('mz_view_'+matchId); } catch(e) { return false; }
+  if (!raw) return false;
+  let v; try { v = JSON.parse(raw); } catch(e) { return false; }
+  const minZoom = Math.min(canvas.width/WORLD_W, canvas.height/WORLD_H);
+  zoom = minZoom * v.zr;
+  panX = canvas.width/2  - v.wx*zoom;
+  panY = canvas.height/2 - v.wy*zoom;
+  clampPan(); updateZoomHud(); draw();
+  return true;
 }
 function adjustZoom(delta) { zoomAt(canvas.width/2, canvas.height/2, delta); }
 function clampPan() {
@@ -2996,6 +3072,7 @@ function zoomAt(sx, sy, delta) {
   const nz=Math.max(minZoom, Math.min(40, zoom*(1+delta)));
   const s=nz/zoom; panX=sx-s*(sx-panX); panY=sy-s*(sy-panY); zoom=nz;
   clampPan(); updateZoomHud(); draw();
+  _saveViewDebounced();
 }
 function zoomToWorld(wx, wy) {
   const minZoom=Math.min(canvas.width/WORLD_W, canvas.height/WORLD_H);
@@ -3211,7 +3288,7 @@ function onPointerMove(e) {
 function onPointerUp(e) {
   e.preventDefault();
   if(pinchActive){ if(!e.touches||e.touches.length<2){ pinchActive=false; updateZoomHud(); } return; }
-  if(isPanning){ isPanning=false; canvas.style.cursor='crosshair'; return; }
+  if(isPanning){ isPanning=false; canvas.style.cursor='crosshair'; _saveViewNow(); return; }
   if(_moveDrag){
     const drag=_moveDrag; _moveDrag=null;
     canvas.style.cursor = state.mode==='move' ? 'grab' : 'crosshair';
@@ -3268,7 +3345,7 @@ function onPointerLeave() {
     else draw();
   }
   if(drawing&&state.mode!=='zone'){ drawing=false; preview=null; draw(); }
-  if(isPanning){ isPanning=false; canvas.style.cursor='crosshair'; }
+  if(isPanning){ isPanning=false; canvas.style.cursor='crosshair'; _saveViewNow(); }
 }
 
 function onDblClick(e) {
@@ -3928,7 +4005,7 @@ function handleCalClick(sx, sy) {
       updateCalBanner();
       toast('Map point A marked — click the 2nd spot on the map', 'warn');
     } else {
-      computeCalibration();
+      if (!computeCalibration()) return;
       persistCalibration();
     }
   }
@@ -3940,13 +4017,23 @@ function computeCalibration() {
 
   const dmx = mb.mx - ma.mx;
   const dmy = mb.my - ma.my;
+
+  // Both axes must actually differ or the scale fit for that axis is
+  // underdetermined — abort rather than silently keep a stale calSx/calSy.
+  if (Math.abs(dmx) <= 2 || Math.abs(dmy) <= 2) {
+    toast('Points too close together on one axis — pick two spots that differ in BOTH X and Y', 'err');
+    calPhase = 1; calMapClicks = [];
+    renderCalOverlay(); updateCalBanner();
+    return false;
+  }
+
   // Convert stream canvas-px deltas to world space for a zoom-stable result
   const dsx = (sb.sx - sa.sx) / zoom;
   const dsy = (sb.sy - sa.sy) / zoom;
 
   // Solve in world space: world_x = mx * calSx + calTx
-  if (Math.abs(dmx) > 2) calSx = dsx / dmx;
-  if (Math.abs(dmy) > 2) calSy = dsy / dmy;
+  calSx = dsx / dmx;
+  calSy = dsy / dmy;
   // calTx/calTy are world-space offsets (same units as mapOffsetX/Y)
   const sa_wx = (sa.sx - panX) / zoom;
   const sa_wy = (sa.sy - panY) / zoom;
@@ -3978,6 +4065,7 @@ function computeCalibration() {
   calPhase = 0; // prevent more clicks
   setTimeout(() => exitCalibration(), 1800);
   toast('Map calibrated — coords corrected', 'ok');
+  return true;
 }
 
 // Session 42: persist calibration to the match row so it survives reload —
@@ -4137,8 +4225,8 @@ function _loadMapRes(key,res,onload) {
 }
 
 function loadMapKey(key) {
-  if(!MAP_SRCS[key]&&key!=='custom'){ const fb=MAP_FALLBACK[key]; if(!fb)return; const img=new Image(); img.crossOrigin='anonymous'; img.src=fb; img.onload=()=>{ mapImg=img; WORLD_W=img.naturalWidth||2048; WORLD_H=img.naturalHeight||2048; resetView(); draw(); if(_canvasReady) canvas.classList.add('map-ready'); }; return; }
-  _loadMapRes(key,'lo',(img)=>{ mapImg=img; WORLD_W=img.naturalWidth||2048; WORLD_H=img.naturalHeight||2048; resetView(); draw(); if(_canvasReady) canvas.classList.add('map-ready'); });
+  if(!MAP_SRCS[key]&&key!=='custom'){ const fb=MAP_FALLBACK[key]; if(!fb)return; const img=new Image(); img.crossOrigin='anonymous'; img.src=fb; img.onload=()=>{ mapImg=img; WORLD_W=img.naturalWidth||2048; WORLD_H=img.naturalHeight||2048; if(!_applySavedView(state.matchId)) resetView(); draw(); if(_canvasReady) canvas.classList.add('map-ready'); }; return; }
+  _loadMapRes(key,'lo',(img)=>{ mapImg=img; WORLD_W=img.naturalWidth||2048; WORLD_H=img.naturalHeight||2048; if(!_applySavedView(state.matchId)) resetView(); draw(); if(_canvasReady) canvas.classList.add('map-ready'); });
   _loadMapRes(key,'mid'); _loadMapRes(key,'hi');
 }
 
@@ -4229,6 +4317,9 @@ async function flushAutosaveQueue() {
 
 window.addEventListener('beforeunload', (e) => {
   if(_autosaveFailed || _pendingAutosaveCount > 0) { e.preventDefault(); e.returnValue=''; }
+  if (state.matchId && _ytPlayerReady) {
+    try { sessionStorage.setItem('mz_vodpos_'+state.matchId, String(Math.round(_ytCurrentTime))); } catch(e) {}
+  }
 });
 
 // ── Cross-tab "already open" warning (Session 42, upgraded to a modal) —
@@ -4247,6 +4338,17 @@ function announceMatchOpen(matchId) {
     }
   };
   _matchChannel.postMessage('open');
+}
+
+function _mzShowWelcomeIfNeeded() {
+  if (sessionStorage.getItem('mz_welcomed')) return;
+  const el = document.getElementById('mz-welcome-modal');
+  if (el) el.classList.add('show');
+}
+function _mzDismissWelcome() {
+  try { sessionStorage.setItem('mz_welcomed', '1'); } catch(e) {}
+  const el = document.getElementById('mz-welcome-modal');
+  if (el) el.classList.remove('show');
 }
 
 async function manualSave() {

@@ -227,9 +227,29 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);height:
 .fade-in-delay-1{animation-delay:.1s;}
 .fade-in-delay-2{animation-delay:.2s;}
 .fade-in-delay-3{animation-delay:.3s;}
+
+/* WELCOME MODAL */
+.modal-backdrop{position:fixed;inset:0;background:rgba(13,13,13,.55);backdrop-filter:blur(4px);z-index:600;display:none;align-items:center;justify-content:center;}
+.modal-backdrop.show{display:flex;}
+.modal-box{background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;padding:22px;width:360px;display:flex;flex-direction:column;gap:12px;}
+.modal-box .modal-title{font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--text-hero);}
+.modal-box .modal-sub{font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:.05em;line-height:1.6;}
+.modal-box .modal-actions{display:flex;gap:8px;margin-top:4px;}
+.modal-box .btn-modal-confirm{flex:1;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-family:var(--font-mono);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:opacity .15s;}
+.modal-box .btn-modal-confirm:hover{opacity:.85;}
 </style>
 </head>
 <body>
+
+<div class="modal-backdrop" id="mz-welcome-modal">
+  <div class="modal-box">
+    <div class="modal-title">Welcome to Metazone</div>
+    <div class="modal-sub">Browse this tournament's day/match tree, manage teams, and jump into the editor or VOD review for any match.</div>
+    <div class="modal-actions">
+      <button class="btn-modal-confirm" onclick="_mzDismissWelcome()">GOT IT</button>
+    </div>
+  </div>
+</div>
 
 <!-- AUTH SCREEN -->
 <div id="auth-screen" class="hidden">
@@ -440,6 +460,7 @@ let _booted = false;
     document.getElementById('auth-screen').classList.remove('hidden');
     showLoading(false);
   }
+  _mzShowWelcomeIfNeeded();
 
   sb.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session) {
@@ -1102,6 +1123,17 @@ async function sendMagicLink() {
 
 async function signOut() {
   if (sb) await sb.auth.signOut();
+}
+
+function _mzShowWelcomeIfNeeded() {
+  if (sessionStorage.getItem('mz_welcomed')) return;
+  const el = document.getElementById('mz-welcome-modal');
+  if (el) el.classList.add('show');
+}
+function _mzDismissWelcome() {
+  try { sessionStorage.setItem('mz_welcomed', '1'); } catch(e) {}
+  const el = document.getElementById('mz-welcome-modal');
+  if (el) el.classList.remove('show');
 }
 </script>
 </body>

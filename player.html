@@ -142,9 +142,39 @@
     .death-dot-row { display:flex;align-items:center;gap:10px;margin-bottom:4px; }
     .death-dot-label { font-family:'Lexend Deca',monospace;font-size:8px;color:var(--muted);width:52px;flex-shrink:0;text-align:right; }
     .death-dot-track { flex:1;position:relative;height:20px;background:rgba(237,231,220,0.6);border:1px solid rgba(201,191,168,0.6);border-radius:2px; }
+
+    /* ══ WELCOME MODAL ══ */
+    .modal-backdrop{
+      position:fixed;inset:0;background:rgba(13,13,13,.55);backdrop-filter:blur(4px);
+      z-index:600;display:none;align-items:center;justify-content:center;
+    }
+    .modal-backdrop.show{ display:flex; }
+    .modal-box{
+      background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;
+      padding:22px;width:360px;display:flex;flex-direction:column;gap:12px;
+    }
+    .modal-box .modal-title{ font-family:'Oswald',sans-serif;font-size:16px;font-weight:700;color:var(--text-hero); }
+    .modal-box .modal-sub{ font-family:'Lexend Deca',monospace;font-size:10px;color:var(--muted);letter-spacing:.05em;line-height:1.6; }
+    .modal-box .modal-actions{ display:flex;gap:8px;margin-top:4px; }
+    .modal-box .btn-modal-confirm{
+      flex:1;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:6px;
+      font-family:'Lexend Deca',monospace;font-size:10px;font-weight:700;letter-spacing:.08em;
+      text-transform:uppercase;cursor:pointer;transition:opacity .15s;
+    }
+    .modal-box .btn-modal-confirm:hover{ opacity:.85; }
   </style>
 </head>
 <body>
+
+<div class="modal-backdrop" id="mz-welcome-modal">
+  <div class="modal-box">
+    <div class="modal-title">Welcome to Metazone</div>
+    <div class="modal-sub">This page tracks your individual performance — kills, survival, damage, and trends across every match and tournament you've played.</div>
+    <div class="modal-actions">
+      <button class="btn-modal-confirm" onclick="_mzDismissWelcome()">GOT IT</button>
+    </div>
+  </div>
+</div>
 
 <!-- AUTH SCREEN -->
 <div id="auth-screen" class="hidden">
@@ -495,6 +525,17 @@ async function sendMagicLink() {
 }
 async function signOut() { await sb.auth.signOut(); window.location.reload(); }
 
+function _mzShowWelcomeIfNeeded() {
+  if (sessionStorage.getItem('mz_welcomed')) return;
+  const el = document.getElementById('mz-welcome-modal');
+  if (el) el.classList.add('show');
+}
+function _mzDismissWelcome() {
+  try { sessionStorage.setItem('mz_welcomed', '1'); } catch(e) {}
+  const el = document.getElementById('mz-welcome-modal');
+  if (el) el.classList.remove('show');
+}
+
 // ══════════════════════════════════════════════════════
 // BOOT
 // ══════════════════════════════════════════════════════
@@ -508,6 +549,7 @@ let _booted = false;
   } else {
     document.getElementById('auth-screen').classList.remove('hidden');
   }
+  _mzShowWelcomeIfNeeded();
   sb.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session) {
       currentUser = session.user;

@@ -1061,6 +1061,13 @@ canvas.path-mode{ cursor:cell; }
 }
 #tab-warning-modal.show{ display:flex; }
 
+/* ══ WELCOME MODAL ══ (reuses .dwm-box/.dwm-icon/.dwm-title/.dwm-body/.dwm-actions/.btn-dwm-cancel) */
+#mz-welcome-modal{
+  position:fixed;inset:0;background:rgba(2,6,23,.75);backdrop-filter:blur(4px);
+  z-index:600;display:none;align-items:center;justify-content:center;
+}
+#mz-welcome-modal.show{ display:flex; }
+
 /* ══ MULTI-TRACK [E9] ══ */
 .btn-multi-track{
   width:100%;padding:8px 12px;background:var(--bg);color:var(--muted);
@@ -1656,6 +1663,18 @@ canvas.path-mode{ cursor:cell; }
   </div>
 </div>
 
+<!-- ══ WELCOME MODAL ████████████████████ -->
+<div id="mz-welcome-modal">
+  <div class="dwm-box">
+    <div class="dwm-icon"><iconify-icon icon="lucide:map" style="font-size:28px"></iconify-icon></div>
+    <div class="dwm-title">Welcome to Metazone</div>
+    <div class="dwm-body">Draw zones, rotations, and fight locations on the map while you track a match, then review it all again from the VOD later. Explore the toolbar to get started.</div>
+    <div class="dwm-actions">
+      <button class="btn-dwm-cancel" onclick="_mzDismissWelcome()">GOT IT</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ SUPABASE SDK ═══════════════════════════════ -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -1734,6 +1753,7 @@ let panSX=0, panSY=0, panPX=0, panPY=0;
 // Drawing state
 let drawing=false, circleP1=null, dSX=0, dSY=0, preview=null;
 let pathPoints=[], pathDrawing=false;
+let _pathStartTime=null; // FEAT-2: state.time when the current path started, for per-point t stamping
 let pendingPin=null, cpTeamId=null;
 let _moveDrag=null; // {shape, kind, startWX, startWY, orig, moved}
 let _altMoveKeyDown=false; // Alt held → quick-move a shape from within any draw mode, no need to switch to MOVE mode first
@@ -1787,7 +1807,19 @@ window.addEventListener('DOMContentLoaded', async () => {
       resetLocalState();
     }
   });
+  _mzShowWelcomeIfNeeded();
 });
+
+function _mzShowWelcomeIfNeeded() {
+  if (sessionStorage.getItem('mz_welcomed')) return;
+  const el = document.getElementById('mz-welcome-modal');
+  if (el) el.classList.add('show');
+}
+function _mzDismissWelcome() {
+  try { sessionStorage.setItem('mz_welcomed', '1'); } catch(e) {}
+  const el = document.getElementById('mz-welcome-modal');
+  if (el) el.classList.remove('show');
+}
 
 // ══════════════════════════════════════════════════════
 // AUTH
@@ -2534,7 +2566,7 @@ function loadMapKey(key) {
     const src = key+'.png';
     return new Promise(resolve => {
       const img = new Image(); img.crossOrigin='anonymous'; img.src=src;
-      img.onload=()=>{ mapImg=img; WORLD_W=img.naturalWidth||2048; WORLD_H=img.naturalHeight||2048; resetView(); draw(); if(_canvasReady) canvas.classList.add('map-ready'); resolve(); };
+      img.onload=()=>{ mapImg=img; WORLD_W=img.naturalWidth||2048; WORLD_H=img.naturalHeight||2048; if(!_applySavedView(state.matchId)) resetView(); draw(); if(_canvasReady) canvas.classList.add('map-ready'); resolve(); };
       img.onerror=()=>{ toast('MAP NOT FOUND: '+src,'warn'); resolve(); };
     });
   }
@@ -2544,7 +2576,8 @@ function loadMapKey(key) {
       mapImg = img;
       WORLD_W = img.naturalWidth || 2048;
       WORLD_H = img.naturalHeight || 2048;
-      resetView(); draw();
+      if(!_applySavedView(state.matchId)) resetView();
+      draw();
       if (_canvasReady) canvas.classList.add('map-ready');
       resolve();
     });
@@ -2616,7 +2649,14 @@ function showDeleteWarning(type, title, body, onConfirm, confirmLabel) {
   document.getElementById('dwm-body').textContent  = body;
   const btn = document.getElementById('dwm-confirm-btn');
   btn.textContent = confirmLabel || 'DELETE';
-  btn.style.background = type === 'map' ? 'var(--orange)' : 'var(--red)';
+  const box = document.querySelector('#delete-warning-modal .dwm-box');
+  if (type === 'matchend') {
+    btn.style.background = 'var(--green)';
+    if (box) box.style.borderColor = 'var(--green)';
+  } else {
+    btn.style.background = type === 'map' ? 'var(--orange)' : 'var(--red)';
+    if (box) box.style.borderColor = '';
+  }
   document.getElementById('delete-warning-modal').classList.add('show');
 }
 function closeDeleteWarning() {
@@ -2639,6 +2679,34 @@ function resetView() {
   panX=(W-WORLD_W*scale)/2;
   panY=(H-WORLD_H*scale)/2;
   updateZoomHud(); draw();
+}
+
+// P4: session-persisted camera — stored resize-invariant (zoom-ratio + world-space
+// screen-center) so restoring after a window resize still recomputes a correct
+// pan/zoom for whatever the current canvas size is, instead of misapplying stale
+// absolute panX/panY/zoom values.
+function _saveViewNow() {
+  if (!state.matchId) return;
+  const minZoom = Math.min(canvas.width/WORLD_W, canvas.height/WORLD_H);
+  const zr = zoom / minZoom;
+  const wx = (canvas.width/2  - panX) / zoom;
+  const wy = (canvas.height/2 - panY) / zoom;
+  try { sessionStorage.setItem('mz_view_'+state.matchId, JSON.stringify({zr, wx, wy})); } catch(e) {}
+}
+let _viewSaveTimer = null;
+function _saveViewDebounced() { clearTimeout(_viewSaveTimer); _viewSaveTimer = setTimeout(_saveViewNow, 350); }
+
+function _applySavedView(matchId) {
+  if (!matchId) return false;
+  let raw; try { raw = sessionStorage.getItem('mz_view_'+matchId); } catch(e) { return false; }
+  if (!raw) return false;
+  let v; try { v = JSON.parse(raw); } catch(e) { return false; }
+  const minZoom = Math.min(canvas.width/WORLD_W, canvas.height/WORLD_H);
+  zoom = minZoom * v.zr;
+  panX = canvas.width/2  - v.wx*zoom;
+  panY = canvas.height/2 - v.wy*zoom;
+  clampPan(); updateZoomHud(); draw();
+  return true;
 }
 
 function adjustZoom(delta) { zoomAt(canvas.width/2, canvas.height/2, delta); }
@@ -2665,6 +2733,7 @@ function zoomAt(sx, sy, delta) {
   panX=sx-s*(sx-panX); panY=sy-s*(sy-panY); zoom=nz;
   clampPan();
   updateZoomHud(); draw();
+  _saveViewDebounced();
 }
 
 function updateZoomHud() {
@@ -2727,7 +2796,8 @@ function initCanvas() {
   // resetView now runs with correct dimensions and reveals the canvas.
   // Otherwise load the default map — onload will see _canvasReady=true.
   if (mapImg && mapImg.complete && mapImg.naturalWidth) {
-    resetView(); draw(); canvas.classList.add('map-ready');
+    if(!_applySavedView(state.matchId)) resetView();
+    draw(); canvas.classList.add('map-ready');
   } else {
     loadMapKey(state.mapKey || 'erangel');
   }
@@ -2749,7 +2819,8 @@ function initCanvas() {
 }
 
 function resizeCanvas() {
-  canvas.width=wrap.clientWidth; canvas.height=wrap.clientHeight; resetView();
+  canvas.width=wrap.clientWidth; canvas.height=wrap.clientHeight;
+  if(!_applySavedView(state.matchId)) resetView();
 }
 
 // ══════════════════════════════════════════════════════
@@ -2826,10 +2897,10 @@ function onPointerDown(e) {
     // Touch: start freehand path on touchstart, points added in touchmove, finished on touchend
     // Desktop: tap to place points, right-click to finish (dblclick kept as fallback)
     if(e.touches){
-      pathDrawing=true; pathPoints=[{x:wx,y:wy}];
+      pathDrawing=true; pathPoints=[{x:wx,y:wy}]; _pathStartTime=state.time;
       document.getElementById('path-indicator').classList.add('show');
     } else {
-      if(!pathDrawing){ pathDrawing=true; pathPoints=[{x:wx,y:wy}]; document.getElementById('path-indicator').classList.add('show'); }
+      if(!pathDrawing){ pathDrawing=true; pathPoints=[{x:wx,y:wy}]; _pathStartTime=state.time; document.getElementById('path-indicator').classList.add('show'); }
       else{ pathPoints.push({x:wx,y:wy}); }
     }
     draw(); return;
@@ -2909,7 +2980,7 @@ function onPointerUp(e) {
     return;
   }
 
-  if(isPanning){ isPanning=false; canvas.classList.remove('panning-active'); return; }
+  if(isPanning){ isPanning=false; canvas.classList.remove('panning-active'); _saveViewNow(); return; }
   if(_moveDrag){
     const drag=_moveDrag; _moveDrag=null;
     canvas.style.cursor = state.mode==='move' ? 'grab' : 'crosshair';
@@ -2926,7 +2997,8 @@ function onPointerUp(e) {
       const shapes=getActiveShapes();
       if(shapes){
         const rotIdx = getNextRotationIndex(state.activeTeamId);
-        const shape={type:'path',points:[...pathPoints],tag:'rotation',time:state.time,rotation_index:rotIdx};
+        const stamped = _stampPathPoints([...pathPoints], _pathStartTime ?? state.time, state.time);
+        const shape={type:'path',points:stamped,tag:'rotation',time:_pathStartTime ?? state.time,rotation_index:rotIdx};
         shapes.push(shape); queueForSave(shape);
       }
       cancelPath(); draw();
@@ -2969,7 +3041,7 @@ function onPointerLeave() {
     draw();
   }
   if(drawing&&state.mode!=='zone'){ drawing=false; preview=null; draw(); }
-  if(isPanning){ isPanning=false; canvas.classList.remove('panning-active'); }
+  if(isPanning){ isPanning=false; canvas.classList.remove('panning-active'); _saveViewNow(); }
   hideHoverTip();
 }
 
@@ -2990,10 +3062,20 @@ function _finishPath() {
   const shapes=getActiveShapes();
   if(shapes){
     const rotIdx = getNextRotationIndex(state.activeTeamId);
-    const shape={type:'path',points:[...pathPoints],tag:'rotation',time:state.time,rotation_index:rotIdx};
+    const stamped = _stampPathPoints([...pathPoints], _pathStartTime ?? state.time, state.time);
+    const shape={type:'path',points:stamped,tag:'rotation',time:_pathStartTime ?? state.time,rotation_index:rotIdx};
     shapes.push(shape); queueForSave(shape);
   }
   cancelPath(); draw();
+}
+
+// FEAT-2: interpolate each point's t by index between the path's start/end draw
+// times. Degenerates to "all points same timestamp" when start===end (the
+// common single-sitting-draw case) — identical to today's persisted value.
+function _stampPathPoints(points, startTime, endTime) {
+  const n = points.length;
+  if (n <= 1) return points.map(p => ({...p, t: endTime}));
+  return points.map((p, i) => ({...p, t: startTime + (endTime - startTime) * (i / (n - 1))}));
 }
 
 function cancelPath() {
@@ -3122,10 +3204,21 @@ function drawShape(s, isPreview, teamColor, alphaMult) {
     if(s.tag==='rotation') drawArrow(s.x1,s.y1,s.x2,s.y2,stroke,lw);
     else{ ctx.beginPath(); ctx.moveTo(s.x1,s.y1); ctx.lineTo(s.x2,s.y2); ctx.stroke(); }
   } else if(s.type==='path'){
-    drawPath(s.points,stroke,lw,isPreview);
+    drawPath(_visiblePathPoints(s.points, state.time),stroke,lw,isPreview);
   } else if(s.type==='pin'||s.type==='fight'){
     drawPinMarker(s,isPreview,teamColor,am);
   }
+}
+
+// FEAT-2: reveal a path progressively up to state.time, using each point's own
+// t (interpolated at commit time between the path's start/end draw times).
+// Legacy paths saved before this feature has no per-point t — show fully.
+function _visiblePathPoints(points, t) {
+  if (!points || !points.length) return points;
+  if (points[points.length - 1].t == null) return points;
+  const cut = points.findIndex(p => p.t != null && p.t > t);
+  if (cut === -1) return points;
+  return points.slice(0, cut);
 }
 
 function drawZoneCircle(s, isPreview) {
@@ -3734,6 +3827,7 @@ async function _activateMatch(match, statusMsg) {
 
   // Set time state BEFORE rendering so event log reflects match-end (all events lit)
   const matchDur = match.duration_seconds;
+  let restoredTime = matchDur;
   if (matchDur) {
     const slider = document.getElementById('temporal-slider');
     if (slider) {
@@ -3741,6 +3835,17 @@ async function _activateMatch(match, statusMsg) {
       slider.value = matchDur;
       state.time = matchDur;
       document.getElementById('time-display').textContent = fmtTime(matchDur);
+    }
+  }
+  // A saved scrub position takes priority over the "jump to match end" default.
+  {
+    const saved = sessionStorage.getItem('mz_time_'+match.id);
+    if (saved != null) {
+      const t = Math.min(+saved, matchDur ? matchDur : +saved);
+      restoredTime = t;
+      state.time = t;
+      const slider = document.getElementById('temporal-slider');
+      if (slider) { slider.value = t; document.getElementById('time-display').textContent = fmtTime(t); }
     }
   }
 
@@ -3760,7 +3865,7 @@ async function _activateMatch(match, statusMsg) {
   if (matchDur) {
     const slider = document.getElementById('temporal-slider');
     if (slider) {
-      const pct = (matchDur / +slider.max) * 100;
+      const pct = (restoredTime / +slider.max) * 100;
       const fill = document.getElementById('track-fill');
       const thumb = document.getElementById('track-thumb');
       fill.style.transition = 'width 1s cubic-bezier(.4,0,.2,1)';
@@ -3844,7 +3949,15 @@ document.getElementById('sel-match').onchange=async function(){
       slider.max=Math.max(m.duration_seconds+60, 2100);
       slider.value=m.duration_seconds; state.time=m.duration_seconds;
       document.getElementById('time-display').textContent=fmtTime(m.duration_seconds);
-      const pct=(m.duration_seconds/+slider.max)*100;
+      let restoredTime=m.duration_seconds;
+      // A saved scrub position takes priority over the "jump to match end" default.
+      const saved=sessionStorage.getItem('mz_time_'+m.id);
+      if(saved!=null){
+        const t=Math.min(+saved, m.duration_seconds);
+        restoredTime=t; state.time=t;
+        slider.value=t; document.getElementById('time-display').textContent=fmtTime(t);
+      }
+      const pct=(restoredTime/+slider.max)*100;
       const fill=document.getElementById('track-fill'), thumb=document.getElementById('track-thumb');
       fill.style.transition='width 1s cubic-bezier(.4,0,.2,1)';
       thumb.style.transition='left 1s cubic-bezier(.4,0,.2,1)';
@@ -3864,6 +3977,7 @@ document.getElementById('sel-match').onchange=async function(){
   renderTeamList(); draw(); updateRightPanel();
   renderAnnotationLog();
   renderTimelineTicks();
+  mzCtxWrite();
   announceMatchOpen(state.matchId);
 };
 
@@ -4066,6 +4180,16 @@ function onTimeSlider() {
   draw();
   renderAnnotationLog({scrubSync:true});
   updateSelfButtonState();
+  _saveScrubPositionThrottled();
+}
+
+let _scrubSaveTimer = null;
+function _saveScrubPositionThrottled() {
+  clearTimeout(_scrubSaveTimer);
+  _scrubSaveTimer = setTimeout(() => {
+    if (!state.matchId) return;
+    try { sessionStorage.setItem('mz_time_'+state.matchId, String(state.time)); } catch(e) {}
+  }, 400);
 }
 
 // Override the input listener to also update visual track
@@ -4165,6 +4289,7 @@ function jumpToTime(t) {
   document.getElementById('track-fill').style.width=pct+'%';
   document.getElementById('track-thumb').style.left=pct+'%';
   draw(); updateAnnotationLogLit();
+  _saveScrubPositionThrottled();
 }
 
 // ══════════════════════════════════════════════════════
@@ -4637,32 +4762,40 @@ async function confirmWipe() {
       }
     }
 
+    renderTimelineTicks(); renderAnnotationLog({scrollToTop:true});
+
     // Scenario C — no enemies left, self still alive → self wins
     if(survivingEnemies.length === 0 && selfAlive) {
-      await _autoAssignPosition(selfTeam, 1);
-      toast(`🏆 SELF wins — marked #1, ending match…`, 'ok');
-      renderTimelineTicks(); renderAnnotationLog({scrollToTop:true});
       await _clearMatchEndIfSet();
-      setTimeout(()=>markMatchEnd(), 600); // pin prompt already closed before this modal opened — no defer needed
+      showDeleteWarning('matchend', 'End the match?', 'SELF wins — mark #1 and end the match now?',
+        async () => {
+          await _autoAssignPosition(selfTeam, 1);
+          toast(`🏆 SELF marked #1 — match ended`, 'ok');
+          markMatchEnd();
+        }, 'END MATCH');
 
     // Scenario A — 1 enemy left, self alive → enemy wins, self is #2
     } else if(survivingEnemies.length === 1 && selfAlive) {
       const winner = survivingEnemies[0];
-      await _autoAssignPosition(winner, 1);
-      await _autoAssignPosition(selfTeam, 2);
-      toast(`🏆 ${winner.name} marked #1 · SELF marked #2 — ending match…`, 'ok');
-      renderTimelineTicks(); renderAnnotationLog({scrollToTop:true});
       await _clearMatchEndIfSet();
-      setTimeout(()=>markMatchEnd(), 600); // pin prompt already closed before this modal opened — no defer needed
+      showDeleteWarning('matchend', 'End the match?', `${winner.name} wins — mark #1 · SELF #2 and end the match now?`,
+        async () => {
+          await _autoAssignPosition(winner, 1);
+          await _autoAssignPosition(selfTeam, 2);
+          toast(`🏆 ${winner.name} marked #1 · SELF marked #2 — match ended`, 'ok');
+          markMatchEnd();
+        }, 'END MATCH');
 
     // Scenario B — 1 enemy left, self already wiped → that enemy is the winner
     } else if(survivingEnemies.length === 1 && !selfAlive) {
       const winner = survivingEnemies[0];
-      await _autoAssignPosition(winner, 1);
-      toast(`🏆 ${winner.name} marked #1 — ending match…`, 'ok');
-      renderTimelineTicks(); renderAnnotationLog({scrollToTop:true});
       await _clearMatchEndIfSet();
-      setTimeout(()=>markMatchEnd(), 600); // pin prompt already closed before this modal opened — no defer needed
+      showDeleteWarning('matchend', 'End the match?', `${winner.name} wins — mark #1 and end the match now?`,
+        async () => {
+          await _autoAssignPosition(winner, 1);
+          toast(`🏆 ${winner.name} marked #1 — match ended`, 'ok');
+          markMatchEnd();
+        }, 'END MATCH');
     }
   }
 }

@@ -149,6 +149,10 @@ table.mg-table tr:last-child td{border-bottom:none;}
 .btn-mgm-confirm{flex:1;padding:9px;background:var(--red);border:none;color:#fff;border-radius:3px;font-family:var(--font-mono);font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;cursor:pointer;transition:opacity .15s;}
 .btn-mgm-confirm:hover{opacity:.85;}
 
+/* WELCOME MODAL (reuses .mgm-box.info/.mgm-icon/.mgm-title/.mgm-body/.mgm-actions/.btn-mgm-cancel) */
+#mz-welcome-modal{position:fixed;inset:0;background:rgba(13,13,13,.55);backdrop-filter:blur(4px);z-index:600;display:none;align-items:center;justify-content:center;}
+#mz-welcome-modal.show{display:flex;}
+
 ::-webkit-scrollbar{width:6px;height:6px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
@@ -275,6 +279,18 @@ table.mg-table tr:last-child td{border-bottom:none;}
   </div>
 </div>
 
+<!-- WELCOME MODAL -->
+<div id="mz-welcome-modal">
+  <div class="mgm-box info">
+    <div class="mgm-icon">🗺️</div>
+    <div class="mgm-title">Welcome to Metazone</div>
+    <div class="mgm-body">Fix a typo'd team name, merge duplicate opponents, edit a player's IGN, or clean up a roster — all without deleting an entire tournament.</div>
+    <div class="mgm-actions">
+      <button class="btn-mgm-cancel" onclick="_mzDismissWelcome()">GOT IT</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST CONTAINER -->
 <div id="toast-container"></div>
 
@@ -326,6 +342,17 @@ function _mgmConfirm() {
   if (typeof cb === 'function') cb();
 }
 
+function _mzShowWelcomeIfNeeded() {
+  if (sessionStorage.getItem('mz_welcomed')) return;
+  const el = document.getElementById('mz-welcome-modal');
+  if (el) el.classList.add('show');
+}
+function _mzDismissWelcome() {
+  try { sessionStorage.setItem('mz_welcomed', '1'); } catch(e) {}
+  const el = document.getElementById('mz-welcome-modal');
+  if (el) el.classList.remove('show');
+}
+
 // ══════════════════════════════════════════════════════
 // TABS
 // ══════════════════════════════════════════════════════
@@ -363,6 +390,7 @@ let _booted = false;
   } else {
     document.getElementById('auth-screen').classList.remove('hidden');
   }
+  _mzShowWelcomeIfNeeded();
   sb.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session) {
       if (_booted) return;

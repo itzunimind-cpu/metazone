@@ -143,6 +143,14 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text-body);he
 .btn-idm-confirm{flex:1;padding:9px;background:var(--red);border:none;color:#fff;border-radius:3px;font-family:var(--font-mono);font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;cursor:pointer;transition:opacity .15s;}
 .btn-idm-confirm:hover{opacity:.85;}
 
+/* WELCOME MODAL (reuses .idm-box/.idm-icon/.idm-title/.idm-body/.idm-actions/.btn-idm-cancel, neutral border) */
+#mz-welcome-modal{
+  position:fixed;inset:0;background:rgba(13,13,13,.55);backdrop-filter:blur(4px);
+  z-index:600;display:none;align-items:center;justify-content:center;
+}
+#mz-welcome-modal.show{display:flex;}
+#mz-welcome-modal .idm-box{border-color:var(--border-mid);}
+
 /* [D3] Active players modal */
 #idx-apm{
   position:fixed;inset:0;background:rgba(13,13,13,.55);backdrop-filter:blur(4px);
@@ -680,6 +688,16 @@ async function sendMagicLink(){
   else{msg.textContent='✓ Check your inbox for the link';msg.className='auth-msg ok';}
 }
 async function signOut(){await sb.auth.signOut();}
+function _mzShowWelcomeIfNeeded(){
+  if(sessionStorage.getItem('mz_welcomed'))return;
+  const el=document.getElementById('mz-welcome-modal');
+  if(el)el.classList.add('show');
+}
+function _mzDismissWelcome(){
+  try{sessionStorage.setItem('mz_welcomed','1');}catch(e){}
+  const el=document.getElementById('mz-welcome-modal');
+  if(el)el.classList.remove('show');
+}
 function resetLocalState(){tournaments=[];events=[];activeTournamentId=null;activeDayId=null;activeMatchId=null;matches=[];selectedMatch=null;renderTree();renderDayTabs();renderGrid();renderRP();}
 
 // ── INIT ──
@@ -688,6 +706,7 @@ let _booted=false;
   const{data:{session}}=await sb.auth.getSession();
   if(session){_booted=true;currentUser=session.user;document.getElementById('auth-screen').classList.add('hidden');await loadAll();}
   else{document.getElementById('auth-screen').classList.remove('hidden');}
+  _mzShowWelcomeIfNeeded();
   sb.auth.onAuthStateChange(async(event,session)=>{
     if(event==='SIGNED_IN'&&session){if(_booted)return;_booted=true;currentUser=session.user;document.getElementById('auth-screen').classList.add('hidden');await loadAll();}
     if(event==='SIGNED_OUT'){_booted=false;currentUser=null;document.getElementById('auth-screen').classList.remove('hidden');resetLocalState();}
@@ -1613,6 +1632,18 @@ document.getElementById('group-picker-modal').addEventListener('click',function(
     <div class="idm-actions">
       <button class="btn-idm-cancel" onclick="closeDeleteWarning()">CANCEL</button>
       <button class="btn-idm-confirm" id="idm-confirm-btn" onclick="_idmConfirm()">DELETE</button>
+    </div>
+  </div>
+</div>
+
+<!-- WELCOME MODAL -->
+<div id="mz-welcome-modal">
+  <div class="idm-box">
+    <div class="idm-icon">🗺️</div>
+    <div class="idm-title">Welcome to Metazone</div>
+    <div class="idm-body">Create a tournament, track matches live in the editor, and review VODs afterward — all from this dashboard.</div>
+    <div class="idm-actions">
+      <button class="btn-idm-cancel" onclick="_mzDismissWelcome()">GOT IT</button>
     </div>
   </div>
 </div>
