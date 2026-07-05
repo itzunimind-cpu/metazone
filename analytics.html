@@ -864,7 +864,7 @@ const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 
 const PLACEMENT_POINTS = { 1:10, 2:6, 3:5, 4:4, 5:3, 6:2, 7:1, 8:1 };
 function pp(placement) { return PLACEMENT_POINTS[placement] || 0; }
-function totalPts(kills, placement) { return (kills || 0) + pp(placement); }
+function totalPts(kills, placement) { return (kills || 0) * (tournamentData?.kill_point_value || 1) + pp(placement); }
 
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
 
@@ -975,7 +975,7 @@ async function boot() {
 
 async function loadAllData() {
   // Tournament name
-  const { data: t } = await sb.from('tournaments').select('id,name,event_id,stage,cycle').eq('id', tournamentId).single();
+  const { data: t } = await sb.from('tournaments').select('id,name,event_id,stage,cycle,kill_point_value').eq('id', tournamentId).single();
   if (!t) {
     _hideSkeleton();
     document.getElementById('empty-state').style.display = 'flex';

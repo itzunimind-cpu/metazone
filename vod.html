@@ -1416,6 +1416,7 @@ async function signOut() { if (sb) await sb.auth.signOut(); }
 function resetLocalState() {
   tournaments=[]; days=[]; matches=[]; teams=[];
   shapesCache={}; zonesCache={}; annotations=[]; selfElims=[]; matchPlayers=[];
+  Object.keys(shapeHistory).forEach(k=>delete shapeHistory[k]); Object.keys(zoneHistory).forEach(k=>delete zoneHistory[k]);
   state.tournamentId=null; state.dayId=null; state.matchId=null; state.activeTeamId=null;
   matchActive=false; vodStartOffset=0; matchTime=0;
   if (ytPlayer && typeof ytPlayer.stopVideo === 'function') ytPlayer.stopVideo();
@@ -2045,6 +2046,7 @@ async function confirmElim() {
     const shape = { type:'fight', x:coords.wx, y:coords.wy, tag:'fight', time:t,
                     teamA:'SELF', teamB:'??' };
     shapes.push(shape);
+    _recordShapeAction(state.activeTeamId,{op:'add',shape});
     queueForSave(shape);
   }
 
@@ -3215,7 +3217,7 @@ function onPointerDown(e) {
     if(!shapes){ toast('Select a match first','warn'); return; }
     // Direct place — no popup needed in VOD
     const shape={type:'pin',x:wx,y:wy,label:'',tag:'pin',time:state.time};
-    shapes.push(shape); queueForSave(shape); draw(); renderTimelineMarkers(); return;
+    shapes.push(shape); _recordShapeAction(state.activeTeamId,{op:'add',shape}); queueForSave(shape); draw(); renderTimelineMarkers(); return;
   }
   if(state.mode==='path'){
     if(!shapes){ toast('Select a match first','warn'); return; }
@@ -3304,7 +3306,7 @@ function onPointerUp(e) {
       if(shapes){
         const rotIdx=getNextRotationIndex(state.activeTeamId);
         const shape={type:'path',points:[...pathPoints],tag:'rotation',time:pathPoints[0]?.t??state.time,rotation_index:rotIdx};
-        shapes.push(shape); queueForSave(shape);
+        shapes.push(shape); _recordShapeAction(state.activeTeamId,{op:'add',shape}); queueForSave(shape);
       }
       cancelPath(); draw(); renderTimelineMarkers();
     }
@@ -3320,6 +3322,7 @@ function onPointerUp(e) {
     const shape={type:'circle',cx,cy,r,tag:'zone',time:state.time,zone_phase:zonePhase};
     if(!zonesCache[state.matchId]) zonesCache[state.matchId]=[];
     zonesCache[state.matchId].push(shape);
+    _recordZoneAction(state.matchId,{op:'add',shape});
     queueForSave(shape);
     preview=null; draw(); renderTimelineMarkers(); return;
   }
@@ -3331,7 +3334,7 @@ function onPointerUp(e) {
     if(shapes){
       const rotIdx=getNextRotationIndex(state.activeTeamId);
       const shape={type:'line',x1:dSX,y1:dSY,x2:wx,y2:wy,tag:'rotation',time:state.time,rotation_index:rotIdx};
-      shapes.push(shape); queueForSave(shape);
+      shapes.push(shape); _recordShapeAction(state.activeTeamId,{op:'add',shape}); queueForSave(shape);
     }
     preview=null; draw(); renderTimelineMarkers(); return;
   }
@@ -3368,7 +3371,7 @@ function _finishPath() {
     const rotIdx=getNextRotationIndex(state.activeTeamId);
     // VOD paths ALWAYS store {x,y,t}
     const shape={type:'path',points:[...pathPoints],tag:'rotation',time:pathPoints[0]?.t??state.time,rotation_index:rotIdx};
-    shapes.push(shape); queueForSave(shape);
+    shapes.push(shape); _recordShapeAction(state.activeTeamId,{op:'add',shape}); queueForSave(shape);
   }
   cancelPath(); draw(); renderTimelineMarkers();
 }
@@ -3388,6 +3391,7 @@ async function eraseAt(wx, wy) {
     const z=zones[i];
     if(Math.sqrt((z.cx-wx)**2+(z.cy-wy)**2)<z.r+10/zoom){ // within circle radius
       zones.splice(i,1);
+      _recordZoneAction(state.matchId,{op:'erase',shape:z,index:i});
       if(sb&&z.id&&!String(z.id).startsWith('local_')) await sb.from('shapes').delete().eq('id',z.id);
       draw(); renderTimelineMarkers(); return;
     }
@@ -3402,6 +3406,7 @@ async function eraseAt(wx, wy) {
       if(s.type==='pin'||s.type==='fight'){
         if(Math.sqrt((s.x-wx)**2+(s.y-wy)**2)<10/zoom){
           shapes.splice(i,1);
+          _recordShapeAction(team.id,{op:'erase',shape:s,index:i});
           if(sb&&s.id&&!String(s.id).startsWith('local_')) await sb.from('shapes').delete().eq('id',s.id);
           draw(); renderTimelineMarkers(); return;
         }
@@ -3410,6 +3415,7 @@ async function eraseAt(wx, wy) {
         for(const pt of s.points){
           if(Math.sqrt((pt.x-wx)**2+(pt.y-wy)**2)<8/zoom){
             shapes.splice(i,1);
+            _recordShapeAction(team.id,{op:'erase',shape:s,index:i});
             if(sb&&s.id&&!String(s.id).startsWith('local_')) await sb.from('shapes').delete().eq('id',s.id);
             draw(); renderTimelineMarkers(); return;
           }
@@ -3496,25 +3502,55 @@ async function persistShapeMove(shape) {
 // ══════════════════════════════════════════════════════
 // UNDO
 // ══════════════════════════════════════════════════════
-const _undoStack = []; // [{teamId, shapeIdx, shape, isZone}]
+// True chronological action history, so Undo reverses whatever the user actually
+// did last (draw OR erase) instead of just popping the tail of the render array —
+// which broke as soon as Erase spliced a shape out of the middle of that array.
+const shapeHistory = {}; // teamId → [{op:'add'|'erase', shape, index}]
+const zoneHistory = {};  // matchId → [{op:'add'|'erase', shape, index}]
+function _recordShapeAction(teamId, entry){ (shapeHistory[teamId]||(shapeHistory[teamId]=[])).push(entry); }
+function _recordZoneAction(matchId, entry){ (zoneHistory[matchId]||(zoneHistory[matchId]=[])).push(entry); }
+function _freshLocalId(){ return 'local_'+Date.now()+'_'+Math.random().toString(36).slice(2); }
 
 async function undo() {
-  // Check zones
-  const zones = zonesCache[state.matchId]||[];
-  const teamShapes = getActiveShapes()||[];
-  const lastZone = zones.length ? zones[zones.length-1] : null;
-  const lastTeamShape = teamShapes.length ? teamShapes[teamShapes.length-1] : null;
-  const zoneIsNewer = lastZone && (!lastTeamShape || (lastZone.time>=(lastTeamShape.time||0)));
-  if(zoneIsNewer&&zones.length){
-    zones.pop();
-    lastZone._removed = true; // Session 42: tell a still-pending autosave not to re-insert this
-    if(sb&&lastZone?.id&&!String(lastZone.id).startsWith('local_')) await sb.from('shapes').delete().eq('id',lastZone.id);
-    draw(); renderTimelineMarkers(); return;
+  const zHist = zoneHistory[state.matchId]||[];
+  const sHist = shapeHistory[state.activeTeamId]||[];
+  const lastZ = zHist[zHist.length-1];
+  const lastS = sHist[sHist.length-1];
+  // Same "zones take priority when newer" heuristic as before, now applied to
+  // whichever action (add or erase) is actually on top of each history stack.
+  const zoneIsNewer = lastZ && (!lastS || (lastZ.shape.time >= (lastS.shape.time||0)));
+  if(lastZ && zoneIsNewer) {
+    zHist.pop();
+    const zones = zonesCache[state.matchId]||(zonesCache[state.matchId]=[]);
+    if(lastZ.op==='add') {
+      const idx = zones.indexOf(lastZ.shape);
+      if(idx>=0) zones.splice(idx,1);
+      lastZ.shape._removed = true; // Session 42: tell a still-pending autosave not to re-insert this
+      if(sb&&lastZ.shape?.id&&!String(lastZ.shape.id).startsWith('local_')) await sb.from('shapes').delete().eq('id',lastZ.shape.id);
+    } else { // 'erase' → restore it
+      zones.splice(Math.min(lastZ.index, zones.length), 0, lastZ.shape);
+      delete lastZ.shape._removed;
+      lastZ.shape.id = _freshLocalId(); // the DB row was deleted by the erase — needs re-insert
+      queueForSave(lastZ.shape);
+    }
+    draw(); renderTimelineMarkers();
+    return;
   }
-  if(!teamShapes.length) return;
-  const removed=teamShapes.pop();
-  removed._removed = true; // Session 42: tell a still-pending autosave not to re-insert this
-  if(sb&&removed?.id&&!String(removed.id).startsWith('local_')) await sb.from('shapes').delete().eq('id',removed.id);
+  if(!lastS) return;
+  sHist.pop();
+  const shapes=getActiveShapes(); if(!shapes) return;
+  if(lastS.op==='add') {
+    const idx = shapes.indexOf(lastS.shape);
+    if(idx>=0) shapes.splice(idx,1);
+    lastS.shape._removed = true; // Session 42: tell a still-pending autosave not to re-insert this
+    if(sb&&lastS.shape?.id&&!String(lastS.shape.id).startsWith('local_')) await sb.from('shapes').delete().eq('id',lastS.shape.id);
+  } else { // 'erase' → restore it at its original position
+    const idx = Math.min(lastS.index, shapes.length);
+    shapes.splice(idx, 0, lastS.shape);
+    delete lastS.shape._removed;
+    lastS.shape.id = _freshLocalId(); // the DB row was deleted by the erase — needs re-insert
+    queueForSave(lastS.shape);
+  }
   draw(); renderTimelineMarkers();
 }
 

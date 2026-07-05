@@ -644,7 +644,7 @@ function computeStandings() {
     }
     const hasData = (t.placement > 0) || (t.kills > 0);
     if (hasData) {
-      teamMap[key].kp += (t.kills || 0);
+      teamMap[key].kp += (t.kills || 0) * (tournament?.kill_point_value || 1);
       teamMap[key].pp += calcPP(t.placement);
       teamMap[key].mp += 1;
     }

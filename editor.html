@@ -1599,6 +1599,10 @@ canvas.path-mode{ cursor:cell; }
       <span class="wm-pos-label">Placement position</span>
       <input class="wm-pos-input" type="number" id="wm-position" min="1" max="25" value="1">
     </div>
+    <div class="wm-pos-row" id="wm-kp-row">
+      <span class="wm-pos-label">Kills (KP)</span>
+      <input class="wm-pos-input" type="number" id="wm-kills" min="0" max="99" value="0">
+    </div>
     <div class="wm-actions">
       <button class="btn-wm-cancel" onclick="closeWipeModal()">CANCEL</button>
       <button class="btn-wm-confirm" onclick="confirmWipe()">CONFIRM WIPE</button>
@@ -1839,6 +1843,7 @@ async function signOut() { if (sb) await sb.auth.signOut(); }
 function resetLocalState() {
   tournaments=[]; days=[]; matches=[]; teams=[];
   shapesCache={}; zonesCache={}; overlayState={}; annotations=[]; matchPlayers=[]; selfElims=[];
+  Object.keys(shapeHistory).forEach(k=>delete shapeHistory[k]); Object.keys(zoneHistory).forEach(k=>delete zoneHistory[k]); Object.keys(redoStack).forEach(k=>delete redoStack[k]);
   knownTeams=[];
   state.multiTrackActive=false; state.multiTrackTeams=[];
   const btn=document.getElementById('btn-multi-track');
@@ -2999,7 +3004,7 @@ function onPointerUp(e) {
         const rotIdx = getNextRotationIndex(state.activeTeamId);
         const stamped = _stampPathPoints([...pathPoints], _pathStartTime ?? state.time, state.time);
         const shape={type:'path',points:stamped,tag:'rotation',time:_pathStartTime ?? state.time,rotation_index:rotIdx};
-        shapes.push(shape); queueForSave(shape);
+        shapes.push(shape); _recordShapeAction(state.activeTeamId,{op:'add',shape}); queueForSave(shape);
       }
       cancelPath(); draw();
     }
@@ -3015,6 +3020,7 @@ function onPointerUp(e) {
     const shape={type:'circle',cx,cy,r,tag:'zone',time:state.time, zone_phase:zonePhase};
     if(!zonesCache[state.matchId]) zonesCache[state.matchId]=[];
     zonesCache[state.matchId].push(shape);
+    _recordZoneAction(state.matchId,{op:'add',shape});
     queueForSave(shape);
     preview=null; draw();
     renderAnnotationLog({scrollToTop:true});
@@ -3030,7 +3036,7 @@ function onPointerUp(e) {
     const rotIdx = getNextRotationIndex(state.activeTeamId);
     shape={type:'line',x1:dSX,y1:dSY,x2:wx,y2:wy,tag:'rotation',time:state.time,rotation_index:rotIdx};
   }
-  if(shape){ shapes.push(shape); queueForSave(shape); }
+  if(shape){ shapes.push(shape); _recordShapeAction(state.activeTeamId,{op:'add',shape}); queueForSave(shape); }
   preview=null; draw();
 }
 
@@ -3064,7 +3070,7 @@ function _finishPath() {
     const rotIdx = getNextRotationIndex(state.activeTeamId);
     const stamped = _stampPathPoints([...pathPoints], _pathStartTime ?? state.time, state.time);
     const shape={type:'path',points:stamped,tag:'rotation',time:_pathStartTime ?? state.time,rotation_index:rotIdx};
-    shapes.push(shape); queueForSave(shape);
+    shapes.push(shape); _recordShapeAction(state.activeTeamId,{op:'add',shape}); queueForSave(shape);
   }
   cancelPath(); draw();
 }
@@ -3414,7 +3420,7 @@ function confirmPin() {
            label:document.getElementById('pp-label').value.trim()||'●',
            tag:'pin',time:state.time};
   }
-  shapes.push(shape); queueForSave(shape); closePinPopup(); pendingPin=null; draw();
+  shapes.push(shape); _recordShapeAction(state.activeTeamId,{op:'add',shape}); queueForSave(shape); closePinPopup(); pendingPin=null; draw();
   renderAnnotationLog();
 }
 
@@ -3672,7 +3678,7 @@ async function deleteSelected(type) {
         days=days.filter(d=>d.tournament_id!==t.id);
         matches=matches.filter(m=>!dIds2.includes(m.day_id));
         teams=teams.filter(tm=>!mIds2.includes(tm.match_id));
-        shapesCache={}; zonesCache={}; state.tournamentId=null; state.dayId=null; state.matchId=null; state.activeTeamId=null;
+        shapesCache={}; zonesCache={}; Object.keys(shapeHistory).forEach(k=>delete shapeHistory[k]); Object.keys(zoneHistory).forEach(k=>delete zoneHistory[k]); Object.keys(redoStack).forEach(k=>delete redoStack[k]); state.tournamentId=null; state.dayId=null; state.matchId=null; state.activeTeamId=null;
         overlayState={}; annotations=[]; selfElims=[];
         refreshDropdowns(); renderTeamList(); draw(); updateRightPanel(); setMapDisplayMode(false);
         toast('Tournament deleted','ok');
@@ -3700,7 +3706,7 @@ async function deleteSelected(type) {
         days=days.filter(x=>x.id!==d.id);
         matches=matches.filter(m=>m.day_id!==d.id);
         teams=teams.filter(tm=>!mIds2.includes(tm.match_id));
-        shapesCache={}; zonesCache={}; state.dayId=null; state.matchId=null; state.activeTeamId=null;
+        shapesCache={}; zonesCache={}; Object.keys(shapeHistory).forEach(k=>delete shapeHistory[k]); Object.keys(zoneHistory).forEach(k=>delete zoneHistory[k]); Object.keys(redoStack).forEach(k=>delete redoStack[k]); state.dayId=null; state.matchId=null; state.activeTeamId=null;
         if(sb&&state.tournamentId){
           const {data}=await sb.from('days').select('*').eq('tournament_id',state.tournamentId).order('order_index');
           if(data){ days=days.filter(d2=>d2.tournament_id!==state.tournamentId); days.push(...data); }
@@ -3728,7 +3734,7 @@ async function deleteSelected(type) {
         }
         teams=teams.filter(t=>t.match_id!==m.id);
         matches=matches.filter(x=>x.id!==m.id);
-        shapesCache={}; zonesCache={}; state.matchId=null; state.activeTeamId=null;
+        shapesCache={}; zonesCache={}; Object.keys(shapeHistory).forEach(k=>delete shapeHistory[k]); Object.keys(zoneHistory).forEach(k=>delete zoneHistory[k]); Object.keys(redoStack).forEach(k=>delete redoStack[k]); state.matchId=null; state.activeTeamId=null;
         if(sb&&state.dayId){
           const {data}=await sb.from('matches').select('*').eq('day_id',state.dayId).order('created_at');
           if(data){ matches=matches.filter(m2=>m2.day_id!==state.dayId); matches.push(...data); }
@@ -4306,30 +4312,59 @@ function toggleAnnotationMode(isEdit) {
 // ══════════════════════════════════════════════════════
 // ACTIONS — UNDO / REDO / CLEAR / EXPORT
 // ══════════════════════════════════════════════════════
-const redoStack = {}; // teamId → shape[]
+const redoStack = {}; // teamId → shape[] (redo only ever re-adds a shape, matching the original design)
+
+// True chronological action history, so Undo reverses whatever the user actually
+// did last (draw OR erase) instead of just popping the tail of the render array —
+// which broke as soon as Erase spliced a shape out of the middle of that array.
+const shapeHistory = {}; // teamId → [{op:'add'|'erase', shape, index}]
+const zoneHistory = {};  // matchId → [{op:'add'|'erase', shape, index}]
+function _recordShapeAction(teamId, entry){ (shapeHistory[teamId]||(shapeHistory[teamId]=[])).push(entry); }
+function _recordZoneAction(matchId, entry){ (zoneHistory[matchId]||(zoneHistory[matchId]=[])).push(entry); }
+function _freshLocalId(){ return 'local_'+Date.now()+'_'+Math.random().toString(36).slice(2); }
 
 async function undo() {
-  // Check if last zone was drawn (zones take undo priority since they're match-level)
-  const zones = zonesCache[state.matchId]||[];
-  if(zones.length) {
-    const lastZone = zones[zones.length-1];
-    // Only undo zone if it was drawn more recently than last team shape
-    const teamShapes = getActiveShapes()||[];
-    const lastTeamShape = teamShapes[teamShapes.length-1];
-    const zoneIsNewer = !lastTeamShape || (lastZone.time >= (lastTeamShape.time||0));
-    if(zoneIsNewer) {
-      zones.pop();
-      lastZone._removed = true; // Session 42: tell a still-pending autosave not to re-insert this
-      if(sb&&lastZone?.id&&!String(lastZone.id).startsWith('local_')) await sb.from('shapes').delete().eq('id',lastZone.id);
-      draw(); renderAnnotationLog(); return;
+  const zHist = zoneHistory[state.matchId]||[];
+  const sHist = shapeHistory[state.activeTeamId]||[];
+  const lastZ = zHist[zHist.length-1];
+  const lastS = sHist[sHist.length-1];
+  // Same "zones take priority when newer" heuristic as before, now applied to
+  // whichever action (add or erase) is actually on top of each history stack.
+  const zoneIsNewer = lastZ && (!lastS || (lastZ.shape.time >= (lastS.shape.time||0)));
+  if(lastZ && zoneIsNewer) {
+    zHist.pop();
+    const zones = zonesCache[state.matchId]||(zonesCache[state.matchId]=[]);
+    if(lastZ.op==='add') {
+      const idx = zones.indexOf(lastZ.shape);
+      if(idx>=0) zones.splice(idx,1);
+      lastZ.shape._removed = true; // Session 42: tell a still-pending autosave not to re-insert this
+      if(sb&&lastZ.shape?.id&&!String(lastZ.shape.id).startsWith('local_')) await sb.from('shapes').delete().eq('id',lastZ.shape.id);
+    } else { // 'erase' → restore it
+      zones.splice(Math.min(lastZ.index, zones.length), 0, lastZ.shape);
+      delete lastZ.shape._removed;
+      lastZ.shape.id = _freshLocalId(); // the DB row was deleted by the erase — needs re-insert
+      queueForSave(lastZ.shape);
     }
+    draw(); renderAnnotationLog();
+    return;
   }
-  const shapes=getActiveShapes(); if(!shapes||!shapes.length) return;
-  const removed=shapes.pop();
-  removed._removed = true; // Session 42: tell a still-pending autosave not to re-insert this
-  if(!redoStack[state.activeTeamId]) redoStack[state.activeTeamId]=[];
-  redoStack[state.activeTeamId].push(removed);
-  if(sb&&removed?.id&&!String(removed.id).startsWith('local_')) await sb.from('shapes').delete().eq('id',removed.id);
+  if(!lastS) return;
+  sHist.pop();
+  const shapes=getActiveShapes(); if(!shapes) return;
+  if(lastS.op==='add') {
+    const idx = shapes.indexOf(lastS.shape);
+    if(idx>=0) shapes.splice(idx,1);
+    lastS.shape._removed = true; // Session 42: tell a still-pending autosave not to re-insert this
+    if(!redoStack[state.activeTeamId]) redoStack[state.activeTeamId]=[];
+    redoStack[state.activeTeamId].push(lastS.shape);
+    if(sb&&lastS.shape?.id&&!String(lastS.shape.id).startsWith('local_')) await sb.from('shapes').delete().eq('id',lastS.shape.id);
+  } else { // 'erase' → restore it at its original position
+    const idx = Math.min(lastS.index, shapes.length);
+    shapes.splice(idx, 0, lastS.shape);
+    delete lastS.shape._removed;
+    lastS.shape.id = _freshLocalId(); // the DB row was deleted by the erase — needs re-insert
+    queueForSave(lastS.shape);
+  }
   draw(); renderTimelineTicks(); updateRedoBtn();
 }
 
@@ -4339,9 +4374,11 @@ function redo() {
   if(!stack.length) return;
   const shape=stack.pop();
   const shapes=getActiveShapes(); if(!shapes) return;
-  shape.id='local_'+Date.now(); // needs re-save
+  shape.id=_freshLocalId(); // needs re-save
   delete shape._removed;
-  shapes.push(shape); queueForSave(shape); draw(); renderTimelineTicks(); updateRedoBtn();
+  shapes.push(shape);
+  _recordShapeAction(state.activeTeamId, {op:'add', shape});
+  queueForSave(shape); draw(); renderTimelineTicks(); updateRedoBtn();
 }
 
 function updateRedoBtn() {
@@ -4362,6 +4399,7 @@ function eraseAtPosition(wx, wy) {
       if(s.type==='pin'||s.type==='fight'){
         if(Math.sqrt((s.x-wx)**2+(s.y-wy)**2)<12/zoom){
           const [rm]=shapes.splice(i,1);
+          _recordShapeAction(state.activeTeamId,{op:'erase',shape:rm,index:i});
           if(sb&&rm.id&&!String(rm.id).startsWith('local_')) sb.from('shapes').delete().eq('id',rm.id);
           draw(); renderTimelineTicks(); return;
         }
@@ -4374,6 +4412,7 @@ function eraseAtPosition(wx, wy) {
         for(const pt of s.points){
           if(Math.sqrt((pt.x-wx)**2+(pt.y-wy)**2)<10/zoom){
             const [rm]=shapes.splice(i,1);
+            _recordShapeAction(state.activeTeamId,{op:'erase',shape:rm,index:i});
             if(sb&&rm.id&&!String(rm.id).startsWith('local_')) sb.from('shapes').delete().eq('id',rm.id);
             draw(); renderTimelineTicks(); return;
           }
@@ -4385,6 +4424,7 @@ function eraseAtPosition(wx, wy) {
            Math.sqrt((s.x2-wx)**2+(s.y2-wy)**2)<10/zoom||
            Math.sqrt((mx-wx)**2+(my-wy)**2)<10/zoom){
           const [rm]=shapes.splice(i,1);
+          _recordShapeAction(state.activeTeamId,{op:'erase',shape:rm,index:i});
           if(sb&&rm.id&&!String(rm.id).startsWith('local_')) sb.from('shapes').delete().eq('id',rm.id);
           draw(); renderTimelineTicks(); return;
         }
@@ -4398,6 +4438,7 @@ function eraseAtPosition(wx, wy) {
     const dist=Math.sqrt((s.cx-wx)**2+(s.cy-wy)**2);
     if(Math.abs(dist-s.r)<10/zoom){
       const [rm]=zones.splice(i,1);
+      _recordZoneAction(state.matchId,{op:'erase',shape:rm,index:i});
       if(sb&&rm.id&&!String(rm.id).startsWith('local_')) sb.from('shapes').delete().eq('id',rm.id);
       draw(); renderAnnotationLog(); return;
     }
@@ -4486,6 +4527,7 @@ async function clearTeam() {
     async ()=>{
       const ids=shapes.filter(s=>s.id&&!String(s.id).startsWith('local_')).map(s=>s.id);
       shapes.length=0;
+      delete shapeHistory[state.activeTeamId]; delete redoStack[state.activeTeamId];
       if(sb&&ids.length) await sb.from('shapes').delete().in('id',ids);
       draw(); renderTimelineTicks(); toast('Team cleared','ok');
     }, 'CLEAR');
@@ -4501,6 +4543,7 @@ async function clearMap() {
         const sh=shapesCache[team.id]||[];
         const ids=sh.filter(s=>s.id&&!String(s.id).startsWith('local_')).map(s=>s.id);
         sh.length=0;
+        delete shapeHistory[team.id]; delete redoStack[team.id];
         if(sb&&ids.length) await sb.from('shapes').delete().in('id',ids);
         team.time_of_wipe=null; team.wipe_x=null; team.wipe_y=null; team.confirmed_position=null; team.kills=0;
         if(sb&&!String(team.id).startsWith('local_'))
@@ -4509,6 +4552,7 @@ async function clearMap() {
       const zones=zonesCache[state.matchId]||[];
       const zids=zones.filter(z=>z.id&&!String(z.id).startsWith('local_')).map(z=>z.id);
       zones.length=0;
+      delete zoneHistory[state.matchId];
       if(sb&&zids.length) await sb.from('shapes').delete().in('id',zids);
       for(const p of matchPlayers){
         p.time_of_loss=null; p.death_x=null; p.death_y=null; p.kills=0;
@@ -4658,6 +4702,7 @@ async function confirmSelfElim() {
     const shapes = getActiveShapes();
     const shape = { type:'fight', tag:'fight', x:coords.wx, y:coords.wy, time:state.time, teamA:'SELF', teamB:'??' };
     shapes.push(shape);
+    _recordShapeAction(state.activeTeamId,{op:'add',shape});
     queueForSave(shape);
   }
 
@@ -4695,6 +4740,9 @@ function openWipeModal(teamId, isSelf, coords) {
   document.getElementById('wm-title').textContent = isSelf ? 'SELF WIPED' : `${team?.name||'Team'} Eliminated`;
   document.getElementById('wm-sub').textContent = `At ${fmtTime(state.time)} — confirm placement position (auto-calculated, editable).`;
   document.getElementById('wm-position').value = pos;
+  // Kills (KP) — enemy teams only; SELF's kills are tracked via the Self Elim flow, not here.
+  document.getElementById('wm-kp-row').style.display = isSelf ? 'none' : 'flex';
+  document.getElementById('wm-kills').value = team?.kills || 0;
   document.getElementById('wipe-modal').classList.add('show');
 }
 
@@ -4709,15 +4757,18 @@ async function confirmWipe() {
   const team = teams.find(t=>t.id===_wipePendingTeamId);
   if(!team) return;
   const pos = parseInt(document.getElementById('wm-position').value,10)||null;
+  const kp = _wipeIsSelf ? null : (parseInt(document.getElementById('wm-kills').value,10)||0);
   const coords = _wipePendingCoords; _wipePendingCoords = null;
   closeWipeModal();
 
   team.time_of_wipe = state.time;
   team.confirmed_position = pos;
+  if(kp!=null) team.kills = kp;
   if(coords){ team.wipe_x = coords.wx; team.wipe_y = coords.wy; }
   if(sb && !String(team.id).startsWith('local_')){
     const upd = { time_of_wipe: state.time };
     if(pos) upd.confirmed_position = pos;
+    if(kp!=null) upd.kills = kp;
     if(coords){ upd.wipe_x = coords.wx; upd.wipe_y = coords.wy; }
     await sb.from('teams').update(upd).eq('id', team.id);
   }
@@ -4824,14 +4875,16 @@ function markEnemyWipe() {
   document.getElementById('ewm-time').textContent=fmtTime(state.time);
   const sel=document.getElementById('ewm-team-select');
   sel.innerHTML='<option value="">— select team —</option>';
-  // Show non-wiped teams AND teams wiped at current time (for undo)
+  // Show non-wiped, non-finalized teams AND teams wiped at current time (for undo)
   teams.filter(t=>t.match_id===state.matchId&&!t.is_self).forEach(t=>{
     const isWipedNow = t.time_of_wipe===state.time;
     const isWipedOther = t.time_of_wipe!=null && t.time_of_wipe!==state.time;
-    if(isWipedOther) return; // already wiped at a different time — skip
+    const isFinalized = t.confirmed_position!=null && !isWipedNow; // e.g. auto-assigned match winner
+    if(isWipedOther||isFinalized) return;
     const label = isWipedNow ? `↩ ${t.name} (undo wipe)` : t.name;
     sel.add(new Option(label, t.id));
   });
+  sel.value = ''; // never carry a stale selection into a freshly rebuilt list
   if(sel.options.length===1){ toast('ALL ENEMY TEAMS WIPED — seek to a wipe time to undo','warn'); return; }
   document.getElementById('enemy-wipe-modal').classList.add('show');
 }

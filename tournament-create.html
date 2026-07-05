@@ -966,13 +966,13 @@ async function addPoolTeam() {
   if (poolTeams.find(t => t.name.toLowerCase() === name.toLowerCase())) {
     toast('Team already in list.', 'err'); return;
   }
+  inp.value = ''; // clear synchronously so in-flight keystrokes/re-submits can't race the await below
+  closeSuggestions('pool-suggestions');
   const team_identity_id = await resolveOrCreateTeamIdentity(name);
   if (poolTeams.find(t => t.name.toLowerCase() === name.toLowerCase())) return; // re-check: guards a double-Enter race during the await above
   poolTeams.push({ name, team_identity_id });
   // Add to knownTeams if not already there (available in suggestions for groups too)
   if (!knownTeams.some(n => n.toLowerCase() === name.toLowerCase())) knownTeams.push(name);
-  inp.value = '';
-  closeSuggestions('pool-suggestions');
   renderPoolChips();
 }
 function onPoolInput() {
@@ -1042,11 +1042,11 @@ async function addGroupTeam(gid) {
   if (g.teams.find(t => t.name.toLowerCase() === name.toLowerCase())) {
     toast('Team already in this group.', 'err'); return;
   }
+  inp.value = ''; // clear synchronously so in-flight keystrokes/re-submits can't race the await below
+  closeSuggestions('group-suggestions-' + gid);
   const team_identity_id = await resolveOrCreateTeamIdentity(name);
   if (g.teams.find(t => t.name.toLowerCase() === name.toLowerCase())) return; // re-check: guards a double-Enter race during the await above
   g.teams.push({ name, team_identity_id });
-  inp.value = '';
-  closeSuggestions('group-suggestions-' + gid);
   renderGroupChips(gid);
 }
 function removeGroupTeam(gid, ti) {
@@ -1200,7 +1200,9 @@ function addSquadPlayer() {
   }
 }
 
+let _creatingPlayer = false; // in-flight guard: blocks a genuine double-insert if createAndAddPlayer() fires twice before the first request resolves
 async function createAndAddPlayer() {
+  if (_creatingPlayer) return;
   const nameInput = document.getElementById('new-player-name');
   const roleInput = document.getElementById('new-player-role');
   const name = nameInput.value.trim();
@@ -1210,11 +1212,13 @@ async function createAndAddPlayer() {
     toast('Player already exists — search above.', 'err'); return;
   }
   const role = roleInput.value;
+  _creatingPlayer = true;
+  nameInput.value = ''; roleInput.value = ''; // clear synchronously so in-flight keystrokes/re-submits can't race the await below
   const { data, error } = await sb.from('players').insert({ user_id: currentUser.id, name, role: role || null }).select('id, name, role').single();
+  _creatingPlayer = false;
   if (error) { toast('Error creating player: ' + error.message, 'err'); return; }
   allPlayers.push(data);
   squadPlayers.push({ id: data.id, name: data.name, role: data.role || '' });
-  nameInput.value = ''; roleInput.value = '';
   renderSquadChips();
   toast(`${name} created and added to squad.`, 'ok');
 }

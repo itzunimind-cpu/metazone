@@ -1141,8 +1141,9 @@ function matchCard(m,i){
   const self=m.teams.find(t=>t.is_self);
   const placement=self?.placement?`#${self.placement}`:'—';
   const kills=self?.kills??'—';
-  // Total points: placement pts (BGMI standard) + kills
-  const selfPts=self?(PLACE_PTS[(self.placement||25)-1]||0)+(self.kills||0):'—';
+  // Total points: placement pts (BGMI standard) + kills × kill point value
+  const kpValT=tournaments.find(x=>x.id===activeTournamentId)?.kill_point_value||1;
+  const selfPts=self?(PLACE_PTS[(self.placement||25)-1]||0)+(self.kills||0)*kpValT:'—';
   return`<div class="match-card${sel?' selected':''}" onclick="selectMatch('${m.id}')">
     <div class="card-img-wrap">
       ${img?`<img class="card-img" src="${img}" alt="${m.map_key}">`:`<div class="card-img-placeholder"><iconify-icon icon="lucide:map" style="font-size:32px;color:#555;"></iconify-icon></div>`}
@@ -1169,7 +1170,8 @@ function selectMatch(id){activeMatchId=id;selectedMatch=matches.find(m=>m.id===i
 const PLACE_PTS=[15,12,10,8,6,5,4,3,2,1];
 function calcTotalPts(team){
   const pp=PLACE_PTS[(team.placement||25)-1]||0;
-  return pp+(team.kills||0);
+  const kpVal=tournaments.find(x=>x.id===activeTournamentId)?.kill_point_value||1;
+  return pp+(team.kills||0)*kpVal;
 }
 
 function buildKillsChart(m){
