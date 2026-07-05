@@ -1267,7 +1267,8 @@ let sb = null, currentUser = null;
 let tournaments = [], days = [], matches = [], teams = [];
 let shapesCache = {};    // teamId → shape[]
 let zonesCache  = {};    // matchId → shape[]
-let annotations = [];    // local event log
+let annotations = [];    // real mirror of Supabase `annotations` table (match-level notes)
+let selfElims = [];      // self_elims rows for current match — DB-backed, event-log source
 let matchPlayers = [];   // match_players with names
 
 // Recency helper — prefers updated_at (last touched) over created_at, falls back
@@ -1403,7 +1404,7 @@ async function signOut() { if (sb) await sb.auth.signOut(); }
 
 function resetLocalState() {
   tournaments=[]; days=[]; matches=[]; teams=[];
-  shapesCache={}; zonesCache={}; annotations=[]; matchPlayers=[];
+  shapesCache={}; zonesCache={}; annotations=[]; selfElims=[]; matchPlayers=[];
   state.tournamentId=null; state.dayId=null; state.matchId=null; state.activeTeamId=null;
   matchActive=false; vodStartOffset=0; matchTime=0;
   if (ytPlayer && typeof ytPlayer.stopVideo === 'function') ytPlayer.stopVideo();
@@ -1476,8 +1477,25 @@ async function loadMatchPlayers(matchId) {
       kills:r.kills||0, damage:r.damage||0,
       time_of_loss:r.time_of_loss??null,
       killed_by_team_id:r.killed_by_team_id||null,
+      death_x:r.death_x??null, death_y:r.death_y??null,
     }));
   } catch(e) { matchPlayers=[]; }
+}
+
+async function loadAnnotations(matchId) {
+  if(!sb||!matchId) { annotations=[]; return; }
+  try {
+    const {data,error}=await sb.from('annotations').select('*').eq('match_id',matchId).order('time_seconds');
+    annotations = error ? [] : (data||[]);
+  } catch(e) { annotations=[]; }
+}
+
+async function loadSelfElims(matchId) {
+  if(!sb||!matchId||String(matchId).startsWith('local_')) { selfElims=[]; return; }
+  try {
+    const {data,error} = await sb.from('self_elims').select('*').eq('match_id',matchId).order('time_seconds');
+    selfElims = error ? [] : (data||[]);
+  } catch(e) { selfElims=[]; }
 }
 
 // ══════════════════════════════════════════════════════
@@ -1990,16 +2008,21 @@ async function confirmElim() {
   }
 
   // Save to self_elims
+  let elimRow = { id:'local_elim_'+Date.now(), match_id:state.matchId, player_id:player.player_id, time_seconds:t, finish_count:finishes };
   if (sb && currentUser && !String(state.matchId).startsWith('local_')) {
     try {
-      await sb.from('self_elims').insert({
+      const {data,error} = await sb.from('self_elims').insert({
         match_id:state.matchId, player_id:player.player_id,
         user_id:currentUser.id, time_seconds:t, finish_count:finishes,
-      });
+      }).select().single();
+      if(!error && data) elimRow = data;
       player.kills = (player.kills||0) + finishes;
       await sb.from('match_players').update({kills:player.kills}).eq('id',player.id);
     } catch(e) { toast('Save error: '+e.message,'err'); }
+  } else {
+    player.kills = (player.kills||0) + finishes;
   }
+  selfElims.push(elimRow);
 
   addEventLog({ icon:'<iconify-icon icon="lucide:zap"></iconify-icon>', title:`${player.name} — ${finishes} finish${finishes!==1?'es':''}`, time:t, color:'#D9A404' });
   toast(`${player.name} — ${finishes} finish${finishes!==1?'es':''} @ ${fmtTime(t)}`, 'ok');
@@ -2476,31 +2499,71 @@ function renderSquadPanel() {
 // ══════════════════════════════════════════════════════
 // EVENT LOG
 // ══════════════════════════════════════════════════════
-function addEventLog({ icon, title, time, color }) {
-  const ann = { icon, title, time_seconds: time, color, id: 'vod_'+Date.now() };
-  annotations.push(ann);
-  annotations.sort((a,b)=>a.time_seconds-b.time_seconds);
-  renderEventLog();
-}
+function addEventLog() { renderEventLog(); }
 
 function renderEventLog() {
   const container = document.getElementById('vod-event-log');
-  container.innerHTML = '';
-  if (!annotations.length) {
-    container.innerHTML = '<div class="sp-empty-note">No events yet</div>';
-    return;
+  const events = [];
+
+  // Real annotations (match-level notes)
+  annotations.forEach(a=>{
+    events.push({ time:a.time_seconds, title:a.title, icon:'<iconify-icon icon="lucide:sticky-note"></iconify-icon>', color:'var(--muted)' });
+  });
+
+  // Self loss — from matchPlayers (already loaded + live-mutated)
+  matchPlayers.filter(p=>p.time_of_loss!=null).forEach(p=>{
+    const kbTeam = p.killed_by_team_id ? teams.find(t2=>t2.id===p.killed_by_team_id) : null;
+    events.push({ time:p.time_of_loss, title:`${p.name} down${kbTeam?` · by ${kbTeam.name}`:''}`, icon:'<iconify-icon icon="lucide:skull"></iconify-icon>', color:'var(--yellow)', wx:p.death_x, wy:p.death_y });
+  });
+
+  // Self elim — from selfElims (already loaded + live-mutated)
+  selfElims.forEach(row=>{
+    const mp = matchPlayers.find(p=>p.player_id===row.player_id);
+    const name = mp?.name || 'Unknown';
+    const finishes = row.finish_count || 1;
+    events.push({ time:row.time_seconds, title:`${name} — ${finishes} finish${finishes!==1?'es':''}`, icon:'<iconify-icon icon="lucide:zap"></iconify-icon>', color:'#D9A404' });
+  });
+
+  // Wipes — ALL match teams (self + enemy), from `teams` (already loaded + live-mutated)
+  teams.filter(t=>t.match_id===state.matchId && t.time_of_wipe!=null).forEach(team=>{
+    events.push({
+      time:team.time_of_wipe,
+      title: team.is_self ? `SELF wiped${team.confirmed_position?` — #${team.confirmed_position}`:''}` : `${team.name} wiped${team.confirmed_position?` — #${team.confirmed_position}`:''}`,
+      icon: team.is_self ? '<iconify-icon icon="lucide:shield-x"></iconify-icon>' : '<iconify-icon icon="lucide:flag"></iconify-icon>',
+      color: team.is_self ? 'var(--red)' : 'var(--orange)',
+      wx:team.wipe_x, wy:team.wipe_y
+    });
+  });
+
+  // Shapes tagged fight/pin — from shapesCache (already loaded + live-mutated), all match teams
+  teams.filter(t=>t.match_id===state.matchId).forEach(team=>{
+    (shapesCache[team.id]||[]).forEach(s=>{
+      if (s.type==='fight') events.push({ time:s.time||0, title:`Fight: ${s.teamA||'?'} vs ${s.teamB||'?'}`, icon:'<iconify-icon icon="lucide:crosshair"></iconify-icon>', color:'var(--accent)', wx:s.x, wy:s.y });
+      else if (s.type==='pin') events.push({ time:s.time||0, title:`Pin: ${s.label||'—'}`, icon:'<iconify-icon icon="lucide:map-pin"></iconify-icon>', color:'var(--accent)', wx:s.x, wy:s.y });
+    });
+  });
+
+  // Match end
+  const curMatch = matches.find(m=>m.id===state.matchId);
+  if (curMatch?.duration_seconds!=null) {
+    events.push({ time:curMatch.duration_seconds, title:`Match ended @ ${fmtTime(curMatch.duration_seconds)}`, icon:'<iconify-icon icon="lucide:square"></iconify-icon>', color:'var(--muted)' });
   }
-  [...annotations].reverse().forEach(ev => {
+
+  events.sort((a,b)=>a.time-b.time);
+  container.innerHTML = '';
+  if (!events.length) { container.innerHTML = '<div class="sp-empty-note">No events yet</div>'; return; }
+
+  [...events].reverse().forEach(ev => {
     const entry = document.createElement('div');
-    const isLit = ev.time_seconds <= state.time;
+    const isLit = ev.time <= state.time;
     entry.className = 'vel-entry' + (isLit?' lit':'');
     entry.innerHTML = `
       <div class="vel-icon" style="color:${ev.color||'var(--muted)'};">${ev.icon||'●'}</div>
       <div class="vel-body">
         <div class="vel-title">${esc(ev.title)}</div>
-        <div class="vel-time">${fmtTime(ev.time_seconds)}</div>
+        <div class="vel-time">${fmtTime(ev.time)}</div>
       </div>`;
-    entry.onclick = () => seekToMatchTime(ev.time_seconds);
+    entry.onclick = () => { seekToMatchTime(ev.time); if (ev.wx!=null && ev.wy!=null) zoomToWorld(ev.wx, ev.wy); };
     container.appendChild(entry);
   });
 }
@@ -2509,18 +2572,6 @@ function renderEventLog() {
 // DROPDOWNS / MATCH SELECTION
 // ══════════════════════════════════════════════════════
 async function onMatchChange(val) {
-  // fix 3.4: warn if there are unsaved ephemeral events before switching
-  if (annotations.length > 0 && val !== state.matchId) {
-    const proceed = await _confirmDialog(
-      'Unsaved events',
-      `You have ${annotations.length} event${annotations.length!==1?'s':''} logged for this match that will be cleared when you switch. Continue?`,
-      'SWITCH MATCH', 'STAY'
-    );
-    if (!proceed) {
-      return;
-    }
-  }
-
   // ── GUARDS: kill any in-flight video load from previous match ──
   clearTimeout(window._ytReadyFallback);          // fix 1.2: stop previous fallback timer
   window._pendingSkipOffset = null;               // fix 3.2: clear stale pending offset
@@ -2535,7 +2586,7 @@ async function onMatchChange(val) {
   if (timeEl) { timeEl.style.color=''; timeEl.title=''; }
 
   state.matchId=val||null; state.activeTeamId=null;
-  annotations=[]; matchPlayers=[];
+  annotations=[]; selfElims=[]; matchPlayers=[];
   _showSquadPanelLoading();
 
   // Always hide banners/dialogs on match change
@@ -2563,6 +2614,8 @@ async function onMatchChange(val) {
 
     if (sb) await loadShapesForMatch(state.matchId);
     await loadMatchPlayers(state.matchId);
+    await loadAnnotations(state.matchId);
+    await loadSelfElims(state.matchId);
 
     // Restore vod_start_offset if already set
     if (m?.vod_start_offset != null) {
@@ -2674,12 +2727,14 @@ function startFreshVodSession() {
   document.getElementById('editor-data-dialog').classList.remove('show');
   // fix 3.1: actually clear in-memory data so squad panel starts blank
   annotations = [];
+  selfElims = [];
   matchPlayers = [];
   // Clear wipe/loss data from in-memory teams so panel shows no KIAs
   const matchTeams = teams.filter(t=>t.match_id===state.matchId);
   matchTeams.forEach(t=>{ t.time_of_wipe=null; t.confirmed_position=null; });
   renderSquadPanel();
   renderTimelineMarkers();
+  renderEventLog();
   toast('Fresh VOD session — scrub to match start and press START MATCH', 'ok');
 }
 
@@ -2786,6 +2841,23 @@ function _confirmDialog(title, body, confirmLabel, cancelLabel) {
   });
 }
 
+function _alertDialog(title, body, okLabel) {
+  return new Promise(resolve => {
+    const el = document.createElement('div');
+    el.className = 'modal-backdrop show';
+    el.innerHTML = `
+      <div class="modal-box modal-md modal-orange">
+        <div class="modal-title">${title}</div>
+        <div class="modal-sub">${body}</div>
+        <div class="modal-actions">
+          <button id="_ad-ok" class="btn-modal-confirm orange">${okLabel||'OK'}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(el);
+    el.querySelector('#_ad-ok').onclick = () => { el.remove(); resolve(); };
+  });
+}
+
 // ── Match-end prompt banner (fix 3.3) ──
 function _showMatchEndPrompt(msg) {
   // reuse skip banner slot — or create a simple toast-level prompt
@@ -2887,13 +2959,28 @@ function resetView() {
   updateZoomHud(); draw();
 }
 function adjustZoom(delta) { zoomAt(canvas.width/2, canvas.height/2, delta); }
+function clampPan() {
+  const W=canvas.width, H=canvas.height;
+  const mw=WORLD_W*zoom, mh=WORLD_H*zoom;
+  panX = mw<=W ? (W-mw)/2 : Math.min(0, Math.max(W-mw, panX));
+  panY = mh<=H ? (H-mh)/2 : Math.min(0, Math.max(H-mh, panY));
+}
 function zoomAt(sx, sy, delta) {
-  const nz=Math.max(.05,Math.min(40,zoom*(1+delta)));
+  const minZoom=Math.min(canvas.width/WORLD_W, canvas.height/WORLD_H);
+  const nz=Math.max(minZoom, Math.min(40, zoom*(1+delta)));
   const s=nz/zoom; panX=sx-s*(sx-panX); panY=sy-s*(sy-panY); zoom=nz;
-  updateZoomHud(); draw();
+  clampPan(); updateZoomHud(); draw();
+}
+function zoomToWorld(wx, wy) {
+  const minZoom=Math.min(canvas.width/WORLD_W, canvas.height/WORLD_H);
+  zoom=minZoom*20;
+  panX=canvas.width/2 - wx*zoom;
+  panY=canvas.height/2 - wy*zoom;
+  clampPan(); updateZoomHud(); draw();
 }
 function updateZoomHud() {
-  document.getElementById('zoom-hud-tb').textContent = zoom.toFixed(2)+'×';
+  const minZoom=Math.min(canvas.width/WORLD_W, canvas.height/WORLD_H);
+  document.getElementById('zoom-hud-tb').textContent = (zoom/minZoom).toFixed(2)+'×';
 }
 function w2s(wx,wy){ return {x:wx*zoom+panX, y:wy*zoom+panY}; }
 function s2w(sx,sy){ return {x:(sx-panX)/zoom, y:(sy-panY)/zoom}; }
@@ -3060,11 +3147,11 @@ function onPointerMove(e) {
     const nz=Math.max(.05,Math.min(40,pinchZoom0*scale));
     panX=newMid.x-(pinchMid0.x-pinchPan0.x)*nz/pinchZoom0+newMid.x-pinchMid0.x;
     panY=newMid.y-(pinchMid0.y-pinchPan0.y)*nz/pinchZoom0+newMid.y-pinchMid0.y;
-    zoom=nz; updateZoomHud(); draw(); return;
+    zoom=nz; clampPan(); updateZoomHud(); draw(); return;
   }
   if(e.touches&&e.touches.length>1) return;
   const {x:wx,y:wy,screenX,screenY}=evCoords(e);
-  if(isPanning){ panX=panPX+(screenX-panSX); panY=panPY+(screenY-panSY); draw(); return; }
+  if(isPanning){ panX=panPX+(screenX-panSX); panY=panPY+(screenY-panSY); clampPan(); draw(); return; }
   if(_moveDrag){
     const dx=wx-_moveDrag.startWX, dy=wy-_moveDrag.startWY;
     if(dx!==0||dy!==0) _moveDrag.moved=true;
@@ -3412,12 +3499,11 @@ function drawShape(s, isPreview, teamColor, alphaMult) {
   const [r,g,b]=tagRgb(s.tag);
   const stroke=`rgba(${r},${g},${b},${(op*am).toFixed(2)})`;
   const fill  =`rgba(${r},${g},${b},${(op*am*.12).toFixed(2)})`;
-  const vodDash=s.source==='vod'?[4/zoom,3/zoom]:[]; // Session 42: subtle provenance tell
-  ctx.strokeStyle=stroke; ctx.fillStyle=fill; ctx.lineWidth=lw; ctx.setLineDash(vodDash);
+  ctx.strokeStyle=stroke; ctx.fillStyle=fill; ctx.lineWidth=lw; ctx.setLineDash([]);
   if(s.type==='line'){
     drawArrow(s.x1,s.y1,s.x2,s.y2,stroke,lw);
   } else if(s.type==='path'){
-    drawPath(s.points,stroke,lw,isPreview,vodDash);
+    drawPath(s.points,stroke,lw,isPreview);
   } else if(s.type==='pin'||s.type==='fight'){
     drawPinMarker(s,isPreview,am);
     if(s.type==='fight'&&s.teamA){
@@ -3433,7 +3519,7 @@ function drawZoneCircle(s, isPreview) {
   const lw=2/zoom, op=.85;
   ctx.beginPath(); ctx.arc(s.cx,s.cy,s.r,0,Math.PI*2);
   ctx.strokeStyle=`rgba(255,255,255,${op.toFixed(2)})`; ctx.lineWidth=lw;
-  ctx.setLineDash(s.source==='vod'?[4/zoom,3/zoom]:[]); ctx.stroke();
+  ctx.setLineDash([]); ctx.stroke();
 }
 
 function drawArrow(x1,y1,x2,y2,stroke,lw) {
@@ -3446,10 +3532,10 @@ function drawArrow(x1,y1,x2,y2,stroke,lw) {
   ctx.stroke();
 }
 
-function drawPath(points, stroke, lw, isPreview, vodDash) {
+function drawPath(points, stroke, lw, isPreview) {
   if(!points||points.length<2) return;
   ctx.strokeStyle=stroke; ctx.lineWidth=lw;
-  ctx.setLineDash(isPreview?[5/zoom,4/zoom]:(vodDash||[]));
+  ctx.setLineDash(isPreview?[5/zoom,4/zoom]:[]);
   ctx.beginPath(); ctx.moveTo(points[0].x,points[0].y);
   for(let i=1;i<points.length;i++) ctx.lineTo(points[i].x,points[i].y);
   ctx.stroke(); ctx.setLineDash([]);
@@ -3478,13 +3564,6 @@ function drawPinMarker(s, isPreview, alphaMult) {
     const cr=mpx(6);
     ctx.beginPath(); ctx.arc(x,y,cr,0,Math.PI*2);
     ctx.fillStyle='rgb(45,212,191)'; ctx.fill();
-  }
-
-  // Session 42: subtle provenance ring for VOD-sourced pin/fight markers
-  if(s.source==='vod'){
-    ctx.beginPath(); ctx.arc(x,y,dr+mpx(4),0,Math.PI*2);
-    ctx.setLineDash([3/zoom,2/zoom]); ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.lineWidth=1/zoom; ctx.stroke();
-    ctx.setLineDash([]);
   }
 }
 
@@ -4126,15 +4205,20 @@ window.addEventListener('beforeunload', (e) => {
   if(_autosaveFailed || _pendingAutosaveCount > 0) { e.preventDefault(); e.returnValue=''; }
 });
 
-// ── Cross-tab "already open" warning (Session 42) — soft heads-up only,
-// no lock. See METAZONE_HANDOFF_v25.md for the deferred Presence upgrade path.
+// ── Cross-tab "already open" warning (Session 42, upgraded to a modal) —
+// still no lock. See METAZONE_HANDOFF_v25.md for the deferred Presence upgrade path.
 let _matchChannel = null;
+let _tabWarningShownFor = null;
 function announceMatchOpen(matchId) {
   if(_matchChannel) { _matchChannel.close(); _matchChannel=null; }
+  if(matchId !== _tabWarningShownFor) _tabWarningShownFor = null;
   if(!matchId || typeof BroadcastChannel==='undefined') return;
   _matchChannel = new BroadcastChannel('mz-match-'+matchId);
   _matchChannel.onmessage = (e) => {
-    if(e.data==='open') toast('This match is also open in another tab','warn');
+    if(e.data==='open' && _tabWarningShownFor!==matchId) {
+      _tabWarningShownFor = matchId;
+      _alertDialog('Also open in another tab', 'This match is currently open in another browser tab. Editing in both tabs may cause conflicting saves.', 'OK, GOT IT');
+    }
   };
   _matchChannel.postMessage('open');
 }

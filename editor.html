@@ -1054,6 +1054,13 @@ canvas.path-mode{ cursor:cell; }
 }
 .btn-dwm-confirm:hover{ opacity:.85; }
 
+/* ══ TAB WARNING MODAL ══ (reuses .dwm-box/.dwm-icon/.dwm-title/.dwm-body/.dwm-actions/.btn-dwm-cancel) */
+#tab-warning-modal{
+  position:fixed;inset:0;background:rgba(2,6,23,.75);backdrop-filter:blur(4px);
+  z-index:600;display:none;align-items:center;justify-content:center;
+}
+#tab-warning-modal.show{ display:flex; }
+
 /* ══ MULTI-TRACK [E9] ══ */
 .btn-multi-track{
   width:100%;padding:8px 12px;background:var(--bg);color:var(--muted);
@@ -1633,6 +1640,18 @@ canvas.path-mode{ cursor:cell; }
     <div class="dwm-actions">
       <button class="btn-dwm-cancel" onclick="closeDeleteWarning()">CANCEL</button>
       <button class="btn-dwm-confirm" id="dwm-confirm-btn" onclick="_dwmConfirm()">DELETE</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TAB WARNING MODAL ████████████████████ -->
+<div id="tab-warning-modal">
+  <div class="dwm-box">
+    <div class="dwm-icon"><iconify-icon icon="lucide:info" style="font-size:28px"></iconify-icon></div>
+    <div class="dwm-title">Also open in another tab</div>
+    <div class="dwm-body">This match is currently open in another browser tab. Editing in both tabs may cause conflicting saves.</div>
+    <div class="dwm-actions">
+      <button class="btn-dwm-cancel" onclick="closeTabWarning()">OK, GOT IT</button>
     </div>
   </div>
 </div>
@@ -2371,18 +2390,24 @@ window.addEventListener('beforeunload', (e) => {
   if(_autosaveFailed || _pendingAutosaveCount > 0) { e.preventDefault(); e.returnValue=''; }
 });
 
-// ── Cross-tab "already open" warning (Session 42) — soft heads-up only,
-// no lock. See METAZONE_HANDOFF_v25.md for the deferred Presence upgrade path.
+// ── Cross-tab "already open" warning (Session 42, upgraded to a modal) —
+// still no lock. See METAZONE_HANDOFF_v25.md for the deferred Presence upgrade path.
 let _matchChannel = null;
+let _tabWarningShownFor = null;
 function announceMatchOpen(matchId) {
   if(_matchChannel) { _matchChannel.close(); _matchChannel=null; }
+  if(matchId !== _tabWarningShownFor) _tabWarningShownFor = null;
   if(!matchId || typeof BroadcastChannel==='undefined') return;
   _matchChannel = new BroadcastChannel('mz-match-'+matchId);
   _matchChannel.onmessage = (e) => {
-    if(e.data==='open') toast('This match is also open in another tab','warn');
+    if(e.data==='open' && _tabWarningShownFor!==matchId) {
+      _tabWarningShownFor = matchId;
+      document.getElementById('tab-warning-modal').classList.add('show');
+    }
   };
   _matchChannel.postMessage('open');
 }
+function closeTabWarning() { document.getElementById('tab-warning-modal').classList.remove('show'); }
 
 async function manualSave() {
   if(!sb||!state.matchId){ toast('Nothing to save','warn'); return; }
@@ -3088,8 +3113,7 @@ function drawShape(s, isPreview, teamColor, alphaMult) {
   const stroke=`rgba(${r},${g},${b},${(op*am).toFixed(2)})`;
   const fill  =`rgba(${r},${g},${b},${(op*am*.12).toFixed(2)})`;
   const pin   =`rgba(${r},${g},${b},${am.toFixed(2)})`;
-  const vodDash=s.source==='vod'?[4/zoom,3/zoom]:[]; // Session 42: subtle provenance tell for VOD-sourced markers
-  ctx.strokeStyle=stroke; ctx.fillStyle=fill; ctx.lineWidth=lw; ctx.setLineDash(vodDash);
+  ctx.strokeStyle=stroke; ctx.fillStyle=fill; ctx.lineWidth=lw; ctx.setLineDash([]);
 
   if(s.type==='circle'){
     // Circles are zone-level and rendered via drawZoneCircle — skip here
@@ -3098,7 +3122,7 @@ function drawShape(s, isPreview, teamColor, alphaMult) {
     if(s.tag==='rotation') drawArrow(s.x1,s.y1,s.x2,s.y2,stroke,lw);
     else{ ctx.beginPath(); ctx.moveTo(s.x1,s.y1); ctx.lineTo(s.x2,s.y2); ctx.stroke(); }
   } else if(s.type==='path'){
-    drawPath(s.points,stroke,lw,isPreview,vodDash);
+    drawPath(s.points,stroke,lw,isPreview);
   } else if(s.type==='pin'||s.type==='fight'){
     drawPinMarker(s,isPreview,teamColor,am);
   }
@@ -3110,7 +3134,7 @@ function drawZoneCircle(s, isPreview) {
   const lw=w/zoom;
   ctx.beginPath(); ctx.arc(s.cx,s.cy,s.r,0,Math.PI*2);
   ctx.strokeStyle=`rgba(255,255,255,${op.toFixed(2)})`; ctx.lineWidth=lw;
-  ctx.setLineDash(s.source==='vod'?[4/zoom,3/zoom]:[]); ctx.stroke();
+  ctx.setLineDash([]); ctx.stroke();
   if(isPreview&&s._p1&&s._p2){
     ctx.setLineDash([4/zoom,4/zoom]);
     ctx.strokeStyle='rgba(255,255,255,.3)'; ctx.lineWidth=1/zoom;
@@ -3131,10 +3155,10 @@ function drawArrow(x1,y1,x2,y2,stroke,lw) {
   ctx.stroke();
 }
 
-function drawPath(points,stroke,lw,isPreview,vodDash) {
+function drawPath(points,stroke,lw,isPreview) {
   if(!points||points.length<2) return;
   ctx.strokeStyle=stroke; ctx.lineWidth=lw; ctx.lineCap='round'; ctx.lineJoin='round';
-  ctx.setLineDash(isPreview?[5/zoom,4/zoom]:(vodDash||[]));
+  ctx.setLineDash(isPreview?[5/zoom,4/zoom]:[]);
   ctx.beginPath(); ctx.moveTo(points[0].x,points[0].y);
   for(let i=1;i<points.length;i++) ctx.lineTo(points[i].x,points[i].y);
   ctx.stroke(); ctx.setLineDash([]);
@@ -3175,13 +3199,6 @@ function drawPinMarker(s, isPreview, teamColor, alphaMult) {
     const cr=mpx(6);
     ctx.beginPath(); ctx.arc(x,y,cr,0,Math.PI*2);
     ctx.fillStyle='rgb(45,212,191)'; ctx.fill();
-  }
-
-  // Session 42: subtle provenance ring for VOD-sourced pin/fight markers
-  if(s.source==='vod'){
-    ctx.beginPath(); ctx.arc(x,y,dr+mpx(4),0,Math.PI*2);
-    ctx.setLineDash([3/zoom,2/zoom]); ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.lineWidth=1/zoom; ctx.stroke();
-    ctx.setLineDash([]);
   }
 }
 
