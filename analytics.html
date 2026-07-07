@@ -761,7 +761,7 @@
           <div class="chart-wrap">
             <div style="margin-bottom:16px;">
               <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Win Rate — Edge vs Center</h3>
-              <p style="font-size:10px;color:var(--muted);margin-top:3px;">Fight win rate by position, using logged fight outcomes (draws excluded from the percentage).</p>
+              <p style="font-size:10px;color:var(--muted);margin-top:3px;">Fight win rate by position, using logged fight outcomes (disengages excluded from the percentage).</p>
             </div>
             <div id="edge-center-winrate-chart" style="display:flex;align-items:flex-end;gap:10px;height:112px;"></div>
             <div id="edge-center-winrate-insight" class="insight neutral">Loading...</div>
@@ -2430,13 +2430,13 @@ function renderEdgeCenterWinRateChart(rows, filteredMatches) {
   }
 
   const tally = { center:{won:0,lost:0}, mid:{won:0,lost:0}, edge:{won:0,lost:0} };
-  let drawCount = 0;
+  let disengageCount = 0;
   fights.forEach(s => {
     const b = classifyPosition(s.pin_x, s.pin_y, s.match_id, s.time_seconds);
     if (!b) return;
     if (s.outcome==='won') tally[b].won++;
     else if (s.outcome==='lost') tally[b].lost++;
-    else if (s.outcome==='draw') drawCount++;
+    else if (s.outcome==='disengage' || s.outcome==='draw') disengageCount++; // 'draw' kept for any pre-Session-63 rows
   });
 
   const chartH = 96;
@@ -2463,7 +2463,7 @@ function renderEdgeCenterWinRateChart(rows, filteredMatches) {
     const centerDecided = tally.center.won+tally.center.lost, edgeDecided = tally.edge.won+tally.edge.lost;
     const centerPct = centerDecided ? tally.center.won/centerDecided : null;
     const edgePct = edgeDecided ? tally.edge.won/edgeDecided : null;
-    const drawNote = drawCount ? ` (${drawCount} draw${drawCount!==1?'s':''} excluded)` : '';
+    const drawNote = disengageCount ? ` (${disengageCount} disengage${disengageCount!==1?'s':''} excluded)` : '';
     if (centerPct!=null && edgePct!=null) {
       if (centerPct > edgePct+0.15) { el.className='insight good'; el.textContent=`✓ Center fights win more (${Math.round(centerPct*100)}% vs ${Math.round(edgePct*100)}% at the edge)${drawNote}.`; }
       else if (edgePct > centerPct+0.15) { el.className='insight critical'; el.textContent=`✗ Edge fights win more often (${Math.round(edgePct*100)}% vs ${Math.round(centerPct*100)}% at center)${drawNote} — reconsider forcing edge fights.`; }

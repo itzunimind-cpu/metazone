@@ -382,11 +382,13 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 .vel-note-btn.has-note{ border-color:var(--accent);color:var(--accent); }
 .vel-eye-btn.is-hidden{ opacity:.55; }
 .vel-note-editor{
-  display:none;width:100%;margin-top:6px;resize:vertical;min-height:40px;box-sizing:border-box;
-  background:var(--bg-panel);border:1px solid var(--border);border-radius:4px;color:var(--text);
-  font-family:var(--font-mono);font-size:10px;padding:6px;
+  display:none;width:100%;margin-top:8px;resize:vertical;min-height:84px;box-sizing:border-box;
+  background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;color:var(--text);
+  font-family:var(--font-mono);font-size:11px;line-height:1.5;padding:10px;
+  outline:none;transition:border-color .15s;
 }
 .vel-note-editor.open{ display:block; }
+.vel-note-editor:focus{ border-color:var(--accent); }
 
 /* ── BOTTOM BAR ── */
 #vod-timeline{
@@ -1175,7 +1177,7 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
     <div class="pos-row"><span class="pos-label"># ENEMY TEAMS</span><input class="pos-input" type="number" id="fdm-num-enemy-teams" min="1" max="4" value="1"></div>
     <div class="pos-row"><span class="pos-label">OUTCOME</span>
       <select class="pos-input" id="fdm-outcome" style="width:90px;font-weight:500;font-size:11px;">
-        <option value="">—</option><option value="won">Won</option><option value="lost">Lost</option><option value="draw">Draw</option>
+        <option value="">—</option><option value="won">Won</option><option value="lost">Lost</option><option value="disengage">Disengage</option>
       </select>
     </div>
     <div class="pos-row"><span class="pos-label">OUR CASUALTIES</span><input class="pos-input" type="number" id="fdm-our-casualties" min="0" max="4"></div>
@@ -2776,7 +2778,8 @@ function renderEventLog() {
   });
   teams.filter(t=>t.match_id===state.matchId).forEach(team=>{
     (shapesCache[team.id]||[]).forEach(s=>{
-      if (s.type==='fight') events.push({ time:s.time||0, type:'fight', title:`Fight: ${s.teamA||'?'} vs ${s.teamB||'?'}`, icon:'<iconify-icon icon="lucide:crosshair"></iconify-icon>', color:'var(--accent)', wx:s.x, wy:s.y, _shape:s });
+      if (s.type==='fight' && s.tag==='thirdparty') events.push({ time:s.time||0, type:'fight', title:`3rd Party: ${s.teamA||'?'}`, icon:'<iconify-icon icon="lucide:users"></iconify-icon>', color:'var(--accent)', wx:s.x, wy:s.y, _shape:s });
+      else if (s.type==='fight') events.push({ time:s.time||0, type:'fight', title:`Fight: ${s.teamA||'?'} vs ${s.teamB||'?'}`, icon:'<iconify-icon icon="lucide:crosshair"></iconify-icon>', color:'var(--accent)', wx:s.x, wy:s.y, _shape:s });
       else if (s.type==='pin') events.push({ time:s.time||0, type:'pin', title:`Pin: ${s.label||'—'}`, icon:'<iconify-icon icon="lucide:map-pin"></iconify-icon>', color:'var(--accent)', wx:s.x, wy:s.y, _shape:s });
       else if (s.type==='line' && s.tag==='rotation') events.push({ time:s.time||0, type:'line', title:`${team.name} — Rotation ${s.rotation_index||''}`, icon:'<iconify-icon icon="lucide:arrow-right"></iconify-icon>', color:'#4ade80', _shape:s });
       else if (s.type==='path' && s.tag==='rotation') events.push({ time:s.time||0, type:'path', title:`${team.name} — Rotation ${s.rotation_index||''}`, icon:'<iconify-icon icon="lucide:spline"></iconify-icon>', color:'#4ade80', _shape:s });
@@ -3544,9 +3547,10 @@ function onPointerUp(e) {
     if(drag.moved){
       persistShapeMove(drag.shape);
       draw(); renderTimelineMarkers();
-    } else if(state.mode==='move' && drag.shape.type==='fight'){
+    } else if(state.mode==='move' && drag.shape.type==='fight' && drag.shape.tag!=='thirdparty'){
       // Session 62 — a plain (non-drag) Move-mode click on a fight marker
       // opens its Fight Details modal instead of moving anything.
+      // Session 63 — excludes 3rd-party pins (see editor.html for rationale).
       openFightDetailsModal(drag.shape);
     }
     return;
@@ -3878,6 +3882,14 @@ function draw() {
     if(p.death_x!=null&&p.death_y!=null) drawDeathPin(p.death_x,p.death_y);
   });
 
+  // Killer/shooter pins (match_players.killer_x / killer_y) — round, colored by killed_by_team_id's team
+  matchPlayers.forEach(p=>{
+    if(p.killer_x!=null&&p.killer_y!=null){
+      const kTeam=teams.find(t=>t.id===p.killed_by_team_id);
+      drawKillerPin(p.killer_x,p.killer_y,kTeam?.color);
+    }
+  });
+
   // Circle p1 indicator
   if(circleP1){
     ctx.strokeStyle='rgba(255,255,255,.5)'; ctx.lineWidth=1.5/zoom;
@@ -4000,6 +4012,17 @@ function drawDeathPin(x, y) {
   ctx.beginPath(); ctx.moveTo(x+od,y-os); ctx.lineTo(x+od-os,y); ctx.lineTo(x+od,y+os); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(x-os,y-od); ctx.lineTo(x,y-od+os); ctx.lineTo(x+os,y-od); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(x-os,y+od); ctx.lineTo(x,y+od-os); ctx.lineTo(x+os,y+od); ctx.stroke();
+}
+
+// Session 63 — shooter/killer position, round (not diamond), colored by the
+// killer team's color. Ported from editor.html — see that file for full rationale.
+function drawKillerPin(x, y, colorHex) {
+  const r = mpx(9);
+  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
+  ctx.fillStyle = colorHex || 'rgb(200,94,10)'; ctx.fill();
+  ctx.lineWidth = mpx(2); ctx.strokeStyle = '#fff'; ctx.stroke();
+  ctx.beginPath(); ctx.arc(x,y,mpx(3),0,Math.PI*2);
+  ctx.fillStyle = '#fff'; ctx.fill();
 }
 
 // ══════════════════════════════════════════════════════
@@ -4712,7 +4735,7 @@ function getActiveTeam(){ return state.activeTeamId?teams.find(t=>t.id===state.a
 function getActiveShapes(){ if(!state.activeTeamId)return null; if(!shapesCache[state.activeTeamId])shapesCache[state.activeTeamId]=[]; return shapesCache[state.activeTeamId]; }
 function hexRgb(hex){ const h=hex.replace('#',''); return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; }
 // Fixed type-based marker palette — ported from editor.html so shape colors read the same on both pages.
-function tagRgb(tag){ if(tag==='zone') return [255,255,255]; if(tag==='fight') return [200,94,10]; if(tag==='rotation') return [74,222,128]; if(tag==='pin') return [200,94,10]; return [200,200,200]; }
+function tagRgb(tag){ if(tag==='zone') return [255,255,255]; if(tag==='fight'||tag==='thirdparty') return [200,94,10]; if(tag==='rotation') return [74,222,128]; if(tag==='pin') return [200,94,10]; return [200,200,200]; }
 // World-space marker size helper (ported from editor.html) — markers scale 1:1 with map zoom.
 function mpx(base){ return base*0.075; }
 function fmtTime(s){ s=Math.max(0,Math.round(s||0)); return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0'); }
