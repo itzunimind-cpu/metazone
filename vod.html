@@ -372,6 +372,21 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 .vel-title{ font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
 .vel-time{ font-family:var(--font-mono);font-size:9px;color:var(--muted);margin-top:1px; }
 .vel-entry.lit{ border-left-color:var(--accent);background:var(--hover-tint); }
+.vel-note-btn, .vel-eye-btn{
+  flex-shrink:0;align-self:center;width:22px;height:22px;border-radius:4px;
+  background:none;border:1px solid var(--border);color:var(--muted);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  transition:all .15s;font-size:12px;
+}
+.vel-note-btn:hover, .vel-eye-btn:hover{ border-color:var(--accent);color:var(--accent); }
+.vel-note-btn.has-note{ border-color:var(--accent);color:var(--accent); }
+.vel-eye-btn.is-hidden{ opacity:.55; }
+.vel-note-editor{
+  display:none;width:100%;margin-top:6px;resize:vertical;min-height:40px;box-sizing:border-box;
+  background:var(--bg-panel);border:1px solid var(--border);border-radius:4px;color:var(--text);
+  font-family:var(--font-mono);font-size:10px;padding:6px;
+}
+.vel-note-editor.open{ display:block; }
 
 /* ── BOTTOM BAR ── */
 #vod-timeline{
@@ -1099,6 +1114,10 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
     <select class="modal-select" id="loss-killedby">
       <option value="">— None —</option>
     </select>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+      <button class="btn-modal-cancel" style="flex:none;padding:6px 10px;font-size:9px;" onclick="_tagKillerPositionVod()">TAG SHOOTER POSITION</button>
+      <span id="loss-shooter-tagged" style="font-family:var(--font-mono);font-size:9px;color:var(--accent);"></span>
+    </div>
     <div class="modal-actions">
       <button class="btn-modal-cancel" onclick="closeModal('loss-modal')">CANCEL</button>
       <button class="btn-modal-confirm yellow" id="btn-loss-confirm" onclick="confirmLoss()" disabled>CONFIRM</button>
@@ -1128,16 +1147,42 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
     <div class="modal-title"><iconify-icon icon="lucide:flag"></iconify-icon> ENEMY WIPE</div>
     <div class="modal-sub" id="ewipe-modal-time">At 00:00</div>
     <div class="modal-label">WHICH TEAM WAS ELIMINATED?</div>
-    <select class="modal-select" id="ewipe-team-select">
+    <select class="modal-select" id="ewipe-team-select" onchange="_prefillEwipeKills()">
       <option value="">— Select team —</option>
     </select>
     <div class="pos-row">
       <span class="pos-label">PLACEMENT</span>
       <input class="pos-input" id="ewipe-position" type="number" min="1" max="25" value="1">
     </div>
+    <div class="pos-row">
+      <span class="pos-label">KILLS (KP)</span>
+      <input class="pos-input" id="ewipe-kills" type="number" min="0" max="99" value="0">
+    </div>
     <div class="modal-actions">
       <button class="btn-modal-cancel" onclick="closeModal('ewipe-modal')">CANCEL</button>
       <button class="btn-modal-confirm orange" id="btn-ewipe-confirm" onclick="confirmEnemyWipe()">CONFIRM</button>
+    </div>
+  </div>
+</div>
+
+<!-- Fight Details Modal (Session 62) -->
+<div class="modal-backdrop" id="fight-details-modal">
+  <div class="modal-box modal-sm">
+    <div class="modal-title"><iconify-icon icon="lucide:crosshair"></iconify-icon> FIGHT DETAILS</div>
+    <div class="modal-sub" id="fdm-sub">Fight outcome (optional, edit anytime)</div>
+    <div class="pos-row"><span class="pos-label">OUR ALIVE COUNT</span><input class="pos-input" type="number" id="fdm-our-alive" min="0" max="4"></div>
+    <div class="pos-row"><span class="pos-label">ENEMY ALIVE COUNT</span><input class="pos-input" type="number" id="fdm-enemy-alive" min="0" max="4"></div>
+    <div class="pos-row"><span class="pos-label"># ENEMY TEAMS</span><input class="pos-input" type="number" id="fdm-num-enemy-teams" min="1" max="4" value="1"></div>
+    <div class="pos-row"><span class="pos-label">OUTCOME</span>
+      <select class="pos-input" id="fdm-outcome" style="width:90px;font-weight:500;font-size:11px;">
+        <option value="">—</option><option value="won">Won</option><option value="lost">Lost</option><option value="draw">Draw</option>
+      </select>
+    </div>
+    <div class="pos-row"><span class="pos-label">OUR CASUALTIES</span><input class="pos-input" type="number" id="fdm-our-casualties" min="0" max="4"></div>
+    <div class="pos-row"><span class="pos-label">ENEMY CASUALTIES</span><input class="pos-input" type="number" id="fdm-enemy-casualties" min="0" max="4"></div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closeFightDetailsModal()">CANCEL</button>
+      <button class="btn-modal-confirm cyan" id="btn-fdm-confirm" onclick="saveFightDetails()">SAVE</button>
     </div>
   </div>
 </div>
@@ -1302,8 +1347,9 @@ let vodUrl            = '';
 let pollInterval      = null;
 let overlayVisible    = true;
 let mapOpacity        = 0.62;
-let pendingEventType  = null;  // 'elim'|'loss'|'wipe'|'ewipe'
+let pendingEventType  = null;  // 'elim'|'loss'|'wipe'|'ewipe'|'shooter_pos'
 let pendingEventCoords = null; // {wx, wy} from placement click
+let pendingKillerCoords = null; // Session 62 — optional shooter-position tag, self-loss only
 
 // Drawing state
 let drawing = false, circleP1 = null, dSX = 0, dSY = 0, preview = null;
@@ -1346,6 +1392,9 @@ let _booted = false;
 window.addEventListener('DOMContentLoaded', async () => {
   sb = supabase.createClient(SUPA_URL, SUPA_KEY);
   _detectSession42Columns(); // fire-and-forget capability probe — see definition
+  _detectNoteCol(); // fire-and-forget capability probe — see definition
+  _detectFightOutcomeCols(); // fire-and-forget capability probe — see definition
+  _detectKillMetaCols(); // fire-and-forget capability probe — see definition
   const { data: { session } } = await sb.auth.getSession();
   if (session) {
     _booted = true;
@@ -1979,18 +2028,38 @@ function cancelPlacement() {
 
 function handlePlacementClick(wx, wy) {
   if (!pendingEventType) return false;
-  pendingEventCoords = { wx, wy };
   document.getElementById('placement-banner').classList.remove('show');
 
   const t = state.time;
   switch(pendingEventType) {
-    case 'elim':  openElimModal(t, wx, wy); break;
-    case 'loss':  openLossModal(t, wx, wy); break;
-    case 'wipe':  openSelfWipeModal(t, wx, wy); break;
-    case 'ewipe': openEwipeModal(t, wx, wy); break;
+    case 'elim':  pendingEventCoords = { wx, wy }; openElimModal(t, wx, wy); break;
+    case 'loss':  pendingEventCoords = { wx, wy }; openLossModal(t, wx, wy); break;
+    case 'wipe':  pendingEventCoords = { wx, wy }; openSelfWipeModal(t, wx, wy); break;
+    case 'ewipe': pendingEventCoords = { wx, wy }; openEwipeModal(t, wx, wy); break;
+    case 'shooter_pos':
+      // Session 62 — secondary, optional coordinate capture from within an
+      // already-open Self Loss modal. Deliberately does NOT touch
+      // pendingEventCoords (that's the death position, already captured).
+      pendingKillerCoords = { wx, wy };
+      document.getElementById('loss-shooter-tagged').textContent = '✓ tagged';
+      document.getElementById('loss-modal').classList.add('show');
+      break;
   }
   pendingEventType = null;
   return true;
+}
+
+// Session 62 — hides the loss modal, reuses the same placement-banner/click-
+// capture idiom every other event here already uses, then reopens the modal
+// with the tagged shooter position in hand.
+function _tagKillerPositionVod() {
+  document.getElementById('loss-modal').classList.remove('show');
+  pendingEventType = 'shooter_pos';
+  document.getElementById('pb-icon').innerHTML = '<iconify-icon icon="lucide:crosshair"></iconify-icon>';
+  document.getElementById('pb-text').textContent = 'TAG SHOOTER POSITION — click map';
+  document.getElementById('pb-text').style.color = '#E8C84A';
+  document.getElementById('placement-banner').classList.add('show');
+  canvas.style.cursor = 'crosshair';
 }
 
 // ══════════════════════════════════════════════════════
@@ -2078,6 +2147,8 @@ async function confirmElim() {
 // ══════════════════════════════════════════════════════
 function openLossModal(t, wx, wy) {
   lossSelectedId = null;
+  pendingKillerCoords = null;
+  document.getElementById('loss-shooter-tagged').textContent = '';
   document.getElementById('loss-modal-time').textContent = `At ${fmtTime(t)}`;
   document.getElementById('btn-loss-confirm').disabled = true;
   // Populate killed-by
@@ -2115,21 +2186,33 @@ async function confirmLoss() {
   const player = matchPlayers.find(p => p.id === lossSelectedId);
   if (!player) return;
   const killedByTeamId = document.getElementById('loss-killedby').value || null;
+  const kbTeam = killedByTeamId ? teams.find(t2=>t2.id===killedByTeamId) : null;
   const coords = pendingEventCoords;
+  const killerCoords = pendingKillerCoords; pendingKillerCoords = null;
   const t = state.time;
   closeModal('loss-modal');
 
   player.time_of_loss = t;
+  if (killerCoords) { player.killer_x = killerCoords.wx; player.killer_y = killerCoords.wy; }
   if (sb && !String(player.id).startsWith('local_')) {
     try {
       const upd = { time_of_loss:t };
       if (killedByTeamId) upd.killed_by_team_id = killedByTeamId;
       if (coords) { upd.death_x = coords.wx; upd.death_y = coords.wy; }
+      if (killerCoords && _hasKillMetaCols) { upd.killer_x = killerCoords.wx; upd.killer_y = killerCoords.wy; }
       await sb.from('match_players').update(upd).eq('id', player.id);
     } catch(e) { toast('Save error: '+e.message,'err'); }
   }
 
-  const kbTeam = killedByTeamId ? teams.find(t2=>t2.id===killedByTeamId) : null;
+  // Session 62 — KP auto-credit, same reasoning/pattern as editor.html's confirmSelfLoss().
+  if (kbTeam) {
+    kbTeam.kills = (kbTeam.kills||0) + 1;
+    if (sb && !String(kbTeam.id).startsWith('local_')) {
+      try { await sb.from('teams').update({kills:kbTeam.kills}).eq('id',kbTeam.id); }
+      catch(e) { /* non-fatal — reconciles next time Enemy Wipe's prefill is opened */ }
+    }
+  }
+
   addEventLog({ icon:'<iconify-icon icon="lucide:skull"></iconify-icon>', title:`${player.name} down${kbTeam?` · by ${kbTeam.name}`:''}`, time:t, color:'var(--yellow)' });
   toast(`${player.name} down @ ${fmtTime(t)}`, 'ok');
   renderTimelineMarkers(); renderSquadPanel(); draw();
@@ -2195,12 +2278,23 @@ function openEwipeModal(t, wx, wy) {
   teams.filter(t2=>t2.match_id===state.matchId&&!t2.is_self).forEach(t2=>{
     const isWipedNow = t2.time_of_wipe===t;
     const isWipedOther = t2.time_of_wipe!=null && t2.time_of_wipe!==t;
-    if(isWipedOther) return; // already wiped at a different time — skip
+    const isFinalized = t2.confirmed_position!=null && !isWipedNow; // e.g. auto-assigned match winner
+    if(isWipedOther||isFinalized) return;
     const label = isWipedNow ? `↩ ${t2.name} (undo wipe)` : t2.name;
     sel.add(new Option(label, t2.id));
   });
+  sel.value = ''; // never carry a stale selection into a freshly rebuilt list
+  document.getElementById('ewipe-kills').value = 0;
   if(sel.options.length===1){ toast('ALL ENEMY TEAMS WIPED — seek to a wipe time to undo','warn'); return; }
   document.getElementById('ewipe-modal').classList.add('show');
+}
+
+function _prefillEwipeKills() {
+  const teamId = document.getElementById('ewipe-team-select').value;
+  // Session 62 — prefill from the real derived count (self-losses already
+  // tagged "killed by" this team) instead of the blind team.kills, which is
+  // now kept in sync by that same auto-credit but can still be overridden below.
+  document.getElementById('ewipe-kills').value = matchPlayers.filter(p=>p.killed_by_team_id===teamId).length;
 }
 
 async function confirmEnemyWipe() {
@@ -2213,9 +2307,9 @@ async function confirmEnemyWipe() {
 
   // Undo if already wiped at current time (dropdown showed it with an "↩ ... (undo wipe)" label)
   if (team.time_of_wipe === t) {
-    team.time_of_wipe = null; team.confirmed_position = null;
+    team.time_of_wipe = null; team.confirmed_position = null; team.kills = 0;
     if (sb && !String(teamId).startsWith('local_')) {
-      await sb.from('teams').update({time_of_wipe:null, confirmed_position:null}).eq('id',teamId);
+      await sb.from('teams').update({time_of_wipe:null, confirmed_position:null, kills:0}).eq('id',teamId);
     }
     toast(`${team.name} wipe removed`, 'ok');
     renderTimelineMarkers(); renderSquadPanel(); draw();
@@ -2224,11 +2318,13 @@ async function confirmEnemyWipe() {
   }
 
   const pos = parseInt(document.getElementById('ewipe-position').value,10) || null;
+  const kp = parseInt(document.getElementById('ewipe-kills').value,10) || 0;
   const coords = pendingEventCoords;
   team.time_of_wipe = t;
   team.confirmed_position = pos;
+  team.kills = kp;
   if (sb && !String(teamId).startsWith('local_')) {
-    const upd = { time_of_wipe:t };
+    const upd = { time_of_wipe:t, kills:kp };
     if (pos) upd.confirmed_position = pos;
     if (coords) { upd.wipe_x=coords.wx; upd.wipe_y=coords.wy; }
     await sb.from('teams').update(upd).eq('id',teamId);
@@ -2279,6 +2375,54 @@ async function confirmEnemyWipe() {
     // V1: winner survives, it is NOT wiped — only self/losing teams get time_of_wipe.
     await _autoAssignPosition(winner, 1);
     _showMatchEndPrompt(`🏆 ${winner.name} wins. Ready to mark match end?`);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// FIGHT DETAILS MODAL (Session 62) — structured outcome fields on a fight
+// shape, edited after the fact (can't be known at pin-placement time). Opened
+// via a plain (non-drag) Move-mode click on a fight marker — see the
+// _moveDrag release branch in onPointerUp.
+// ══════════════════════════════════════════════════════
+let _fdmTarget = null;
+function openFightDetailsModal(shape) {
+  _fdmTarget = shape;
+  document.getElementById('fdm-sub').textContent = `${shape.teamA||'?'} vs ${shape.teamB||'?'}`;
+  document.getElementById('fdm-our-alive').value = shape.our_alive_count ?? '';
+  document.getElementById('fdm-enemy-alive').value = shape.enemy_alive_count ?? '';
+  document.getElementById('fdm-num-enemy-teams').value = shape.num_enemy_teams ?? 1;
+  document.getElementById('fdm-outcome').value = shape.outcome || '';
+  document.getElementById('fdm-our-casualties').value = shape.our_casualties ?? '';
+  document.getElementById('fdm-enemy-casualties').value = shape.enemy_casualties ?? '';
+  document.getElementById('fight-details-modal').classList.add('show');
+}
+function closeFightDetailsModal() {
+  document.getElementById('fight-details-modal').classList.remove('show');
+  _fdmTarget = null;
+}
+async function saveFightDetails() {
+  if(!_fdmTarget) return;
+  const numOrNull = id => { const v=document.getElementById(id).value; return v===''?null:parseInt(v,10); };
+  _fdmTarget.our_alive_count = numOrNull('fdm-our-alive');
+  _fdmTarget.enemy_alive_count = numOrNull('fdm-enemy-alive');
+  _fdmTarget.num_enemy_teams = numOrNull('fdm-num-enemy-teams') ?? 1;
+  _fdmTarget.outcome = document.getElementById('fdm-outcome').value || null;
+  _fdmTarget.our_casualties = numOrNull('fdm-our-casualties');
+  _fdmTarget.enemy_casualties = numOrNull('fdm-enemy-casualties');
+  const target = _fdmTarget;
+  closeFightDetailsModal();
+  if(!_hasFightOutcomeCols){ toast('Saved locally — run the Session 62 migration to persist fight outcomes','warn'); return; }
+  if(!sb || !target.id || String(target.id).startsWith('local_')) return;
+  try {
+    const { error } = await sb.from('shapes').update({
+      our_alive_count: target.our_alive_count, enemy_alive_count: target.enemy_alive_count,
+      num_enemy_teams: target.num_enemy_teams, outcome: target.outcome,
+      our_casualties: target.our_casualties, enemy_casualties: target.enemy_casualties
+    }).eq('id', target.id);
+    if(error) throw error;
+    toast('Fight details saved','ok');
+  } catch(e) {
+    toast('FIGHT DETAILS FAILED TO SAVE — try again','err');
   }
 }
 
@@ -2570,6 +2714,25 @@ function renderSquadPanel() {
 // ══════════════════════════════════════════════════════
 function addEventLog() { renderEventLog(); }
 
+// Session 62 — mirrors editor.html's saveShapeNote(). No modal, ever — the
+// textarea lives directly in the event-log row (see renderEventLog below).
+async function saveShapeNote(target, noteValue, btnEl) {
+  const trimmed = noteValue.trim() || null;
+  if ((target.note || null) === trimmed) return;
+  target.note = trimmed || undefined;
+  if (btnEl) btnEl.classList.toggle('has-note', !!trimmed);
+  if (!sb || !target.id || String(target.id).startsWith('local_') || !_hasNoteCol) return;
+  setSyncState('syncing');
+  try {
+    const { error } = await sb.from('shapes').update({ note: trimmed }).eq('id', target.id);
+    if (error) throw error;
+    setSyncState('saved');
+  } catch (e) {
+    setSyncState('error');
+    toast('NOTE FAILED TO SAVE — try again', 'err');
+  }
+}
+
 function renderEventLog() {
   const container = document.getElementById('vod-event-log');
   const events = [];
@@ -2604,11 +2767,19 @@ function renderEventLog() {
     });
   });
 
-  // Shapes tagged fight/pin — from shapesCache (already loaded + live-mutated), all match teams
+  // Shapes — from shapesCache (already loaded + live-mutated), all match teams.
+  // Session 62: zone/line/path now included too (were previously skipped
+  // entirely), each carrying type + a direct object ref (_shape/_zone) so the
+  // new note/eye buttons and zoom-to-fit below have something to act on.
+  (zonesCache[state.matchId]||[]).forEach(s=>{
+    events.push({ time:s.time||0, type:'circle', title:`Zone ${s.zone_phase||''}`, icon:'<iconify-icon icon="lucide:circle"></iconify-icon>', color:'#22d3ee', wx:s.cx, wy:s.cy, _zone:s });
+  });
   teams.filter(t=>t.match_id===state.matchId).forEach(team=>{
     (shapesCache[team.id]||[]).forEach(s=>{
-      if (s.type==='fight') events.push({ time:s.time||0, title:`Fight: ${s.teamA||'?'} vs ${s.teamB||'?'}`, icon:'<iconify-icon icon="lucide:crosshair"></iconify-icon>', color:'var(--accent)', wx:s.x, wy:s.y });
-      else if (s.type==='pin') events.push({ time:s.time||0, title:`Pin: ${s.label||'—'}`, icon:'<iconify-icon icon="lucide:map-pin"></iconify-icon>', color:'var(--accent)', wx:s.x, wy:s.y });
+      if (s.type==='fight') events.push({ time:s.time||0, type:'fight', title:`Fight: ${s.teamA||'?'} vs ${s.teamB||'?'}`, icon:'<iconify-icon icon="lucide:crosshair"></iconify-icon>', color:'var(--accent)', wx:s.x, wy:s.y, _shape:s });
+      else if (s.type==='pin') events.push({ time:s.time||0, type:'pin', title:`Pin: ${s.label||'—'}`, icon:'<iconify-icon icon="lucide:map-pin"></iconify-icon>', color:'var(--accent)', wx:s.x, wy:s.y, _shape:s });
+      else if (s.type==='line' && s.tag==='rotation') events.push({ time:s.time||0, type:'line', title:`${team.name} — Rotation ${s.rotation_index||''}`, icon:'<iconify-icon icon="lucide:arrow-right"></iconify-icon>', color:'#4ade80', _shape:s });
+      else if (s.type==='path' && s.tag==='rotation') events.push({ time:s.time||0, type:'path', title:`${team.name} — Rotation ${s.rotation_index||''}`, icon:'<iconify-icon icon="lucide:spline"></iconify-icon>', color:'#4ade80', _shape:s });
     });
   });
 
@@ -2632,7 +2803,69 @@ function renderEventLog() {
         <div class="vel-title">${esc(ev.title)}</div>
         <div class="vel-time">${fmtTime(ev.time)}</div>
       </div>`;
-    entry.onclick = () => { seekToMatchTime(ev.time); if (ev.wx!=null && ev.wy!=null) zoomToWorld(ev.wx, ev.wy); };
+
+    // Tap entry → seek + zoom. Zone/line/path fit their whole extent (Session
+    // 62); pin/fight keep the original fixed-zoom center-on-point behavior.
+    entry.onclick = () => {
+      seekToMatchTime(ev.time);
+      if(ev.type==='circle' && ev._zone){
+        const z=ev._zone; zoomToFitBounds(z.cx-z.r, z.cy-z.r, z.cx+z.r, z.cy+z.r);
+      } else if(ev.type==='line' && ev._shape){
+        const s=ev._shape; zoomToFitBounds(Math.min(s.x1,s.x2), Math.min(s.y1,s.y2), Math.max(s.x1,s.x2), Math.max(s.y1,s.y2));
+      } else if(ev.type==='path' && ev._shape?.points?.length){
+        const xs=ev._shape.points.map(p=>p.x), ys=ev._shape.points.map(p=>p.y);
+        zoomToFitBounds(Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys));
+      } else if (ev.wx!=null && ev.wy!=null){
+        zoomToWorld(ev.wx, ev.wy);
+      }
+    };
+
+    // Session 62 — note (inline textarea, never a modal) + eye (session-only
+    // hide) buttons. Only for real shapes-table rows (zone/line/path/fight) —
+    // never pin (pins have no creation-time popup in vod.html either, and are
+    // explicitly excluded per the same rule as editor.html) and never
+    // wipe/loss/elim/matchend/note.
+    const noteTarget = ev.type==='circle' ? ev._zone : (['line','path','fight'].includes(ev.type) ? ev._shape : null);
+    if(noteTarget){
+      const bodyEl = entry.querySelector('.vel-body');
+
+      const noteBtn=document.createElement('button');
+      noteBtn.className='vel-note-btn'+(noteTarget.note?' has-note':'');
+      noteBtn.title='Note';
+      noteBtn.innerHTML='<iconify-icon icon="lucide:sticky-note"></iconify-icon>';
+
+      const noteEditor=document.createElement('textarea');
+      noteEditor.className='vel-note-editor';
+      noteEditor.placeholder='Note...';
+      noteEditor.value=noteTarget.note||'';
+      noteEditor.onclick=(e)=>e.stopPropagation();
+      noteEditor.onmousedown=(e)=>e.stopPropagation();
+      noteEditor.onblur=()=>saveShapeNote(noteTarget, noteEditor.value, noteBtn);
+      bodyEl.appendChild(noteEditor);
+
+      noteBtn.onclick=(e)=>{
+        e.stopPropagation();
+        noteEditor.classList.toggle('open');
+        if(noteEditor.classList.contains('open')) noteEditor.focus();
+      };
+
+      const eyeBtn=document.createElement('button');
+      eyeBtn.className='vel-eye-btn'+(noteTarget._hidden?' is-hidden':'');
+      eyeBtn.title=noteTarget._hidden?'Show shape':'Hide shape';
+      eyeBtn.innerHTML='<iconify-icon icon="lucide:'+(noteTarget._hidden?'eye-off':'eye')+'"></iconify-icon>';
+      eyeBtn.onclick=(e)=>{
+        e.stopPropagation();
+        noteTarget._hidden=!noteTarget._hidden;
+        eyeBtn.classList.toggle('is-hidden',noteTarget._hidden);
+        eyeBtn.title=noteTarget._hidden?'Show shape':'Hide shape';
+        eyeBtn.innerHTML='<iconify-icon icon="lucide:'+(noteTarget._hidden?'eye-off':'eye')+'"></iconify-icon>';
+        draw();
+      };
+
+      entry.appendChild(noteBtn);
+      entry.appendChild(eyeBtn);
+    }
+
     container.appendChild(entry);
   });
 }
@@ -3083,6 +3316,20 @@ function zoomToWorld(wx, wy) {
   panY=canvas.height/2 - wy*zoom;
   clampPan(); updateZoomHud(); draw();
 }
+
+// Session 62 — zoom-to-FIT a bounding box, for log-entry clicks on shapes where
+// a single representative point is a poor stand-in for the whole shape. See
+// editor.html's identical function for the full rationale. Pins/fights keep
+// using zoomToWorld() above, unchanged.
+function zoomToFitBounds(minX, minY, maxX, maxY) {
+  const minZoom=Math.min(canvas.width/WORLD_W, canvas.height/WORLD_H);
+  const bw=Math.max(1,maxX-minX), bh=Math.max(1,maxY-minY);
+  const nz=Math.max(minZoom, Math.min(40, Math.min(canvas.width/(bw*1.3), canvas.height/(bh*1.3))));
+  zoom=nz;
+  panX=canvas.width/2 - (minX+maxX)/2*zoom;
+  panY=canvas.height/2 - (minY+maxY)/2*zoom;
+  clampPan(); updateZoomHud(); draw();
+}
 function updateZoomHud() {
   const minZoom=Math.min(canvas.width/WORLD_W, canvas.height/WORLD_H);
   document.getElementById('zoom-hud-tb').textContent = (zoom/minZoom).toFixed(2)+'×';
@@ -3297,6 +3544,10 @@ function onPointerUp(e) {
     if(drag.moved){
       persistShapeMove(drag.shape);
       draw(); renderTimelineMarkers();
+    } else if(state.mode==='move' && drag.shape.type==='fight'){
+      // Session 62 — a plain (non-drag) Move-mode click on a fight marker
+      // opens its Fight Details modal instead of moving anything.
+      openFightDetailsModal(drag.shape);
     }
     return;
   }
@@ -3388,7 +3639,7 @@ async function eraseAt(wx, wy) {
   // Check zones first
   const zones = zonesCache[state.matchId]||[];
   for(let i=zones.length-1;i>=0;i--){
-    const z=zones[i];
+    const z=zones[i]; if(z.time>state.time) continue;
     if(Math.sqrt((z.cx-wx)**2+(z.cy-wy)**2)<z.r+10/zoom){ // within circle radius
       zones.splice(i,1);
       _recordZoneAction(state.matchId,{op:'erase',shape:z,index:i});
@@ -3396,17 +3647,15 @@ async function eraseAt(wx, wy) {
       draw(); renderTimelineMarkers(); return;
     }
   }
-  // Check team shapes
-  const matchTeams=teams.filter(t=>t.match_id===state.matchId);
-  for(let ti=matchTeams.length-1;ti>=0;ti--){
-    const team=matchTeams[ti];
-    const shapes=shapesCache[team.id]||[];
+  // Check active team's shapes only (matches how shapes are added/undone — see getActiveShapes/undo)
+  const shapes=getActiveShapes();
+  if(shapes){
     for(let i=shapes.length-1;i>=0;i--){
-      const s=shapes[i];
+      const s=shapes[i]; if(s.time>state.time) continue;
       if(s.type==='pin'||s.type==='fight'){
         if(Math.sqrt((s.x-wx)**2+(s.y-wy)**2)<10/zoom){
           shapes.splice(i,1);
-          _recordShapeAction(team.id,{op:'erase',shape:s,index:i});
+          _recordShapeAction(state.activeTeamId,{op:'erase',shape:s,index:i});
           if(sb&&s.id&&!String(s.id).startsWith('local_')) await sb.from('shapes').delete().eq('id',s.id);
           draw(); renderTimelineMarkers(); return;
         }
@@ -3415,10 +3664,21 @@ async function eraseAt(wx, wy) {
         for(const pt of s.points){
           if(Math.sqrt((pt.x-wx)**2+(pt.y-wy)**2)<8/zoom){
             shapes.splice(i,1);
-            _recordShapeAction(team.id,{op:'erase',shape:s,index:i});
+            _recordShapeAction(state.activeTeamId,{op:'erase',shape:s,index:i});
             if(sb&&s.id&&!String(s.id).startsWith('local_')) await sb.from('shapes').delete().eq('id',s.id);
             draw(); renderTimelineMarkers(); return;
           }
+        }
+      }
+      if(s.type==='line'){
+        const mx=(s.x1+s.x2)/2, my=(s.y1+s.y2)/2;
+        if(Math.sqrt((s.x1-wx)**2+(s.y1-wy)**2)<10/zoom||
+           Math.sqrt((s.x2-wx)**2+(s.y2-wy)**2)<10/zoom||
+           Math.sqrt((mx-wx)**2+(my-wy)**2)<10/zoom){
+          shapes.splice(i,1);
+          _recordShapeAction(state.activeTeamId,{op:'erase',shape:s,index:i});
+          if(sb&&s.id&&!String(s.id).startsWith('local_')) await sb.from('shapes').delete().eq('id',s.id);
+          draw(); renderTimelineMarkers(); return;
         }
       }
     }
@@ -3589,7 +3849,7 @@ function draw() {
 
   // Zones
   if(filters.zone){
-    (zonesCache[state.matchId]||[]).forEach(s=>{ if(s.time>state.time) return; drawZoneCircle(s); });
+    (zonesCache[state.matchId]||[]).forEach(s=>{ if(s.time>state.time||s._hidden) return; drawZoneCircle(s); });
   }
 
   // All team shapes
@@ -3597,7 +3857,7 @@ function draw() {
     const shapes=shapesCache[team.id]||[];
     const isActive=team.id===state.activeTeamId;
     const alpha=isActive?1:.5;
-    shapes.forEach(s=>{ if(!filters[s.tag]||s.time>state.time) return; drawShape(s,false,team.color,alpha); });
+    shapes.forEach(s=>{ if(!filters[s.tag]||s.time>state.time||s._hidden) return; drawShape(s,false,team.color,alpha); });
   });
 
   // Preview
@@ -4058,7 +4318,7 @@ function computeCalibration() {
   // underdetermined — abort rather than silently keep a stale calSx/calSy.
   if (Math.abs(dmx) <= 2 || Math.abs(dmy) <= 2) {
     toast('Points too close together on one axis — pick two spots that differ in BOTH X and Y', 'err');
-    calPhase = 1; calMapClicks = [];
+    calPhase = 2; calMapClicks = [];
     renderCalOverlay(); updateCalBanner();
     return false;
   }
@@ -4282,8 +4542,28 @@ async function _detectSession42Columns() {
   _hasSession42Cols = !error;
 }
 
+// Session 62 capability probes — same reasoning as _detectSession42Columns above.
+let _hasNoteCol = false;
+async function _detectNoteCol() {
+  if (!sb) return;
+  const { error } = await sb.from('shapes').select('note').limit(1);
+  _hasNoteCol = !error;
+}
+let _hasFightOutcomeCols = false;
+async function _detectFightOutcomeCols() {
+  if (!sb) return;
+  const { error } = await sb.from('shapes').select('outcome').limit(1);
+  _hasFightOutcomeCols = !error;
+}
+let _hasKillMetaCols = false;
+async function _detectKillMetaCols() {
+  if (!sb) return;
+  const { error } = await sb.from('match_players').select('killer_x').limit(1);
+  _hasKillMetaCols = !error;
+}
+
 function shapeToDbRow(shape, teamId, matchId) {
-  const base={team_id:teamId,match_id:matchId,user_id:currentUser?.id,type:shape.type,tag:shape.tag,time_seconds:Math.round(shape.time||0),source:_hasSession42Cols?(shape.source||'vod'):undefined};
+  const base={team_id:teamId,match_id:matchId,user_id:currentUser?.id,type:shape.type,tag:shape.tag,time_seconds:Math.round(shape.time||0),source:_hasSession42Cols?(shape.source||'vod'):undefined,note:_hasNoteCol?(shape.note||undefined):undefined};
   if(shape.type==='circle'){
     const m=matches.find(x=>x.id===matchId);
     return {...base,team_id:null,cx:shape.cx,cy:shape.cy,radius:shape.r,zone_phase:parseInt(shape.zone_phase||1,10),zone_type:'white',map_key:m?.map_key||state.mapKey};
@@ -4291,17 +4571,26 @@ function shapeToDbRow(shape, teamId, matchId) {
   if(shape.type==='line')  return {...base,x1:shape.x1,y1:shape.y1,x2:shape.x2,y2:shape.y2,rotation_index:parseInt(shape.rotation_index||1,10)};
   if(shape.type==='path')  return {...base,path_points:JSON.stringify(shape.points),rotation_index:parseInt(shape.rotation_index||1,10)};
   if(shape.type==='pin')   return {...base,pin_x:shape.x,pin_y:shape.y,label:shape.label||''};
-  if(shape.type==='fight') return {...base,pin_x:shape.x,pin_y:shape.y,fight_team_a:shape.teamA,fight_team_b:shape.teamB};
+  if(shape.type==='fight') return {...base,pin_x:shape.x,pin_y:shape.y,fight_team_a:shape.teamA,fight_team_b:shape.teamB,
+    our_alive_count:_hasFightOutcomeCols?shape.our_alive_count:undefined,
+    enemy_alive_count:_hasFightOutcomeCols?shape.enemy_alive_count:undefined,
+    num_enemy_teams:_hasFightOutcomeCols?shape.num_enemy_teams:undefined,
+    outcome:_hasFightOutcomeCols?shape.outcome:undefined,
+    our_casualties:_hasFightOutcomeCols?shape.our_casualties:undefined,
+    enemy_casualties:_hasFightOutcomeCols?shape.enemy_casualties:undefined};
   return base;
 }
 
 function dbRowToShape(row) {
-  const base={id:row.id,type:row.type,tag:row.tag,time:row.time_seconds,source:row.source||'vod'};
+  const base={id:row.id,type:row.type,tag:row.tag,time:row.time_seconds,source:row.source||'vod',note:row.note||undefined};
   if(row.type==='circle') return {...base,cx:row.cx,cy:row.cy,r:row.radius,zone_phase:row.zone_phase||1};
   if(row.type==='line')   return {...base,x1:row.x1,y1:row.y1,x2:row.x2,y2:row.y2};
   if(row.type==='path')   return {...base,points:typeof row.path_points==='string'?JSON.parse(row.path_points):row.path_points};
   if(row.type==='pin')    return {...base,x:row.pin_x,y:row.pin_y,label:row.label};
-  if(row.type==='fight')  return {...base,x:row.pin_x,y:row.pin_y,teamA:row.fight_team_a,teamB:row.fight_team_b};
+  if(row.type==='fight')  return {...base,x:row.pin_x,y:row.pin_y,teamA:row.fight_team_a,teamB:row.fight_team_b,
+    our_alive_count:row.our_alive_count,enemy_alive_count:row.enemy_alive_count,
+    num_enemy_teams:row.num_enemy_teams,outcome:row.outcome,
+    our_casualties:row.our_casualties,enemy_casualties:row.enemy_casualties};
   return base;
 }
 

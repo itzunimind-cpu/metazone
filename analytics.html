@@ -747,6 +747,26 @@
             <div id="zone-phase-insight" class="insight neutral">Loading...</div>
           </div>
 
+          <!-- Chart F: Edge vs Center Frequency (Session 62) -->
+          <div class="chart-wrap">
+            <div style="margin-bottom:16px;">
+              <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Edge vs Center Positioning</h3>
+              <p style="font-size:10px;color:var(--muted);margin-top:3px;">Where fights, wipes, and losses happen relative to the active zone circle — center, mid-ring, or edge.</p>
+            </div>
+            <div id="edge-center-freq-chart" style="display:flex;align-items:flex-end;gap:10px;height:112px;"></div>
+            <div id="edge-center-freq-insight" class="insight neutral">Loading...</div>
+          </div>
+
+          <!-- Chart G: Edge vs Center Win Rate (Session 62) -->
+          <div class="chart-wrap">
+            <div style="margin-bottom:16px;">
+              <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Win Rate — Edge vs Center</h3>
+              <p style="font-size:10px;color:var(--muted);margin-top:3px;">Fight win rate by position, using logged fight outcomes (draws excluded from the percentage).</p>
+            </div>
+            <div id="edge-center-winrate-chart" style="display:flex;align-items:flex-end;gap:10px;height:112px;"></div>
+            <div id="edge-center-winrate-insight" class="insight neutral">Loading...</div>
+          </div>
+
         </div>
       </div>
 
@@ -788,6 +808,9 @@
           </button>
           <button class="scope-pill" id="btn-routes-heatmap" onclick="setRoutesMode('heatmap')">
             <iconify-icon icon="lucide:flame" style="margin-right:5px;"></iconify-icon>HEATMAP
+          </button>
+          <button class="scope-pill" id="btn-routes-zoneshift" onclick="setRoutesMode('zoneshift')">
+            <iconify-icon icon="lucide:move" style="margin-right:5px;"></iconify-icon>ZONE SHIFT
           </button>
         </div>
 
@@ -837,6 +860,9 @@
                 <div id="routes-heatmap-map-pills" style="display:flex;align-items:center;gap:3px;padding:4px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;flex-wrap:wrap;"></div>
               </div>
             </div>
+            <label style="display:flex;align-items:center;gap:6px;margin-top:14px;font-family:'Lexend Deca',monospace;font-size:10px;color:var(--muted);cursor:pointer;">
+              <input type="checkbox" id="routes-show-wins" onchange="renderHeatmap()"> SHOW WIN LOCATIONS <span style="color:#4E7C2F;">●</span> (Session 62 — reads logged fight outcomes)
+            </label>
           </div>
           <div class="chart-wrap">
             <div style="margin-bottom:12px;">
@@ -845,6 +871,27 @@
             </div>
             <div id="routes-heatmap-canvas-wrap" style="position:relative;width:100%;aspect-ratio:1;max-width:640px;background:#000;border-radius:4px;overflow:hidden;">
               <canvas id="routes-heatmap-canvas" style="width:100%;height:100%;display:block;"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- ZONE SHIFT MODE (Session 62) -->
+        <div id="routes-zoneshift-mode" style="display:none;">
+          <div class="chart-wrap" style="margin-bottom:20px;">
+            <div style="margin-bottom:12px;">
+              <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Map</h3>
+              <p style="font-size:10px;color:var(--muted);margin-top:3px;">Where the zone tends to shift from one phase to the next, averaged across every match logged on this map.</p>
+            </div>
+            <div id="routes-zoneshift-map-pills" style="display:flex;align-items:center;gap:3px;padding:4px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;flex-wrap:wrap;"></div>
+          </div>
+          <div class="chart-wrap">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+              <h3 style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);">Zone Shift — Phase Transition</h3>
+              <div id="routes-zoneshift-pill-strip" style="display:flex;align-items:center;gap:3px;padding:4px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;flex-wrap:wrap;"></div>
+            </div>
+            <p id="routes-zoneshift-sub" style="font-size:10px;color:var(--muted);margin-top:-6px;margin-bottom:8px;">Select a map to begin.</p>
+            <div style="position:relative;width:100%;aspect-ratio:1;max-width:640px;background:#000;border-radius:4px;overflow:hidden;">
+              <canvas id="routes-zoneshift-canvas" style="width:100%;height:100%;display:block;"></canvas>
             </div>
           </div>
         </div>
@@ -1004,19 +1051,25 @@ async function loadAllData() {
   // Teams for all matches (ALL teams including enemies — needed for lobby survival curve)
   const matchIds = allMatches.map(m => m.id);
   if (matchIds.length > 0) {
-    const { data: teams } = await sb.from('teams').select('id,name,color,match_id,is_self,placement,kills,time_of_wipe,confirmed_position').in('match_id', matchIds);
+    await Promise.all([_detectFightOutcomeCols(), _detectKillMetaCols()]);
+
+    const { data: teams } = await sb.from('teams').select('id,name,color,match_id,is_self,placement,kills,time_of_wipe,confirmed_position,wipe_x,wipe_y').in('match_id', matchIds);
     allTeams = teams || [];
 
-    // Shapes: fights + zone circles for lobby timeline, zone phase death charts
+    // Shapes: fights + zone circles for lobby timeline, zone phase death charts,
+    // edge-vs-center classification (cx,cy,radius) and win-rate (outcome, gated)
+    const shapesCols = ['id,team_id,match_id,type,tag,time_seconds,zone_phase,pin_x,pin_y,fight_team_a,fight_team_b,cx,cy,radius'];
+    if (_hasFightOutcomeCols) shapesCols.push('outcome');
     const { data: shapes } = await sb.from('shapes')
-      .select('id,team_id,match_id,type,tag,time_seconds,zone_phase,pin_x,pin_y,fight_team_a,fight_team_b')
+      .select(shapesCols.join(','))
       .in('match_id', matchIds)
       .in('type', ['fight', 'circle']);
     allShapes = shapes || [];
 
-    // Match players: player loss timestamps for timeline, team_id + damage for Damage Output chart
+    // Match players: player loss timestamps for timeline, team_id + damage for
+    // Damage Output chart, death_x/death_y for edge-vs-center classification
     const { data: mps } = await sb.from('match_players')
-      .select('id,match_id,team_id,player_id,time_of_loss,killed_by_team_id,damage')
+      .select('id,match_id,team_id,player_id,time_of_loss,killed_by_team_id,damage,death_x,death_y')
       .in('match_id', matchIds);
     allMatchPlayers = mps || [];
   }
@@ -1696,6 +1749,8 @@ function renderAnalystCharts(rows, filteredMatches) {
   renderDamageOutputChart(rows);
   renderLobbySurvivalCurve(rows, filteredMatches);
   renderZonePhaseChart(rows, filteredMatches);
+  renderEdgeCenterFrequencyChart(rows, filteredMatches);
+  renderEdgeCenterWinRateChart(rows, filteredMatches);
 }
 
 // ── Survival Time Bar ──
@@ -2199,6 +2254,21 @@ function renderLobbySurvivalCurve(rows, filteredMatches) {
 // ══════════════════════════════════════════════════════
 // ZONE PHASE DEATH
 // ══════════════════════════════════════════════════════
+// Session 62 — extracted from this function's own inline logic (was duplicated
+// nowhere else, but the edge-vs-center classifier below needs the identical
+// "which zone circle was active at time t" lookup). Behavior-preserving.
+function findActiveZoneCircle(matchId, eventTime) {
+  const matchZones = allShapes.filter(s => s.match_id === matchId && s.type === 'circle')
+    .sort((a, b) => (a.time_seconds||0) - (b.time_seconds||0));
+  if (!matchZones.length) return null;
+  let active = null;
+  for (const z of matchZones) {
+    if ((z.time_seconds || 0) <= eventTime) active = z;
+    else break;
+  }
+  return active || matchZones[0]; // died/fought before any zone — zone 1 is the only reasonable fallback
+}
+
 function renderZonePhaseChart(rows, filteredMatches) {
   const container = document.getElementById('zone-phase-chart');
   container.innerHTML = '';
@@ -2210,17 +2280,8 @@ function renderZonePhaseChart(rows, filteredMatches) {
 
   rows.forEach(r => {
     if (!r.time_of_wipe || !r.match_id) return;
-    const matchZones = allShapes.filter(s => s.match_id === r.match_id && s.type === 'circle')
-      .sort((a, b) => (a.time_seconds||0) - (b.time_seconds||0));
-    if (!matchZones.length) return;
-
-    // Find the last zone that started before the wipe time
-    let deathZone = null;
-    for (const z of matchZones) {
-      if ((z.time_seconds || 0) <= r.time_of_wipe) deathZone = z;
-      else break;
-    }
-    if (!deathZone) deathZone = matchZones[0]; // died before any zone — zone 1
+    const deathZone = findActiveZoneCircle(r.match_id, r.time_of_wipe);
+    if (!deathZone) return;
     const phase = deathZone.zone_phase || 1;
     phaseCounts[phase] = (phaseCounts[phase] || 0) + 1;
   });
@@ -2271,6 +2332,145 @@ function renderZonePhaseChart(rows, filteredMatches) {
     el.className='insight good'; el.textContent=`✓ ZONE ${dominantPhase} PRESENCE — You consistently reach late circles before dying. Final ring fighting is your main challenge.`;
   } else {
     el.className='insight neutral'; el.textContent=`Mid-game exits most common in Zone ${dominantPhase}. Rotation timing and mid-game positioning to examine.`;
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// EDGE-VS-CENTER FIGHT CLASSIFIER (Session 62)
+// ══════════════════════════════════════════════════════
+const ZONE_BUCKET_CENTER = 0.4, ZONE_BUCKET_MID = 0.75; // ratio-of-radius thresholds, tunable
+
+function classifyPosition(x, y, matchId, t) {
+  const zone = findActiveZoneCircle(matchId, t);
+  if (!zone || !zone.radius) return null; // no zone data for this match/time — caller skips
+  const ratio = Math.hypot(x - zone.cx, y - zone.cy) / zone.radius;
+  if (ratio < ZONE_BUCKET_CENTER) return 'center';
+  if (ratio < ZONE_BUCKET_MID) return 'mid';
+  return 'edge';
+}
+
+// Chart 1: frequency of center/mid/edge across fights, self-wipes, and self-losses.
+function renderEdgeCenterFrequencyChart(rows, filteredMatches) {
+  const container = document.getElementById('edge-center-freq-chart');
+  if (!container) return;
+  container.innerHTML = '';
+  const el = document.getElementById('edge-center-freq-insight');
+
+  const rowIds = new Set(rows.map(r => r.id));
+  const buckets = { fight:{center:0,mid:0,edge:0}, wipe:{center:0,mid:0,edge:0}, loss:{center:0,mid:0,edge:0} };
+
+  allShapes.filter(s => s.type==='fight' && rowIds.has(s.team_id)).forEach(s => {
+    const b = classifyPosition(s.pin_x, s.pin_y, s.match_id, s.time_seconds);
+    if (b) buckets.fight[b]++;
+  });
+  rows.filter(r => r.time_of_wipe!=null && r.wipe_x!=null && r.wipe_y!=null).forEach(r => {
+    const b = classifyPosition(r.wipe_x, r.wipe_y, r.match_id, r.time_of_wipe);
+    if (b) buckets.wipe[b]++;
+  });
+  allMatchPlayers.filter(mp => rowIds.has(mp.team_id) && mp.time_of_loss!=null && mp.death_x!=null && mp.death_y!=null).forEach(mp => {
+    const b = classifyPosition(mp.death_x, mp.death_y, mp.match_id, mp.time_of_loss);
+    if (b) buckets.loss[b]++;
+  });
+
+  const total = Object.values(buckets).reduce((a,bk) => a+bk.center+bk.mid+bk.edge, 0);
+  if (!total) {
+    container.innerHTML = chartEmpty('lucide:crosshair', 'No positional data', 'Log fights/wipes/losses alongside zone circles in the editor to unlock this chart.');
+    if (el) { el.className='insight neutral'; el.textContent='Log fights, wipes, and losses alongside zone circles to see edge-vs-center tendencies.'; }
+    return;
+  }
+
+  const maxCount = Math.max(1, ...Object.values(buckets).flatMap(bk => [bk.center, bk.mid, bk.edge]));
+  const chartH = 96;
+  const labels = { fight:'Fights', wipe:'Wipes', loss:'Losses' };
+  const bucketColor = { center:'#2C4A2E', mid:'#7C5A00', edge:'#9B1C11' };
+
+  Object.keys(buckets).forEach(key => {
+    const group = document.createElement('div');
+    group.style.cssText = 'display:flex;flex-direction:column;align-items:center;flex:1;gap:6px;';
+    const barsRow = document.createElement('div');
+    barsRow.style.cssText = `display:flex;gap:3px;align-items:flex-end;height:${chartH}px;`;
+    ['center','mid','edge'].forEach(bk => {
+      const count = buckets[key][bk];
+      const barH = Math.max(2, Math.round((count/maxCount)*chartH));
+      const bar = document.createElement('div');
+      bar.title = `${key} — ${bk}: ${count}`;
+      bar.style.cssText = `width:14px;height:${barH}px;background:${bucketColor[bk]};border-radius:3px 3px 0 0;opacity:0.85;`;
+      barsRow.appendChild(bar);
+    });
+    const lbl = document.createElement('div');
+    lbl.style.cssText = 'font-family:\'Lexend Deca\',monospace;font-size:9px;color:var(--muted);text-align:center;';
+    lbl.textContent = labels[key];
+    group.appendChild(barsRow); group.appendChild(lbl);
+    container.appendChild(group);
+  });
+
+  const edgeTotal = buckets.fight.edge+buckets.wipe.edge+buckets.loss.edge;
+  const centerTotal = buckets.fight.center+buckets.wipe.center+buckets.loss.center;
+  if (el) {
+    if (edgeTotal > centerTotal*1.3) { el.className='insight neutral'; el.textContent='Edge-heavy — most fights/deaths happen near the zone boundary.'; }
+    else if (centerTotal > edgeTotal*1.3) { el.className='insight good'; el.textContent='Center-heavy — you tend to hold central positions.'; }
+    else { el.className='insight neutral'; el.textContent='Balanced edge/center positioning.'; }
+  }
+}
+
+// Chart 2: win rate when fighting at the edge vs center, fights only, selected team.
+// Reads each fight's own outcome field directly — no placement-based proxy needed.
+function renderEdgeCenterWinRateChart(rows, filteredMatches) {
+  const container = document.getElementById('edge-center-winrate-chart');
+  if (!container) return;
+  container.innerHTML = '';
+  const el = document.getElementById('edge-center-winrate-insight');
+
+  const rowIds = new Set(rows.map(r => r.id));
+  const fights = allShapes.filter(s => s.type==='fight' && rowIds.has(s.team_id) && s.outcome);
+  if (!_hasFightOutcomeCols || !fights.length) {
+    container.innerHTML = chartEmpty('lucide:swords', 'No fight outcomes logged', "Tag fight outcomes (Move mode → click a fight marker) to unlock this chart.");
+    if (el) { el.className='insight neutral'; el.textContent='Log fight outcomes to see win rate by position.'; }
+    return;
+  }
+
+  const tally = { center:{won:0,lost:0}, mid:{won:0,lost:0}, edge:{won:0,lost:0} };
+  let drawCount = 0;
+  fights.forEach(s => {
+    const b = classifyPosition(s.pin_x, s.pin_y, s.match_id, s.time_seconds);
+    if (!b) return;
+    if (s.outcome==='won') tally[b].won++;
+    else if (s.outcome==='lost') tally[b].lost++;
+    else if (s.outcome==='draw') drawCount++;
+  });
+
+  const chartH = 96;
+  ['center','mid','edge'].forEach(bk => {
+    const { won, lost } = tally[bk];
+    const decided = won+lost;
+    const pct = decided ? Math.round((won/decided)*100) : 0;
+    const barH = decided ? Math.max(2, Math.round((pct/100)*chartH)) : 2;
+    const col = document.createElement('div');
+    col.style.cssText = 'display:flex;flex-direction:column;align-items:center;flex:1;gap:2px;justify-content:flex-end;';
+    const pctLbl = document.createElement('div');
+    pctLbl.textContent = decided ? pct+'%' : '—';
+    pctLbl.style.cssText = `font-family:'Lexend Deca',monospace;font-size:10px;font-weight:700;color:var(--text);`;
+    const bar = document.createElement('div');
+    bar.style.cssText = `width:100%;max-width:32px;height:${barH}px;background:${decided?'#2C4A2E':'var(--border)'};border-radius:4px 4px 0 0;opacity:0.85;`;
+    const lbl = document.createElement('div');
+    lbl.style.cssText = 'font-family:\'Lexend Deca\',monospace;font-size:9px;color:var(--muted);text-align:center;margin-top:4px;';
+    lbl.textContent = `${bk.toUpperCase()} (${decided})`;
+    col.appendChild(pctLbl); col.appendChild(bar); col.appendChild(lbl);
+    container.appendChild(col);
+  });
+
+  if (el) {
+    const centerDecided = tally.center.won+tally.center.lost, edgeDecided = tally.edge.won+tally.edge.lost;
+    const centerPct = centerDecided ? tally.center.won/centerDecided : null;
+    const edgePct = edgeDecided ? tally.edge.won/edgeDecided : null;
+    const drawNote = drawCount ? ` (${drawCount} draw${drawCount!==1?'s':''} excluded)` : '';
+    if (centerPct!=null && edgePct!=null) {
+      if (centerPct > edgePct+0.15) { el.className='insight good'; el.textContent=`✓ Center fights win more (${Math.round(centerPct*100)}% vs ${Math.round(edgePct*100)}% at the edge)${drawNote}.`; }
+      else if (edgePct > centerPct+0.15) { el.className='insight critical'; el.textContent=`✗ Edge fights win more often (${Math.round(edgePct*100)}% vs ${Math.round(centerPct*100)}% at center)${drawNote} — reconsider forcing edge fights.`; }
+      else { el.className='insight neutral'; el.textContent=`Win rate is similar center vs edge (${Math.round(centerPct*100)}% vs ${Math.round(edgePct*100)}%)${drawNote}.`; }
+    } else {
+      el.className='insight neutral'; el.textContent='Not enough decided fights (won/lost) yet in one bucket to compare.';
+    }
   }
 }
 
@@ -2362,6 +2562,7 @@ async function initRoutesView() {
   await loadRoutesPickerData();
   buildRoutesMapPills();
   buildRoutesHeatmapMapPills();
+  buildRoutesZoneShiftMapPills();
 }
 
 async function loadRoutesPickerData() {
@@ -2479,7 +2680,7 @@ async function loadRoutesMatchShapes(matchId) {
   const { data: teamRows } = await sb.from('teams').select('id,name,color,is_self').eq('match_id', matchId);
   const teams = teamRows || [];
   const { data: shapeRows } = await sb.from('shapes')
-    .select('id,team_id,type,tag,time_seconds,cx,cy,radius,x1,y1,x2,y2,path_points,pin_x,pin_y,label,fight_team_a,fight_team_b,zone_phase')
+    .select('id,team_id,match_id,type,tag,time_seconds,cx,cy,radius,x1,y1,x2,y2,path_points,pin_x,pin_y,label,fight_team_a,fight_team_b,zone_phase,rotation_index')
     .eq('match_id', matchId);
 
   const shapesByTeam = {}; const zones = [];
@@ -2494,13 +2695,49 @@ async function loadRoutesMatchShapes(matchId) {
 }
 
 function _routesRowToShape(row) {
-  const base = { id: row.id, type: row.type, tag: row.tag, time: row.time_seconds };
+  // Session 62: rotation_index/match_id/team_id carried through so findHolds()
+  // can group consecutive path/line segments belonging to the same rotation.
+  const base = { id: row.id, type: row.type, tag: row.tag, time: row.time_seconds,
+                 match_id: row.match_id, team_id: row.team_id, rotation_index: row.rotation_index };
   if (row.type === 'circle') return { ...base, cx: row.cx, cy: row.cy, r: row.radius, zone_phase: row.zone_phase || 1 };
   if (row.type === 'line')   return { ...base, x1: row.x1, y1: row.y1, x2: row.x2, y2: row.y2 };
   if (row.type === 'path')   return { ...base, points: typeof row.path_points === 'string' ? JSON.parse(row.path_points) : (row.path_points || []) };
   if (row.type === 'pin')    return { ...base, x: row.pin_x, y: row.pin_y, label: row.label };
   if (row.type === 'fight')  return { ...base, x: row.pin_x, y: row.pin_y, teamA: row.fight_team_a, teamB: row.fight_team_b };
   return base;
+}
+
+// ══════════════════════════════════════════════════════
+// HOLD DETECTION (Session 62) — pure read-time inference, no schema change.
+// A "hold" is inferred when one rotation-path segment ends near where the next
+// one (same rotation) begins, with a real time gap between them — i.e. the
+// team stopped moving there for a while before drawing the next segment.
+// ══════════════════════════════════════════════════════
+const HOLD_MIN_GAP_SEC = 15;   // min time gap between segments to call it a hold, not just normal inter-point spacing
+const HOLD_MAX_DIST_PX = 40;   // max distance between segments' boundary points to consider them "the same spot"
+
+function findHolds(pathShapesForMatch) {
+  const groups = {};
+  pathShapesForMatch.forEach(s => {
+    const key = s.rotation_index != null ? `ri:${s.rotation_index}` : `team:${s.team_id}`;
+    (groups[key] = groups[key] || []).push(s);
+  });
+  const holds = [];
+  Object.values(groups).forEach(group => {
+    const ordered = group.filter(s => s.points && s.points.length)
+      .sort((a,b) => (a.points[0].t ?? 0) - (b.points[0].t ?? 0));
+    for (let i = 0; i < ordered.length - 1; i++) {
+      const lastA = ordered[i].points[ordered[i].points.length - 1];
+      const firstB = ordered[i+1].points[0];
+      if (lastA.t == null || firstB.t == null) continue; // legacy/interpolated-only data — can't infer a real hold
+      const gap = firstB.t - lastA.t;
+      const dist = Math.hypot(lastA.x - firstB.x, lastA.y - firstB.y);
+      if (gap >= HOLD_MIN_GAP_SEC && dist <= HOLD_MAX_DIST_PX) {
+        holds.push({ x:(lastA.x+firstB.x)/2, y:(lastA.y+firstB.y)/2, startT:lastA.t, endT:firstB.t, durationSec:gap, matchId:ordered[i].match_id, teamId:ordered[i].team_id });
+      }
+    }
+  });
+  return holds;
 }
 
 // ── Map image loading — always _lo.jpg, tiles are too small to need mid/hi ──
@@ -2657,9 +2894,12 @@ function setRoutesMode(mode) {
   routesMode = mode;
   document.getElementById('btn-routes-compare').classList.toggle('active', mode === 'compare');
   document.getElementById('btn-routes-heatmap').classList.toggle('active', mode === 'heatmap');
+  document.getElementById('btn-routes-zoneshift').classList.toggle('active', mode === 'zoneshift');
   document.getElementById('routes-compare-mode').style.display = mode === 'compare' ? 'block' : 'none';
   document.getElementById('routes-heatmap-mode').style.display = mode === 'heatmap' ? 'block' : 'none';
+  document.getElementById('routes-zoneshift-mode').style.display = mode === 'zoneshift' ? 'block' : 'none';
   if (mode === 'heatmap') renderHeatmap();
+  if (mode === 'zoneshift') { buildRoutesZoneShiftMapPills(); renderZoneShiftArrows(); }
 }
 
 // ══════════════════════════════════════════════════════
@@ -2679,6 +2919,23 @@ async function _detectTeamIdentityCols() {
   const { error } = await sb.from('teams').select('team_identity_id').limit(1);
   _hasTeamIdentityCols = !error;
   if (_hasTeamIdentityCols) await loadRoutesTeamIdentities();
+}
+
+// Session 62 — analytics.html only reads these columns, but an unknown column
+// in an explicit .select() list still 400s the whole query, same failure mode
+// as a write. Awaited (not fire-and-forget) before the main fetch so the
+// selects below can be built with or without the new columns correctly.
+let _hasFightOutcomeCols = false;
+async function _detectFightOutcomeCols() {
+  if (!sb) return;
+  const { error } = await sb.from('shapes').select('outcome').limit(1);
+  _hasFightOutcomeCols = !error;
+}
+let _hasKillMetaCols = false;
+async function _detectKillMetaCols() {
+  if (!sb) return;
+  const { error } = await sb.from('match_players').select('killer_x').limit(1);
+  _hasKillMetaCols = !error;
 }
 
 async function loadRoutesTeamIdentities() {
@@ -2710,6 +2967,153 @@ function buildRoutesHeatmapMapPills() {
     btn.textContent = k.toUpperCase();
     btn.onclick = () => { routesHeatmapMapKey = k; buildRoutesHeatmapMapPills(); renderHeatmap(); };
     strip.appendChild(btn);
+  });
+}
+
+// ══════════════════════════════════════════════════════
+// ROUTES — ZONE SHIFT MODE (Session 62)
+// Where the zone tends to move from one phase to the next, averaged across
+// every match logged on one map (any tournament). Pure geometry over already-
+// logged zone circles — no new schema.
+// ══════════════════════════════════════════════════════
+let routesZoneShiftMapKey = null;
+let routesZoneShiftTransition = null; // fromPhase number, e.g. 1 means "1→2"
+
+function buildRoutesZoneShiftMapPills() {
+  const strip = document.getElementById('routes-zoneshift-map-pills');
+  if (!strip) return;
+  strip.innerHTML = '';
+  const keys = [...new Set(routesAllMatches.map(m => m.map_key))].sort();
+  if (!keys.length) {
+    strip.innerHTML = '<span style="font-size:10px;color:var(--muted);padding:4px 8px;">No matches with a map assigned yet.</span>';
+    return;
+  }
+  if (!routesZoneShiftMapKey || !keys.includes(routesZoneShiftMapKey)) routesZoneShiftMapKey = keys[0];
+  keys.forEach(k => {
+    const btn = document.createElement('button');
+    btn.className = 'scope-pill' + (routesZoneShiftMapKey === k ? ' active' : '');
+    btn.textContent = k.toUpperCase();
+    btn.onclick = () => { routesZoneShiftMapKey = k; routesZoneShiftTransition = null; buildRoutesZoneShiftMapPills(); renderZoneShiftArrows(); };
+    strip.appendChild(btn);
+  });
+}
+
+// Coarse grid region a point falls into, for bucketing/averaging vectors.
+const ZONESHIFT_GRID = 4; // 4x4 cells over the map
+function _zoneShiftRegion(cx, cy, worldW, worldH) {
+  const col = Math.min(ZONESHIFT_GRID-1, Math.floor(cx / (worldW/ZONESHIFT_GRID)));
+  const row = Math.min(ZONESHIFT_GRID-1, Math.floor(cy / (worldH/ZONESHIFT_GRID)));
+  return `${row},${col}`;
+}
+
+function _drawZoneShiftArrow(ctx, x, y, dx, dy, opacity, zoom) {
+  const len = Math.hypot(dx, dy);
+  if (len < 1) return;
+  const ex = x+dx, ey = y+dy;
+  ctx.strokeStyle = `rgba(200,94,10,${opacity})`;
+  ctx.fillStyle = `rgba(200,94,10,${opacity})`;
+  ctx.lineWidth = 3/zoom;
+  ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(ex,ey); ctx.stroke();
+  const ang = Math.atan2(dy,dx), headLen = Math.min(14, len*0.35)/zoom;
+  ctx.beginPath();
+  ctx.moveTo(ex, ey);
+  ctx.lineTo(ex - headLen*Math.cos(ang-0.5), ey - headLen*Math.sin(ang-0.5));
+  ctx.lineTo(ex - headLen*Math.cos(ang+0.5), ey - headLen*Math.sin(ang+0.5));
+  ctx.closePath(); ctx.fill();
+}
+
+async function renderZoneShiftArrows() {
+  const canvas = document.getElementById('routes-zoneshift-canvas');
+  const sub = document.getElementById('routes-zoneshift-sub');
+  const pillStrip = document.getElementById('routes-zoneshift-pill-strip');
+  if (!canvas || !routesZoneShiftMapKey) return;
+  const ctx = canvas.getContext('2d');
+
+  const matchIds = routesAllMatches.filter(m => m.map_key === routesZoneShiftMapKey).map(m => m.id);
+  if (!matchIds.length) { sub.textContent = 'No matches on this map yet.'; ctx.clearRect(0,0,canvas.width,canvas.height); return; }
+
+  const { data: zoneRows } = await sb.from('shapes')
+    .select('match_id,cx,cy,zone_phase')
+    .in('match_id', matchIds)
+    .eq('type', 'circle');
+
+  const byMatch = {};
+  (zoneRows||[]).forEach(z => { (byMatch[z.match_id] = byMatch[z.match_id]||[]).push(z); });
+
+  // Per match: sort by phase, compute the vector between each consecutive pair.
+  const vectors = []; // {fromPhase, region, dx, dy}
+  Object.values(byMatch).forEach(zones => {
+    const sorted = zones.filter(z=>z.zone_phase).sort((a,b)=>a.zone_phase-b.zone_phase);
+    for (let i=0;i<sorted.length-1;i++) {
+      const a=sorted[i], b=sorted[i+1];
+      if (b.zone_phase !== a.zone_phase+1) continue; // only true consecutive phases
+      // 2048×2048 is this codebase's established default "world" pixel space for
+      // map shape coordinates (see editor.html's WORLD_W/WORLD_H, and
+      // _loadRoutesMapImage's own fallback below) — used here for the coarse
+      // region grid since it's needed before the actual map image has loaded.
+      vectors.push({ fromPhase:a.zone_phase, region:_zoneShiftRegion(a.cx,a.cy,2048,2048), dx:b.cx-a.cx, dy:b.cy-a.cy });
+    }
+  });
+
+  if (!vectors.length) {
+    sub.textContent = 'No zone-phase data on this map yet — log at least 2 zone circles per match to see shifts.';
+    pillStrip.innerHTML = '';
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    return;
+  }
+
+  // Phase-transition pill selector — only transitions actually present in the data.
+  const fromPhases = [...new Set(vectors.map(v=>v.fromPhase))].sort((a,b)=>a-b);
+  if (routesZoneShiftTransition == null || !fromPhases.includes(routesZoneShiftTransition)) routesZoneShiftTransition = fromPhases[0];
+  pillStrip.innerHTML = '';
+  fromPhases.forEach(p => {
+    const btn = document.createElement('button');
+    btn.className = 'scope-pill' + (routesZoneShiftTransition===p ? ' active' : '');
+    btn.textContent = `${p}→${p+1}`;
+    btn.onclick = () => { routesZoneShiftTransition = p; renderZoneShiftArrows(); };
+    pillStrip.appendChild(btn);
+  });
+
+  // Bucket by region for the selected transition, average dx/dy, count samples.
+  const buckets = {};
+  vectors.filter(v=>v.fromPhase===routesZoneShiftTransition).forEach(v => {
+    (buckets[v.region] = buckets[v.region] || []).push(v);
+  });
+  const bucketList = Object.entries(buckets).map(([region, vs]) => ({
+    region,
+    dx: vs.reduce((a,v)=>a+v.dx,0)/vs.length,
+    dy: vs.reduce((a,v)=>a+v.dy,0)/vs.length,
+    count: vs.length,
+    row: +region.split(',')[0], col: +region.split(',')[1]
+  }));
+  const maxCount = Math.max(1, ...bucketList.map(b=>b.count));
+
+  sub.textContent = `Zone ${routesZoneShiftTransition}→${routesZoneShiftTransition+1}: ${vectors.filter(v=>v.fromPhase===routesZoneShiftTransition).length} sample(s) across ${bucketList.length} region(s) on ${routesZoneShiftMapKey.toUpperCase()}.`;
+
+  _loadRoutesMapImage(routesZoneShiftMapKey, (mapEntry) => {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width = rect.width; canvas.height = rect.height;
+    const zoom = Math.min(canvas.width / mapEntry.w, canvas.height / mapEntry.h);
+    const panX = (canvas.width - mapEntry.w * zoom) / 2;
+    const panY = (canvas.height - mapEntry.h * zoom) / 2;
+
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.translate(panX, panY);
+    ctx.scale(zoom, zoom);
+    ctx.drawImage(mapEntry.img, 0, 0, mapEntry.w, mapEntry.h);
+    bucketList.forEach(b => {
+      const cellW = mapEntry.w/ZONESHIFT_GRID, cellH = mapEntry.h/ZONESHIFT_GRID;
+      const cx = (b.col+0.5)*cellW, cy = (b.row+0.5)*cellH;
+      const opacity = 0.35 + 0.55*(b.count/maxCount);
+      // Scale the drawn vector so it's visible regardless of the raw magnitude — direction and
+      // relative sample count matter here more than pixel-exact displacement.
+      const mag = Math.hypot(b.dx,b.dy) || 1;
+      const drawLen = Math.min(cellW,cellH) * 0.4;
+      _drawZoneShiftArrow(ctx, cx, cy, (b.dx/mag)*drawLen, (b.dy/mag)*drawLen, opacity, zoom);
+    });
+    ctx.restore();
   });
 }
 
@@ -2745,14 +3149,36 @@ async function renderHeatmap() {
 
   // Rotation paths/lines only — explicitly not doing fight/elimination-location
   // heatmaps this pass (same decision as death-location heatmaps: deferred).
+  // Session 62: rotation_index/match_id widened in so hold-detection can group
+  // consecutive path segments per-match (this query spans many matches at once).
   const { data: shapeRows } = await sb.from('shapes')
-    .select('type,x1,y1,x2,y2,path_points')
+    .select('type,team_id,match_id,x1,y1,x2,y2,path_points,rotation_index')
     .in('team_id', teamIds)
     .eq('tag', 'rotation');
 
   const shapes = (shapeRows || []).map(_routesRowToShape).filter(s => s.type === 'line' || s.type === 'path');
 
-  sub.textContent = `${shapes.length} path${shapes.length!==1?'s':''} across ${new Set((teamRows||[]).map(t=>t.match_id)).size} match(es) on ${routesHeatmapMapKey.toUpperCase()} — denser = more used.`;
+  // Holds — grouped per match first (findHolds groups by rotation_index/team_id
+  // within whatever array it's given; without a per-match partition first, path
+  // segments from different matches sharing a team_id would get grouped together).
+  const pathsByMatch = {};
+  shapes.filter(s => s.type === 'path').forEach(s => { (pathsByMatch[s.match_id] = pathsByMatch[s.match_id] || []).push(s); });
+  const holds = Object.values(pathsByMatch).flatMap(findHolds);
+
+  // Session 62 — "show win locations" overlay: fight shapes where this team's
+  // logged outcome was 'won'. No proxy needed now that outcome is real data.
+  const showWins = document.getElementById('routes-show-wins')?.checked;
+  let winShapes = [];
+  if (showWins && _hasFightOutcomeCols) {
+    const { data: winRows } = await sb.from('shapes')
+      .select('pin_x,pin_y')
+      .in('team_id', teamIds)
+      .eq('type', 'fight')
+      .eq('outcome', 'won');
+    winShapes = (winRows || []).filter(r => r.pin_x!=null && r.pin_y!=null);
+  }
+
+  sub.textContent = `${shapes.length} path${shapes.length!==1?'s':''} across ${new Set((teamRows||[]).map(t=>t.match_id)).size} match(es) on ${routesHeatmapMapKey.toUpperCase()} — denser = more used.${holds.length?` ${holds.length} hold${holds.length!==1?'s':''} detected (amber rings).`:''}${showWins?` ${winShapes.length} win location${winShapes.length!==1?'s':''} shown (green).`:''}`;
 
   _loadRoutesMapImage(routesHeatmapMapKey, (mapEntry) => {
     const rect = canvas.parentElement.getBoundingClientRect();
@@ -2768,6 +3194,12 @@ async function renderHeatmap() {
     ctx.scale(zoom, zoom);
     ctx.drawImage(mapEntry.img, 0, 0, mapEntry.w, mapEntry.h);
     shapes.forEach(s => _drawRoutesShape(ctx, s, '#9B1C11', zoom, mapEntry.w, 0.15));
+    holds.forEach(h => {
+      const radius = _routesMpx(mapEntry.w, 6 + Math.min(14, h.durationSec/10));
+      ctx.beginPath(); ctx.arc(h.x, h.y, radius, 0, Math.PI*2);
+      ctx.strokeStyle = 'rgba(212,160,23,0.85)'; ctx.lineWidth = 2/zoom; ctx.stroke();
+    });
+    winShapes.forEach(r => _drawRoutesShape(ctx, {type:'fight',x:r.pin_x,y:r.pin_y}, '#4E7C2F', zoom, mapEntry.w, 0.4));
     ctx.restore();
   });
 }

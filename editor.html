@@ -523,6 +523,28 @@ canvas.path-mode{ cursor:cell; }
   font-variant-numeric:tabular-nums;width:5ch;text-align:center;
 }
 
+/* Session 62 — running match clock controls, ported from vod.html's transport/speed-pill pattern */
+.tb-btn{
+  height:30px;padding:0 12px;background:var(--bg);color:var(--muted);border:1px solid var(--border);
+  border-radius:6px;cursor:pointer;font-family:var(--font-mono);font-size:11px;letter-spacing:.03em;transition:all .15s;
+}
+.tb-btn:hover{ border-color:var(--muted2);color:var(--text); }
+.tb-btn.active{ border-color:var(--accent);color:var(--accent);background:var(--accent-dim); }
+.vtb-transport{ display:flex;align-items:center;gap:4px;flex-shrink:0; }
+.vtb-transport .tb-btn{ width:32px;height:32px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px; }
+.vtb-speed-wrap{ position:relative;flex-shrink:0; }
+#btn-clock-speed-pill{ width:44px;justify-content:center; }
+.speed-cluster{ display:flex;align-items:center;gap:2px;flex-shrink:0; }
+.speed-btn{ height:22px;padding:0 7px;background:var(--bg);border:1px solid var(--border);color:var(--muted);border-radius:4px;cursor:pointer;font-family:var(--font-mono);font-size:9px;letter-spacing:.04em;transition:all .15s; }
+.speed-btn:hover{ color:var(--text); }
+.speed-btn.active{ border-color:var(--accent);color:var(--accent);background:var(--accent-dim); }
+.vtb-speed-wrap .speed-cluster{
+  position:absolute;bottom:36px;left:50%;transform:translateX(-50%);
+  display:none;flex-direction:column;gap:3px;background:var(--bg-panel);border:1px solid var(--border);
+  border-radius:8px;padding:6px;box-shadow:0 4px 16px rgba(12,10,7,.25);
+}
+.vtb-speed-wrap .speed-cluster.open{ display:flex; }
+
 .timeline-track{
   flex:1;display:flex;flex-direction:column;gap:6px;
 }
@@ -658,6 +680,21 @@ canvas.path-mode{ cursor:cell; }
   transition:all .15s;font-size:13px;
 }
 .annotation-undo-btn:hover{ border-color:var(--red);color:var(--red); }
+.annotation-note-btn, .annotation-eye-btn{
+  flex-shrink:0;align-self:center;width:24px;height:24px;border-radius:4px;
+  background:none;border:1px solid var(--border);color:var(--muted);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  transition:all .15s;font-size:13px;
+}
+.annotation-note-btn:hover, .annotation-eye-btn:hover{ border-color:var(--accent);color:var(--accent); }
+.annotation-note-btn.has-note{ border-color:var(--accent);color:var(--accent); }
+.annotation-eye-btn.is-hidden{ opacity:.55; }
+.annotation-note-editor{
+  display:none;width:100%;margin-top:6px;resize:vertical;min-height:44px;box-sizing:border-box;
+  background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);
+  font-family:var(--font-mono);font-size:10px;padding:6px;
+}
+.annotation-note-editor.open{ display:block; }
 
 .annotation-footer{
   padding:10px 14px;border-top:1px solid var(--border-dim);
@@ -801,6 +838,11 @@ canvas.path-mode{ cursor:cell; }
   z-index:450;display:none;align-items:center;justify-content:center;
 }
 #wipe-modal.show{ display:flex; }
+#fight-details-modal{
+  position:fixed;inset:0;background:rgba(2,6,23,.78);backdrop-filter:blur(5px);
+  z-index:450;display:none;align-items:center;justify-content:center;
+}
+#fight-details-modal.show{ display:flex; }
 .wm-box{
   background:var(--bg-panel);border:1px solid var(--orange);border-radius:10px;
   padding:22px;width:300px;display:flex;flex-direction:column;gap:12px;
@@ -1401,7 +1443,10 @@ canvas.path-mode{ cursor:cell; }
         </div>
       </div>
       <div id="pin-popup">
-        <div id="pp-normal"><input class="pp-input" id="pp-label" placeholder="Team / note..." maxlength="30"></div>
+        <div id="pp-normal">
+          <input class="pp-input" id="pp-label" placeholder="Team / note..." maxlength="30">
+          <textarea class="pp-input" id="pp-note" placeholder="Note (optional)..." style="margin-top:6px;min-height:44px;resize:vertical;"></textarea>
+        </div>
         <div id="pp-fight" style="display:none;flex-direction:column;gap:7px;">
           <select class="pp-select" id="pp-a-sel"></select>
           <div class="pp-sep">— VS —</div>
@@ -1422,6 +1467,18 @@ canvas.path-mode{ cursor:cell; }
       <div class="timeline-time">
         <span class="timeline-time-label">Time</span>
         <div id="time-display">00:00</div>
+      </div>
+
+      <div class="vtb-transport">
+        <button class="tb-btn" id="btn-match-clock-toggle" onclick="toggleMatchClock()" title="Start/Pause match clock"><iconify-icon icon="lucide:play"></iconify-icon></button>
+      </div>
+      <div class="vtb-speed-wrap">
+        <button class="tb-btn" id="btn-clock-speed-pill" onclick="toggleClockSpeedPopover()" title="Clock speed">1×</button>
+        <div class="speed-cluster" id="clock-speed-cluster">
+          <button class="speed-btn active" onclick="setClockSpeed(1)">1×</button>
+          <button class="speed-btn" onclick="setClockSpeed(2)">2×</button>
+          <button class="speed-btn" onclick="setClockSpeed(4)">4×</button>
+        </div>
       </div>
 
       <div class="timeline-track">
@@ -1552,6 +1609,10 @@ canvas.path-mode{ cursor:cell; }
     <select class="mz-select" id="slm-killedby" style="font-size:12px;">
       <option value="">— None —</option>
     </select>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:2px;">
+      <button class="btn-slm-cancel" style="flex:none;padding:6px 10px;font-size:9px;" onclick="_tagKillerPosition()">TAG SHOOTER POSITION</button>
+      <span id="slm-killer-tagged" style="font-family:var(--font-mono);font-size:9px;color:var(--accent);"></span>
+    </div>
     <div class="slm-actions">
       <button class="btn-slm-cancel" onclick="closeSelfLossModal()">CANCEL</button>
       <button class="btn-slm-confirm" id="btn-slm-confirm" onclick="confirmSelfLoss()" disabled>CONFIRM LOSS</button>
@@ -1606,6 +1667,28 @@ canvas.path-mode{ cursor:cell; }
     <div class="wm-actions">
       <button class="btn-wm-cancel" onclick="closeWipeModal()">CANCEL</button>
       <button class="btn-wm-confirm" onclick="confirmWipe()">CONFIRM WIPE</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ FIGHT DETAILS MODAL (Session 62) ████████████████████ -->
+<div id="fight-details-modal">
+  <div class="wm-box">
+    <div class="wm-title">Fight Details</div>
+    <div class="wm-sub" id="fdm-sub">Fight outcome (optional, edit anytime)</div>
+    <div class="wm-pos-row"><span class="wm-pos-label">Our alive count</span><input class="wm-pos-input" type="number" id="fdm-our-alive" min="0" max="4"></div>
+    <div class="wm-pos-row"><span class="wm-pos-label">Enemy alive count</span><input class="wm-pos-input" type="number" id="fdm-enemy-alive" min="0" max="4"></div>
+    <div class="wm-pos-row"><span class="wm-pos-label"># enemy teams</span><input class="wm-pos-input" type="number" id="fdm-num-enemy-teams" min="1" max="4" value="1"></div>
+    <div class="wm-pos-row"><span class="wm-pos-label">Outcome</span>
+      <select class="wm-pos-input" id="fdm-outcome" style="width:90px;font-weight:500;font-size:11px;">
+        <option value="">—</option><option value="won">Won</option><option value="lost">Lost</option><option value="draw">Draw</option>
+      </select>
+    </div>
+    <div class="wm-pos-row"><span class="wm-pos-label">Our casualties</span><input class="wm-pos-input" type="number" id="fdm-our-casualties" min="0" max="4"></div>
+    <div class="wm-pos-row"><span class="wm-pos-label">Enemy casualties</span><input class="wm-pos-input" type="number" id="fdm-enemy-casualties" min="0" max="4"></div>
+    <div class="wm-actions">
+      <button class="btn-wm-cancel" onclick="closeFightDetailsModal()">CANCEL</button>
+      <button class="btn-wm-confirm" onclick="saveFightDetails()">SAVE</button>
     </div>
   </div>
 </div>
@@ -1757,7 +1840,6 @@ let panSX=0, panSY=0, panPX=0, panPY=0;
 // Drawing state
 let drawing=false, circleP1=null, dSX=0, dSY=0, preview=null;
 let pathPoints=[], pathDrawing=false;
-let _pathStartTime=null; // FEAT-2: state.time when the current path started, for per-point t stamping
 let pendingPin=null, cpTeamId=null;
 let _moveDrag=null; // {shape, kind, startWX, startWY, orig, moved}
 let _altMoveKeyDown=false; // Alt held → quick-move a shape from within any draw mode, no need to switch to MOVE mode first
@@ -1784,6 +1866,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   sb = supabase.createClient(SUPA_URL, SUPA_KEY);
   _detectSession42Columns(); // fire-and-forget capability probe — see definition
   _detectTeamIdentityCols(); // fire-and-forget capability probe — see definition
+  _detectNoteCol(); // fire-and-forget capability probe — see definition
+  _detectFightOutcomeCols(); // fire-and-forget capability probe — see definition
+  _detectKillMetaCols(); // fire-and-forget capability probe — see definition
   const { data: { session } } = await sb.auth.getSession();
   if (session) {
     _booted = true;
@@ -2345,10 +2430,32 @@ async function _detectSession42Columns() {
   _hasSession42Cols = !error;
 }
 
+// Session 62 capability probes — same reasoning as _detectSession42Columns above:
+// gate new columns so saves keep working identically before the migration runs.
+let _hasNoteCol = false;
+async function _detectNoteCol() {
+  if (!sb) return;
+  const { error } = await sb.from('shapes').select('note').limit(1);
+  _hasNoteCol = !error;
+}
+let _hasFightOutcomeCols = false;
+async function _detectFightOutcomeCols() {
+  if (!sb) return;
+  const { error } = await sb.from('shapes').select('outcome').limit(1);
+  _hasFightOutcomeCols = !error;
+}
+let _hasKillMetaCols = false;
+async function _detectKillMetaCols() {
+  if (!sb) return;
+  const { error } = await sb.from('match_players').select('killer_x').limit(1);
+  _hasKillMetaCols = !error;
+}
+
 function shapeToDbRow(shape, teamId, matchId) {
   const base = { team_id:teamId, match_id:matchId, user_id:currentUser?.id,
                  type:shape.type, tag:shape.tag, time_seconds:shape.time,
-                 source: _hasSession42Cols ? (shape.source||'editor') : undefined };
+                 source: _hasSession42Cols ? (shape.source||'editor') : undefined,
+                 note: _hasNoteCol ? (shape.note||undefined) : undefined };
   if(shape.type==='circle') {
     // Zones are match-level: team_id=null, include zone_phase and map_key
     const match = matches.find(m=>m.id===matchId);
@@ -2358,17 +2465,26 @@ function shapeToDbRow(shape, teamId, matchId) {
   if(shape.type==='line')   return {...base, x1:shape.x1, y1:shape.y1, x2:shape.x2, y2:shape.y2};
   if(shape.type==='path')   return {...base, path_points:JSON.stringify(shape.points)};
   if(shape.type==='pin')    return {...base, pin_x:shape.x, pin_y:shape.y, label:shape.label};
-  if(shape.type==='fight')  return {...base, pin_x:shape.x, pin_y:shape.y, fight_team_a:shape.teamA, fight_team_b:shape.teamB};
+  if(shape.type==='fight')  return {...base, pin_x:shape.x, pin_y:shape.y, fight_team_a:shape.teamA, fight_team_b:shape.teamB,
+             our_alive_count:   _hasFightOutcomeCols ? shape.our_alive_count   : undefined,
+             enemy_alive_count: _hasFightOutcomeCols ? shape.enemy_alive_count : undefined,
+             num_enemy_teams:   _hasFightOutcomeCols ? shape.num_enemy_teams   : undefined,
+             outcome:           _hasFightOutcomeCols ? shape.outcome           : undefined,
+             our_casualties:    _hasFightOutcomeCols ? shape.our_casualties    : undefined,
+             enemy_casualties:  _hasFightOutcomeCols ? shape.enemy_casualties  : undefined};
   return base;
 }
 
 function dbRowToShape(row) {
-  const base = { id:row.id, type:row.type, tag:row.tag, time:row.time_seconds, source:row.source||'editor' };
+  const base = { id:row.id, type:row.type, tag:row.tag, time:row.time_seconds, source:row.source||'editor', note:row.note||undefined };
   if(row.type==='circle') return {...base, cx:row.cx, cy:row.cy, r:row.radius, zone_phase:row.zone_phase||1};
   if(row.type==='line')   return {...base, x1:row.x1, y1:row.y1, x2:row.x2, y2:row.y2};
   if(row.type==='path')   return {...base, points: typeof row.path_points==='string' ? JSON.parse(row.path_points) : row.path_points};
   if(row.type==='pin')    return {...base, x:row.pin_x, y:row.pin_y, label:row.label};
-  if(row.type==='fight')  return {...base, x:row.pin_x, y:row.pin_y, teamA:row.fight_team_a, teamB:row.fight_team_b};
+  if(row.type==='fight')  return {...base, x:row.pin_x, y:row.pin_y, teamA:row.fight_team_a, teamB:row.fight_team_b,
+             our_alive_count:row.our_alive_count, enemy_alive_count:row.enemy_alive_count,
+             num_enemy_teams:row.num_enemy_teams, outcome:row.outcome,
+             our_casualties:row.our_casualties, enemy_casualties:row.enemy_casualties};
   return base;
 }
 
@@ -2724,6 +2840,21 @@ function zoomToWorld(wx, wy) {
   clampPan(); updateZoomHud(); draw();
 }
 
+// Session 62 — zoom-to-FIT a bounding box, for log-entry clicks on shapes where
+// a single representative point is a poor stand-in for the whole shape (a zone's
+// cx,cy ignoring its radius; a path's one middle point ignoring the rest; a
+// line's midpoint ignoring both endpoints). Pins/fights are genuine single
+// points and keep using zoomToWorld() above, unchanged.
+function zoomToFitBounds(minX, minY, maxX, maxY) {
+  const minZoom=Math.min(canvas.width/WORLD_W, canvas.height/WORLD_H);
+  const bw=Math.max(1,maxX-minX), bh=Math.max(1,maxY-minY);
+  const nz=Math.max(minZoom, Math.min(40, Math.min(canvas.width/(bw*1.3), canvas.height/(bh*1.3))));
+  zoom=nz;
+  panX=canvas.width/2 - (minX+maxX)/2*zoom;
+  panY=canvas.height/2 - (minY+maxY)/2*zoom;
+  clampPan(); updateZoomHud(); draw();
+}
+
 function clampPan() {
   const W=canvas.width, H=canvas.height;
   const mw=WORLD_W*zoom, mh=WORLD_H*zoom;
@@ -2902,11 +3033,11 @@ function onPointerDown(e) {
     // Touch: start freehand path on touchstart, points added in touchmove, finished on touchend
     // Desktop: tap to place points, right-click to finish (dblclick kept as fallback)
     if(e.touches){
-      pathDrawing=true; pathPoints=[{x:wx,y:wy}]; _pathStartTime=state.time;
+      pathDrawing=true; pathPoints=[{x:wx,y:wy,t:state.time}];
       document.getElementById('path-indicator').classList.add('show');
     } else {
-      if(!pathDrawing){ pathDrawing=true; pathPoints=[{x:wx,y:wy}]; _pathStartTime=state.time; document.getElementById('path-indicator').classList.add('show'); }
-      else{ pathPoints.push({x:wx,y:wy}); }
+      if(!pathDrawing){ pathDrawing=true; pathPoints=[{x:wx,y:wy,t:state.time}]; document.getElementById('path-indicator').classList.add('show'); }
+      else{ pathPoints.push({x:wx,y:wy,t:state.time}); }
     }
     draw(); return;
   }
@@ -2962,7 +3093,7 @@ function onPointerMove(e) {
   }
   if(pathDrawing&&pathPoints.length>0){
     // Touch: continuously add points as finger drags (freehand)
-    if(e.touches) pathPoints.push({x:wx,y:wy});
+    if(e.touches) pathPoints.push({x:wx,y:wy,t:state.time});
     preview={type:'path',points:[...pathPoints,{x:wx,y:wy}],tag:'rotation',time:state.time};
     draw(); return;
   }
@@ -2993,6 +3124,10 @@ function onPointerUp(e) {
       persistShapeMove(drag.shape);
       draw();
       if(drag.kind==='zone') renderAnnotationLog(); else renderTimelineTicks();
+    } else if(state.mode==='move' && drag.shape.type==='fight'){
+      // Session 62 — a plain (non-drag) Move-mode click on a fight marker
+      // opens its Fight Details modal instead of moving anything.
+      openFightDetailsModal(drag.shape);
     }
     return;
   }
@@ -3002,8 +3137,8 @@ function onPointerUp(e) {
       const shapes=getActiveShapes();
       if(shapes){
         const rotIdx = getNextRotationIndex(state.activeTeamId);
-        const stamped = _stampPathPoints([...pathPoints], _pathStartTime ?? state.time, state.time);
-        const shape={type:'path',points:stamped,tag:'rotation',time:_pathStartTime ?? state.time,rotation_index:rotIdx};
+        const points = _fillMissingPointTimes([...pathPoints], state.time);
+        const shape={type:'path',points,tag:'rotation',time:points[0]?.t??state.time,rotation_index:rotIdx};
         shapes.push(shape); _recordShapeAction(state.activeTeamId,{op:'add',shape}); queueForSave(shape);
       }
       cancelPath(); draw();
@@ -3068,20 +3203,22 @@ function _finishPath() {
   const shapes=getActiveShapes();
   if(shapes){
     const rotIdx = getNextRotationIndex(state.activeTeamId);
-    const stamped = _stampPathPoints([...pathPoints], _pathStartTime ?? state.time, state.time);
-    const shape={type:'path',points:stamped,tag:'rotation',time:_pathStartTime ?? state.time,rotation_index:rotIdx};
+    const points = _fillMissingPointTimes([...pathPoints], state.time);
+    const shape={type:'path',points,tag:'rotation',time:points[0]?.t??state.time,rotation_index:rotIdx};
     shapes.push(shape); _recordShapeAction(state.activeTeamId,{op:'add',shape}); queueForSave(shape);
   }
   cancelPath(); draw();
 }
 
-// FEAT-2: interpolate each point's t by index between the path's start/end draw
-// times. Degenerates to "all points same timestamp" when start===end (the
-// common single-sitting-draw case) — identical to today's persisted value.
-function _stampPathPoints(points, startTime, endTime) {
-  const n = points.length;
-  if (n <= 1) return points.map(p => ({...p, t: endTime}));
-  return points.map((p, i) => ({...p, t: startTime + (endTime - startTime) * (i / (n - 1))}));
+// Session 62: points are now stamped with a real t at the moment each is
+// clicked/dragged (see pathPoints pushes above), matching vod.html's existing
+// behavior — this is now only a defensive fallback for any point that somehow
+// arrives without one (should not happen in the normal draw flow), not the
+// primary way points get a t. Previously interpolated t by index between the
+// path's start/end draw times; kept only as a legacy fill, not called from
+// either commit site above anymore.
+function _fillMissingPointTimes(points, fallbackT) {
+  return points.map(p => p.t == null ? {...p, t: fallbackT} : p);
 }
 
 function cancelPath() {
@@ -3125,6 +3262,7 @@ function draw() {
     const zones = zonesCache[state.matchId]||[];
     zones.forEach(s=>{
       if(s.time>state.time) return;
+      if(s._hidden) return; // Session 62 — session-only eye-toggle from the event log
       drawZoneCircle(s);
     });
   }
@@ -3144,7 +3282,7 @@ function draw() {
       if(tid===state.activeTeamId) return; // active team drawn below at full alpha
       const team=teams.find(t=>t.id===tid); if(!team) return;
       const shapes=shapesCache[tid]||[];
-      shapes.forEach(s=>{ if(!filters[s.tag]||s.time>state.time) return; drawShape(s,false,team.color,.9); });
+      shapes.forEach(s=>{ if(!filters[s.tag]||s.time>state.time||s._hidden) return; drawShape(s,false,team.color,.9); });
     });
   }
 
@@ -3152,7 +3290,7 @@ function draw() {
   const activeTeam=getActiveTeam();
   if(activeTeam){
     const shapes=shapesCache[activeTeam.id]||[];
-    shapes.forEach(s=>{ if(!filters[s.tag]) return; if(s.time>state.time) return; drawShape(s,false,activeTeam.color,1); });
+    shapes.forEach(s=>{ if(!filters[s.tag]) return; if(s.time>state.time) return; if(s._hidden) return; drawShape(s,false,activeTeam.color,1); });
   }
 
   // Preview
@@ -3186,6 +3324,7 @@ function draw() {
 
 function shouldShowShape(s, ovFilters) {
   if(s.time>state.time) return false;
+  if(s._hidden) return false; // Session 62 — session-only eye-toggle from the event log
   return (ovFilters||filters)[s.tag]!==false;
 }
 
@@ -3390,7 +3529,7 @@ function showPinPopup(sx,sy,isFight) {
   let l=sx+14, t=sy-20;
   if(l+230>wW) l=sx-230; if(t+160>wH) t=sy-160; if(t<0) t=4;
   el.style.left=l+'px'; el.style.top=t+'px'; el.classList.add('show');
-  if(!isFight){ document.getElementById('pp-label').value=''; setTimeout(()=>document.getElementById('pp-label').focus(),50); }
+  if(!isFight){ document.getElementById('pp-label').value=''; document.getElementById('pp-note').value=''; setTimeout(()=>document.getElementById('pp-label').focus(),50); }
 }
 
 function populateFightSelects() {
@@ -3418,6 +3557,7 @@ function confirmPin() {
   } else {
     shape={type:'pin',x:pendingPin.wx,y:pendingPin.wy,
            label:document.getElementById('pp-label').value.trim()||'●',
+           note:document.getElementById('pp-note').value.trim()||undefined,
            tag:'pin',time:state.time};
   }
   shapes.push(shape); _recordShapeAction(state.activeTeamId,{op:'add',shape}); queueForSave(shape); closePinPopup(); pendingPin=null; draw();
@@ -3803,6 +3943,10 @@ async function applyUrlParams() {
 
 // Shared match activation logic used by both deep-link and auto-load
 async function _activateMatch(match, statusMsg) {
+  // Switching matches always stops any running clock from the previous match —
+  // it should never keep silently ticking against whichever match is now loaded.
+  pauseMatchClock();
+  matchActive = false;
   // Kick off map + all data in parallel so everything is ready together
   const mapReady = match.map_key ? loadMapKey(match.map_key) : Promise.resolve();
   setMapDisplayMode(true);
@@ -4173,19 +4317,31 @@ function updateSliders(){
 }
 
 // ══════════════════════════════════════════════════════
-// TIMELINE SLIDER
+// TIMELINE SLIDER + MATCH CLOCK (Session 62)
 // ══════════════════════════════════════════════════════
 function onTimeSlider() {
+  state.time = +document.getElementById('temporal-slider').value;
+  _applyTimeUpdate();
+}
+
+// Shared by manual slider drags, jumpToTime(), and the running match clock tick
+// below — consolidates what used to be two near-duplicate input handlers doing
+// overlapping work (one did a full annotation-log rebuild, the other only a
+// lit-state pass, both on every single input event). Deliberately uses the
+// cheap updateAnnotationLogLit() pass rather than a full renderAnnotationLog()
+// rebuild, since this also runs on every ~200ms clock tick while running.
+function _applyTimeUpdate() {
   const slider=document.getElementById('temporal-slider');
-  const val=+slider.val || +slider.value;
-  state.time=val;
-  document.getElementById('time-display').textContent=fmtTime(val);
-  const pct=(val/slider.max)*100;
-  document.getElementById('track-fill').style.width=pct+'%';
-  document.getElementById('track-thumb').style.left=pct+'%';
+  if (state.time > +slider.max - 30) slider.max = Math.ceil(state.time / 300 + 1) * 300;
+  slider.value = state.time;
+  document.getElementById('time-display').textContent = fmtTime(state.time);
+  const pct = (state.time / +slider.max) * 100;
+  document.getElementById('track-fill').style.width = pct + '%';
+  document.getElementById('track-thumb').style.left = pct + '%';
   draw();
-  renderAnnotationLog({scrubSync:true});
+  updateAnnotationLogLit();
   updateSelfButtonState();
+  if (state.multiTrackActive) renderMultiTrackStats();
   _saveScrubPositionThrottled();
 }
 
@@ -4198,18 +4354,53 @@ function _saveScrubPositionThrottled() {
   }, 400);
 }
 
-// Override the input listener to also update visual track
-document.getElementById('temporal-slider').addEventListener('input', function(){
-  state.time=+this.value;
-  document.getElementById('time-display').textContent=fmtTime(state.time);
-  const pct=(state.time/this.max)*100;
-  document.getElementById('track-fill').style.width=pct+'%';
-  document.getElementById('track-thumb').style.left=pct+'%';
-  draw();
-  updateAnnotationLogLit();
-  updateSelfButtonState();
-  if(state.multiTrackActive) renderMultiTrackStats();
-});
+// ── Running match clock ──
+// Wall-clock-anchored tick: each tick only ever adds a real-time delta to
+// whatever state.time currently is — it never overwrites state.time with a
+// remembered absolute value. That's what makes manual scrubbing mid-run safe
+// with zero special-casing (the slider's own handler sets state.time
+// synchronously on drag; the next tick just reads that new value and keeps
+// adding real-time deltas on top of it) and makes speed changes take effect
+// on the very next tick with no discontinuity.
+let matchActive = false, _tickInterval = null, _tickSpeed = 1, _tickLastWallClock = null;
+
+function _onTick() {
+  const now = Date.now();
+  const elapsedSec = (now - _tickLastWallClock) / 1000;
+  _tickLastWallClock = now;
+  state.time += elapsedSec * _tickSpeed;
+  _applyTimeUpdate();
+}
+
+function toggleMatchClock() {
+  if (!state.matchId) { toast('SELECT A MATCH FIRST','warn'); return; }
+  if (_tickInterval) pauseMatchClock(); else startMatchClock();
+}
+function startMatchClock() {
+  matchActive = true;
+  _tickLastWallClock = Date.now();
+  _tickInterval = setInterval(_onTick, 200);
+  const btn = document.getElementById('btn-match-clock-toggle');
+  if (btn) btn.innerHTML = '<iconify-icon icon="lucide:pause"></iconify-icon>';
+}
+function pauseMatchClock() {
+  clearInterval(_tickInterval); _tickInterval = null;
+  const btn = document.getElementById('btn-match-clock-toggle');
+  if (btn) btn.innerHTML = '<iconify-icon icon="lucide:play"></iconify-icon>';
+  // matchActive stays true here — this is "paused", not "ended". Only markMatchEnd() clears it.
+}
+function setClockSpeed(mult) {
+  _tickSpeed = mult;
+  document.querySelectorAll('#clock-speed-cluster .speed-btn').forEach(b => b.classList.toggle('active', +b.textContent.replace('×','')===mult));
+  document.getElementById('btn-clock-speed-pill').textContent = mult + '×';
+  closeClockSpeedPopover();
+}
+function toggleClockSpeedPopover() {
+  document.getElementById('clock-speed-cluster').classList.toggle('open');
+}
+function closeClockSpeedPopover() {
+  document.getElementById('clock-speed-cluster').classList.remove('open');
+}
 
 function renderTimelineTicks() {
   const container=document.getElementById('timeline-ticks');
@@ -4287,15 +4478,8 @@ function updateAnnotationLogLit() {
 }
 
 function jumpToTime(t) {
-  const slider=document.getElementById('temporal-slider');
-  slider.value=Math.min(t,slider.max);
-  state.time=+slider.value;
-  document.getElementById('time-display').textContent=fmtTime(state.time);
-  const pct=(state.time/slider.max)*100;
-  document.getElementById('track-fill').style.width=pct+'%';
-  document.getElementById('track-thumb').style.left=pct+'%';
-  draw(); updateAnnotationLogLit();
-  _saveScrubPositionThrottled();
+  state.time = t;
+  _applyTimeUpdate();
 }
 
 // ══════════════════════════════════════════════════════
@@ -4742,7 +4926,11 @@ function openWipeModal(teamId, isSelf, coords) {
   document.getElementById('wm-position').value = pos;
   // Kills (KP) — enemy teams only; SELF's kills are tracked via the Self Elim flow, not here.
   document.getElementById('wm-kp-row').style.display = isSelf ? 'none' : 'flex';
-  document.getElementById('wm-kills').value = team?.kills || 0;
+  // Session 62 — prefill from the real derived count (self-losses already tagged
+  // "killed by" this team) instead of the blind team.kills, which is now kept in
+  // sync by that same auto-credit but can still be manually overridden below.
+  document.getElementById('wm-kills').value = isSelf ? (team?.kills||0)
+    : matchPlayers.filter(p=>p.killed_by_team_id===teamId).length;
   document.getElementById('wipe-modal').classList.add('show');
 }
 
@@ -4750,6 +4938,57 @@ function closeWipeModal() {
   document.getElementById('wipe-modal').classList.remove('show');
   _wipePendingTeamId = null;
   _wipePendingCoords = null;
+}
+
+// ══════════════════════════════════════════════════════
+// FIGHT DETAILS MODAL (Session 62) — structured outcome fields on a fight
+// shape, edited after the fact (can't be known at pin-placement time, since
+// the fight hasn't concluded yet). Opened via a plain (non-drag) Move-mode
+// click on a fight marker — see the _moveDrag release branch in onPointerUp.
+// ══════════════════════════════════════════════════════
+let _fdmTarget = null;
+function openFightDetailsModal(shape) {
+  _fdmTarget = shape;
+  document.getElementById('fdm-sub').textContent = `${shape.teamA||'?'} vs ${shape.teamB||'?'}`;
+  document.getElementById('fdm-our-alive').value = shape.our_alive_count ?? '';
+  document.getElementById('fdm-enemy-alive').value = shape.enemy_alive_count ?? '';
+  document.getElementById('fdm-num-enemy-teams').value = shape.num_enemy_teams ?? 1;
+  document.getElementById('fdm-outcome').value = shape.outcome || '';
+  document.getElementById('fdm-our-casualties').value = shape.our_casualties ?? '';
+  document.getElementById('fdm-enemy-casualties').value = shape.enemy_casualties ?? '';
+  document.getElementById('fight-details-modal').classList.add('show');
+}
+function closeFightDetailsModal() {
+  document.getElementById('fight-details-modal').classList.remove('show');
+  _fdmTarget = null;
+}
+async function saveFightDetails() {
+  if(!_fdmTarget) return;
+  const numOrNull = id => { const v=document.getElementById(id).value; return v===''?null:parseInt(v,10); };
+  _fdmTarget.our_alive_count = numOrNull('fdm-our-alive');
+  _fdmTarget.enemy_alive_count = numOrNull('fdm-enemy-alive');
+  _fdmTarget.num_enemy_teams = numOrNull('fdm-num-enemy-teams') ?? 1;
+  _fdmTarget.outcome = document.getElementById('fdm-outcome').value || null;
+  _fdmTarget.our_casualties = numOrNull('fdm-our-casualties');
+  _fdmTarget.enemy_casualties = numOrNull('fdm-enemy-casualties');
+  const target = _fdmTarget;
+  closeFightDetailsModal();
+  if(!_hasFightOutcomeCols){ toast('Saved locally — run the Session 62 migration to persist fight outcomes','warn'); return; }
+  if(!sb || !target.id || String(target.id).startsWith('local_')) return;
+  setSyncState('syncing');
+  try {
+    const { error } = await sb.from('shapes').update({
+      our_alive_count: target.our_alive_count, enemy_alive_count: target.enemy_alive_count,
+      num_enemy_teams: target.num_enemy_teams, outcome: target.outcome,
+      our_casualties: target.our_casualties, enemy_casualties: target.enemy_casualties
+    }).eq('id', target.id);
+    if(error) throw error;
+    setSyncState('saved');
+    toast('Fight details saved','ok');
+  } catch(e) {
+    setSyncState('error');
+    toast('FIGHT DETAILS FAILED TO SAVE — try again','err');
+  }
 }
 
 async function confirmWipe() {
@@ -4925,6 +5164,7 @@ function updateSelfButtonState() {
 // ══ [C6] SELF LOSS MODAL ══════════════════════════════
 let slmSelectedPlayerId = null;
 let slmPendingCoords = null;
+let slmPendingKillerCoords = null; // Session 62 — optional shooter-position tag
 
 // Place-pin-first: tap the death location on the map, then the modal opens with coords in hand.
 function markSelfLoss() {
@@ -4937,6 +5177,8 @@ function markSelfLoss() {
 function _openSelfLossModal(wx, wy) {
   slmSelectedPlayerId = null;
   slmPendingCoords = {wx, wy};
+  slmPendingKillerCoords = null;
+  document.getElementById('slm-killer-tagged').textContent = '';
   document.getElementById('slm-time').textContent = fmtTime(state.time);
   document.getElementById('btn-slm-confirm').disabled = true;
   const sel = document.getElementById('slm-killedby');
@@ -4945,6 +5187,19 @@ function _openSelfLossModal(wx, wy) {
     .forEach(t=>sel.add(new Option(t.name, t.id)));
   renderSlmPlayers();
   document.getElementById('self-loss-modal').classList.add('show');
+}
+
+// Session 62 — optional secondary coordinate capture for the shooter's position.
+// Hides the modal (without clearing slmSelectedPlayerId/slmPendingCoords), reuses
+// openPinPrompt() exactly as every other pin-capture in this file does, then
+// reopens the modal with the tagged position in hand.
+function _tagKillerPosition() {
+  document.getElementById('self-loss-modal').classList.remove('show');
+  openPinPrompt('Tap shooter position', 'loss', (wx, wy) => {
+    slmPendingKillerCoords = {wx, wy};
+    document.getElementById('slm-killer-tagged').textContent = '✓ tagged';
+    document.getElementById('self-loss-modal').classList.add('show');
+  });
 }
 
 function renderSlmPlayers() {
@@ -4988,23 +5243,39 @@ async function confirmSelfLoss() {
   const player = matchPlayers.find(p => p.id === slmSelectedPlayerId);
   if(!player) return;
   const killedByTeamId = document.getElementById('slm-killedby').value || null;
+  const killedByTeam = killedByTeamId ? teams.find(t=>t.id===killedByTeamId) : null;
   const coords = slmPendingCoords; slmPendingCoords = null;
+  const killerCoords = slmPendingKillerCoords; slmPendingKillerCoords = null;
   closeSelfLossModal();
 
   // Update pool — mark time_of_loss (+ death position, already captured by the pin prompt)
   player.time_of_loss = state.time;
   if(coords){ player.death_x = coords.wx; player.death_y = coords.wy; }
+  if(killerCoords){ player.killer_x = killerCoords.wx; player.killer_y = killerCoords.wy; }
   if(sb && !String(player.id).startsWith('local_')) {
     try {
       const upd = { time_of_loss: state.time };
       if(killedByTeamId) upd.killed_by_team_id = killedByTeamId;
       if(coords){ upd.death_x = coords.wx; upd.death_y = coords.wy; }
+      if(killerCoords && _hasKillMetaCols){ upd.killer_x = killerCoords.wx; upd.killer_y = killerCoords.wy; }
       await sb.from('match_players').update(upd).eq('id', player.id);
     } catch(e) { toast('SAVE ERROR: '+e.message,'err'); }
   }
 
+  // Session 62 — KP auto-credit: tagging "killed by: Team X" now also credits
+  // Team X's own kill count, instead of that being a fully separate, easy-to-
+  // forget manual number typed into the Enemy Wipe modal. Read-current-then-
+  // write-absolute, matching every other teams.kills writer in this codebase
+  // (confirmWipe/confirmEnemyWipe already do the same, non-atomic, pattern).
+  if(killedByTeam){
+    killedByTeam.kills = (killedByTeam.kills||0) + 1;
+    if(sb && !String(killedByTeam.id).startsWith('local_')){
+      try { await sb.from('teams').update({kills:killedByTeam.kills}).eq('id',killedByTeam.id); }
+      catch(e) { /* non-fatal — KP will reconcile next time Enemy Wipe's prefill is opened */ }
+    }
+  }
+
   renderAnnotationLog({scrollToTop:true});
-  const killedByTeam = killedByTeamId ? teams.find(t=>t.id===killedByTeamId) : null;
   toast(`${player.name} down${killedByTeam ? ` — killed by ${killedByTeam.name}` : ''}`, 'ok');
   draw();
 
@@ -5020,6 +5291,7 @@ function closeSelfLossModal() {
   document.getElementById('self-loss-modal').classList.remove('show');
   slmSelectedPlayerId = null;
   slmPendingCoords = null;
+  slmPendingKillerCoords = null;
 }
 
 // ══════════════════════════════════════════════════════
@@ -5090,6 +5362,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function markMatchEnd() {
   if(!state.matchId){ toast('SELECT A MATCH FIRST','warn'); return; }
+  // A match being marked ended (or that end being undone) always stops the
+  // running clock — an operator can't keep ticking a "finished" match's timer
+  // forward, and undoing an end does NOT auto-resume it: matchActive stays
+  // false until Start is explicitly pressed again (chosen default — silently
+  // resuming a wall-clock tick with no visible cue, possibly long after the
+  // undo, is a worse default than one extra click).
+  pauseMatchClock();
+  matchActive = false;
   const dur=state.time;
   const m=matches.find(x=>x.id===state.matchId);
   // Check if already ended — undo
@@ -5299,6 +5579,28 @@ async function saveAnnotation() {
   closeAnnotationModal(); renderAnnotationLog({scrollToTop:true}); toast('Note saved','ok');
 }
 
+// Session 62 — saves a shape/zone's freeform note from the event-log's inline
+// textarea (see renderAnnotationLog). No modal, no popup: the textarea lives
+// directly in the log row. Mirrors persistShapeMove()'s local-id/no-sb guard —
+// a not-yet-persisted shape just keeps the note in-memory, picked up by the
+// normal autosave flush via shapeToDbRow() once it gets a real id.
+async function saveShapeNote(target, noteValue, btnEl) {
+  const trimmed = noteValue.trim() || null;
+  if ((target.note || null) === trimmed) return; // unchanged — skip the write
+  target.note = trimmed || undefined;
+  if (btnEl) btnEl.classList.toggle('has-note', !!trimmed);
+  if (!sb || !target.id || String(target.id).startsWith('local_') || !_hasNoteCol) return;
+  setSyncState('syncing');
+  try {
+    const { error } = await sb.from('shapes').update({ note: trimmed }).eq('id', target.id);
+    if (error) throw error;
+    setSyncState('saved');
+  } catch (e) {
+    setSyncState('error');
+    toast('NOTE FAILED TO SAVE — try again', 'err');
+  }
+}
+
 function renderAnnotationLog(opts) {
   // opts.scrollToTop — force scroll to top (new entry added)
   const container=document.getElementById('annotation-log');
@@ -5429,8 +5731,26 @@ function renderAnnotationLog(opts) {
     if(wasEmpty){ entry.classList.add('animate-in'); entry.style.animationDelay=`${animIdx*30}ms`; animIdx++; }
     entry.dataset.evTime=ev.time;
 
-    // Tap entry → jump to its time and zoom the map to its marker (if it has one)
-    entry.onclick=()=>{ jumpToTime(ev.time); if(ev.wx!=null && ev.wy!=null) zoomToWorld(ev.wx, ev.wy); };
+    // Tap entry → jump to its time and zoom the map to its marker (if it has one).
+    // Zone/line/path fit their whole extent (Session 62) — a single representative
+    // point (a zone's center, a line's midpoint, one of a path's points) is a poor
+    // stand-in for the shape's real extent. Pins/fights are genuine single points
+    // and keep the original fixed-zoom center-on-point behavior.
+    entry.onclick=()=>{
+      jumpToTime(ev.time);
+      if(ev.type==='circle' && ev._zone){
+        const z=ev._zone;
+        zoomToFitBounds(z.cx-z.r, z.cy-z.r, z.cx+z.r, z.cy+z.r);
+      } else if(ev.type==='line' && ev._shape){
+        const s=ev._shape;
+        zoomToFitBounds(Math.min(s.x1,s.x2), Math.min(s.y1,s.y2), Math.max(s.x1,s.x2), Math.max(s.y1,s.y2));
+      } else if(ev.type==='path' && ev._shape?.points?.length){
+        const xs=ev._shape.points.map(p=>p.x), ys=ev._shape.points.map(p=>p.y);
+        zoomToFitBounds(Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys));
+      } else if(ev.wx!=null && ev.wy!=null){
+        zoomToWorld(ev.wx, ev.wy);
+      }
+    };
 
     const iconEl=document.createElement('div'); iconEl.className='annotation-icon '+ev.iconClass; iconEl.innerHTML=ev.icon;
     // Team color on icon background (multi-track), no dot in title
@@ -5443,7 +5763,51 @@ function renderAnnotationLog(opts) {
     const timeEl=document.createElement('div'); timeEl.className='annotation-time'; timeEl.textContent=fmtTime(ev.time);
     bodyEl.appendChild(titleEl); bodyEl.appendChild(timeEl);
     if(ev.body){ const subEl=document.createElement('div'); subEl.className='annotation-sub'; subEl.textContent=ev.body; bodyEl.appendChild(subEl); }
-    entry.appendChild(iconEl); entry.appendChild(bodyEl);
+
+    // Session 62 — note (inline textarea, never a modal) + eye (session-only
+    // hide) buttons. Only for real shapes-table rows (zone/line/path/fight) —
+    // never pin (pins keep their note entry at creation time in #pin-popup,
+    // per explicit user choice) and never wipe/loss/elim/matchend/note (those
+    // live on other tables entirely, not `shapes`).
+    const noteTarget = ev.type==='circle' ? ev._zone : (['line','path','fight'].includes(ev.type) ? ev._shape : null);
+    if(noteTarget) {
+      const noteBtn=document.createElement('button');
+      noteBtn.className='annotation-note-btn'+(noteTarget.note?' has-note':'');
+      noteBtn.title='Note';
+      noteBtn.innerHTML='<iconify-icon icon="lucide:sticky-note"></iconify-icon>';
+
+      const noteEditor=document.createElement('textarea');
+      noteEditor.className='annotation-note-editor';
+      noteEditor.placeholder='Note...';
+      noteEditor.value=noteTarget.note||'';
+      noteEditor.onclick=(e)=>e.stopPropagation();
+      noteEditor.onmousedown=(e)=>e.stopPropagation();
+      noteEditor.onblur=()=>saveShapeNote(noteTarget, noteEditor.value, noteBtn);
+      bodyEl.appendChild(noteEditor);
+
+      noteBtn.onclick=(e)=>{
+        e.stopPropagation();
+        noteEditor.classList.toggle('open');
+        if(noteEditor.classList.contains('open')) noteEditor.focus();
+      };
+
+      const eyeBtn=document.createElement('button');
+      eyeBtn.className='annotation-eye-btn'+(noteTarget._hidden?' is-hidden':'');
+      eyeBtn.title=noteTarget._hidden?'Show shape':'Hide shape';
+      eyeBtn.innerHTML='<iconify-icon icon="lucide:'+(noteTarget._hidden?'eye-off':'eye')+'"></iconify-icon>';
+      eyeBtn.onclick=(e)=>{
+        e.stopPropagation();
+        noteTarget._hidden=!noteTarget._hidden;
+        eyeBtn.classList.toggle('is-hidden',noteTarget._hidden);
+        eyeBtn.title=noteTarget._hidden?'Show shape':'Hide shape';
+        eyeBtn.innerHTML='<iconify-icon icon="lucide:'+(noteTarget._hidden?'eye-off':'eye')+'"></iconify-icon>';
+        draw();
+      };
+
+      entry.appendChild(iconEl); entry.appendChild(bodyEl); entry.appendChild(noteBtn); entry.appendChild(eyeBtn);
+    } else {
+      entry.appendChild(iconEl); entry.appendChild(bodyEl);
+    }
 
     // Undoable entries (Loss / Elim / MatchEnd) get a persistent undo button on the right
     if(ev.undoable) {
