@@ -99,6 +99,12 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
   display:flex;flex-direction:column;align-items:center;gap:5px;
   background:var(--bg-panel);border:1px solid var(--border);border-radius:14px;
   padding:10px 7px;box-shadow:0 4px 20px rgba(12,10,7,.28);
+  /* Safety net for short viewports — previously had no cap at all and could
+     silently clip buttons off-screen top/bottom with zero visual indication.
+     84px ≈ symmetric top/bottom breathing room + clearance for the YT control
+     bar below, same reasoning as #squad-panel's own max-height. */
+  max-height:calc(100% - 84px); overflow-y:auto;
+  scrollbar-width:thin; scrollbar-color:var(--border) transparent; scrollbar-gutter:stable;
 }
 .vlt-divider{ width:22px;height:1px;background:var(--border-mid);margin:3px 0;flex-shrink:0; }
 .vlt-btn{
@@ -289,6 +295,11 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 .sp-section{ padding:12px 12px 8px;border-bottom:1px solid var(--border-dim); }
 .sp-section:first-child{ padding-top:14px; }
 .sp-section.no-grow{ flex:0; }
+/* Session/file controls row (moved off the left drawing toolbar) — reuses .vlt-btn's
+   look, just sized down a touch to fit the narrower squad panel comfortably. */
+.sp-action-row{ display:flex;align-items:center;gap:5px;padding:10px 12px;border-bottom:1px solid var(--border-dim);flex-shrink:0; }
+.sp-action-row .vlt-btn{ width:32px;height:32px;font-size:14px;border-radius:8px; }
+.sp-action-divider{ width:1px;height:20px;background:var(--border-mid);flex-shrink:0;margin:0 1px; }
 .sp-card-header.collapsible{ cursor:pointer;margin:-2px -4px;padding:2px 4px;border-radius:5px;transition:background .15s; }
 .sp-card-header.collapsible:hover{ background:var(--hover-tint); }
 .sp-card-header.collapsible iconify-icon.sp-chevron{ color:var(--muted2);font-size:13px;transition:transform .2s; }
@@ -907,18 +918,6 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
         <button class="vlt-btn vlt-ev-loss"  id="btn-ev-loss"  onclick="startEvent('loss')"  disabled title="Self Loss"><iconify-icon icon="lucide:skull"></iconify-icon></button>
         <button class="vlt-btn vlt-ev-wipe"  id="btn-ev-wipe"  onclick="startEvent('wipe')"  disabled title="Self Wipe"><iconify-icon icon="lucide:shield-x"></iconify-icon></button>
         <button class="vlt-btn vlt-ev-ewipe" id="btn-ev-ewipe" onclick="startEvent('ewipe')" disabled title="Enemy Wipe"><iconify-icon icon="lucide:flag"></iconify-icon></button>
-
-        <div class="vlt-divider"></div>
-
-        <button class="vlt-btn" onclick="openLoadMatchModal()" title="Load match / VOD link"><iconify-icon icon="lucide:folder-open"></iconify-icon></button>
-        <button class="vlt-btn cal-mode-btn" id="btn-calibrate" onclick="toggleCalibration()" title="2-point map calibration"><iconify-icon icon="lucide:crosshair"></iconify-icon></button>
-        <button class="vlt-btn" id="btn-save" onclick="manualSave()" title="Save"><iconify-icon icon="lucide:save"></iconify-icon></button>
-        <button class="vlt-btn" onclick="downloadSnapshot()" title="Screenshot (PNG)"><iconify-icon icon="lucide:camera"></iconify-icon></button>
-
-        <div class="vlt-divider"></div>
-
-        <button class="vlt-btn vlt-start-idle" id="btn-start-match" onclick="toggleMatchActive()" disabled title="Start Match"><iconify-icon icon="lucide:play"></iconify-icon></button>
-        <button class="vlt-btn vlt-end" id="btn-match-end" onclick="openEndMatchConfirm()" disabled title="End Match"><iconify-icon icon="lucide:square"></iconify-icon></button>
       </div>
 
     <!-- ── SQUAD PANEL (floating, top-right over canvas) ── -->
@@ -928,6 +927,17 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
       <div id="sp-match-data">
         <span class="sp-md-label">MATCH TIME</span>
         <div class="tb-time" id="tb-match-time">—:——</div>
+      </div>
+
+      <!-- Session/file controls (moved off the left drawing toolbar so it stays a compact, drawing-tools-only strip) -->
+      <div class="sp-action-row">
+        <button class="vlt-btn" onclick="openLoadMatchModal()" title="Load match / VOD link"><iconify-icon icon="lucide:folder-open"></iconify-icon></button>
+        <button class="vlt-btn cal-mode-btn" id="btn-calibrate" onclick="toggleCalibration()" title="2-point map calibration"><iconify-icon icon="lucide:crosshair"></iconify-icon></button>
+        <button class="vlt-btn" id="btn-save" onclick="manualSave()" title="Save"><iconify-icon icon="lucide:save"></iconify-icon></button>
+        <button class="vlt-btn" onclick="downloadSnapshot()" title="Screenshot (PNG)"><iconify-icon icon="lucide:camera"></iconify-icon></button>
+        <div class="sp-action-divider"></div>
+        <button class="vlt-btn vlt-start-idle" id="btn-start-match" onclick="toggleMatchActive()" disabled title="Start Match"><iconify-icon icon="lucide:play"></iconify-icon></button>
+        <button class="vlt-btn vlt-end" id="btn-match-end" onclick="openEndMatchConfirm()" disabled title="End Match"><iconify-icon icon="lucide:square"></iconify-icon></button>
       </div>
 
       <!-- Map Opacity -->
