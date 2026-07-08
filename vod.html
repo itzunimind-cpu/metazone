@@ -315,8 +315,11 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 .sp-collapse-body.open{ max-height:1000px;opacity:1; }
 #sp-self-body > *:not(:first-child){ margin-top:8px; }
 .sp-card{ background:var(--bg);border:1px solid var(--border-dim);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:8px; }
-.sp-log-section{ flex:1;display:flex;flex-direction:column;min-height:0; }
-.sp-log-card{ flex:1;min-height:0; }
+/* Event log is a normal block like every other panel section — no independent
+   flex-grow/scroll region of its own, so the single #squad-panel scrollbar
+   scrolls everything (including the log) as one continuous unit. */
+.sp-log-section{ display:flex;flex-direction:column; }
+.sp-log-card{ }
 .sp-card-header{ display:flex;align-items:center;justify-content:space-between; }
 .sp-card-header .sp-label{ margin-bottom:0; }
 .sp-empty-note{ font-family:var(--font-mono);font-size:10px;color:var(--muted);text-align:center;padding:8px 0; }
@@ -372,7 +375,7 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 .sp-enemy-pos{ font-family:var(--font-mono);font-size:9px;color:var(--muted); }
 
 /* Event log in squad panel */
-#vod-event-log{ padding:10px;display:flex;flex-direction:column;gap:6px;flex:1;overflow-y:auto;min-height:60px; }
+#vod-event-log{ padding:10px;display:flex;flex-direction:column;gap:6px;min-height:60px; }
 .vel-entry{
   display:flex;align-items:flex-start;gap:6px;padding:8px 10px;
   background:var(--bg);border-left:2px solid var(--border);border-radius:6px;
@@ -3764,6 +3767,10 @@ function evCoords(e) {
   return {screenX:sx,screenY:sy,x:corrected.wx,y:corrected.wy};
 }
 function onWheel(e) {
+  // #squad-panel is nested inside #vod-stage (this listener's target), so a
+  // scroll over the panel would otherwise bubble up here and get hijacked
+  // into a map zoom, blocking the panel's own native scroll entirely.
+  if (e.target.closest('#squad-panel')) return;
   e.preventDefault();
   if (calMode) return; // no zoom while calibrating
   const rect=canvas.getBoundingClientRect();

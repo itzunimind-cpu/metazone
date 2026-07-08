@@ -4612,7 +4612,12 @@ function updateAnnotationLogLit() {
     const evTime = +el.dataset.evTime;
     const isLit = evTime <= t;
     el.classList.toggle('future', !isLit);
-    if (isLit) lastLitEl = el;
+    // DOM order is newest-first, so the FIRST lit entry found is the one
+    // closest to (at or just before) the current time — that's what should
+    // scroll into view. Previously this kept overwriting on every lit entry,
+    // ending at the OLDEST one (bottom of the list) once the loop finished,
+    // which is what made clicking an entry appear to jump to the end of the log.
+    if (isLit && !lastLitEl) lastLitEl = el;
   });
   if (lastLitEl) lastLitEl.scrollIntoView({block:'start',behavior:'instant'});
 }
@@ -6080,7 +6085,10 @@ function renderAnnotationLog(opts) {
     }
 
     container.appendChild(entry);
-    if(isLit) lastLitEl=entry;
+    // Same fix as updateAnnotationLogLit(): DOM order is newest-first, so only
+    // take the FIRST lit entry (closest to current time), not every lit one —
+    // otherwise this ends up pointing at the oldest lit entry once the loop finishes.
+    if(isLit && !lastLitEl) lastLitEl=entry;
   });
 
   if(opts?.scrollToTop) container.scrollTop=0;
