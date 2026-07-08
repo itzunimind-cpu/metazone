@@ -3155,20 +3155,15 @@ function renderEventLog() {
         <div class="vel-time">${fmtTime(ev.time)}</div>
       </div>`;
 
-    // Tap entry → seek + zoom. Zone/line/path fit their whole extent (Session
-    // 62); pin/fight keep the original fixed-zoom center-on-point behavior.
+    // Tap entry → seek only (Session 68). No zoom/pan: the map canvas has its
+    // own independent zoom/pan state that the video underneath never follows
+    // (calibration only lines the two up at the canvas's default/home zoom),
+    // so snapping the camera in on click would misalign the calibrated
+    // overlay from the video for no benefit — the video seek is what
+    // actually matters here. editor.html has no video to misalign with, so
+    // its own click-to-zoom behavior is intentionally left as-is.
     entry.onclick = () => {
       seekToMatchTime(ev.time);
-      if(ev.type==='circle' && ev._zone){
-        const z=ev._zone; zoomToFitBounds(z.cx-z.r, z.cy-z.r, z.cx+z.r, z.cy+z.r);
-      } else if(ev.type==='line' && ev._shape){
-        const s=ev._shape; zoomToFitBounds(Math.min(s.x1,s.x2), Math.min(s.y1,s.y2), Math.max(s.x1,s.x2), Math.max(s.y1,s.y2));
-      } else if(ev.type==='path' && ev._shape?.points?.length){
-        const xs=ev._shape.points.map(p=>p.x), ys=ev._shape.points.map(p=>p.y);
-        zoomToFitBounds(Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys));
-      } else if (ev.wx!=null && ev.wy!=null){
-        zoomToWorld(ev.wx, ev.wy);
-      }
     };
 
     // Session 62 — note (inline textarea, never a modal) + eye (session-only
@@ -3726,27 +3721,6 @@ function zoomAt(sx, sy, delta) {
   const s=nz/zoom; panX=sx-s*(sx-panX); panY=sy-s*(sy-panY); zoom=nz;
   clampPan(); updateZoomHud(); draw();
   _saveViewDebounced();
-}
-function zoomToWorld(wx, wy) {
-  const minZoom=Math.min(canvas.width/WORLD_W, canvas.height/WORLD_H);
-  zoom=minZoom*20;
-  panX=canvas.width/2 - wx*zoom;
-  panY=canvas.height/2 - wy*zoom;
-  clampPan(); updateZoomHud(); draw();
-}
-
-// Session 62 — zoom-to-FIT a bounding box, for log-entry clicks on shapes where
-// a single representative point is a poor stand-in for the whole shape. See
-// editor.html's identical function for the full rationale. Pins/fights keep
-// using zoomToWorld() above, unchanged.
-function zoomToFitBounds(minX, minY, maxX, maxY) {
-  const minZoom=Math.min(canvas.width/WORLD_W, canvas.height/WORLD_H);
-  const bw=Math.max(1,maxX-minX), bh=Math.max(1,maxY-minY);
-  const nz=Math.max(minZoom, Math.min(40, Math.min(canvas.width/(bw*1.3), canvas.height/(bh*1.3))));
-  zoom=nz;
-  panX=canvas.width/2 - (minX+maxX)/2*zoom;
-  panY=canvas.height/2 - (minY+maxY)/2*zoom;
-  clampPan(); updateZoomHud(); draw();
 }
 function updateZoomHud() {
   const minZoom=Math.min(canvas.width/WORLD_W, canvas.height/WORLD_H);
