@@ -2087,7 +2087,7 @@ async function loadShapesForMatch(matchId) {
     }
     // Load zone circles (team_id IS NULL, match-level)
     const {data:zData,error:zError} = await sb.from('shapes').select('*')
-      .eq('match_id', matchId).eq('type','circle').is('team_id',null).order('zone_phase');
+      .eq('match_id', matchId).eq('type','circle').is('team_id',null).eq('user_id',currentUser.id).order('zone_phase');
     if(!zError) {
       zonesCache[matchId] = (zData||[]).map(dbRowToShape);
     } else {
@@ -2115,9 +2115,9 @@ async function loadTeamShapes(teamId) {
 }
 
 async function loadAnnotations(matchId) {
-  if(!sb||!matchId) { annotations=[]; renderAnnotationLog(); return; }
+  if(!sb||!matchId||!currentUser) { annotations=[]; renderAnnotationLog(); return; }
   try {
-    const {data,error}=await sb.from('annotations').select('*').eq('match_id',matchId).order('time_seconds');
+    const {data,error}=await sb.from('annotations').select('*').eq('match_id',matchId).eq('user_id',currentUser.id).order('time_seconds');
     if(error) {
       // 404 / table-missing is non-fatal — annotations are optional notes,
       // and ephemeral self-loss / self-elim entries live only in memory.
@@ -2137,9 +2137,9 @@ async function loadAnnotations(matchId) {
 
 // Load self_elims rows for current match — DB-backed, survives refresh (event log source)
 async function loadSelfElims(matchId) {
-  if(!sb||!matchId||String(matchId).startsWith('local_')) { selfElims=[]; return; }
+  if(!sb||!matchId||!currentUser||String(matchId).startsWith('local_')) { selfElims=[]; return; }
   try {
-    const {data,error} = await sb.from('self_elims').select('*').eq('match_id',matchId).order('time_seconds');
+    const {data,error} = await sb.from('self_elims').select('*').eq('match_id',matchId).eq('user_id',currentUser.id).order('time_seconds');
     selfElims = error ? [] : (data||[]);
   } catch(e) { selfElims=[]; }
 }
@@ -2152,7 +2152,7 @@ async function loadMatchPlayers(matchId) {
   try {
     // STEP 1: get match_players (no embedded join — robust to FK/RLS issues)
     let {data,error}=await sb.from('match_players')
-      .select('id, player_id, kills, damage, time_of_loss, death_x, death_y, user_id, created_at')
+      .select('id, player_id, kills, damage, time_of_loss, death_x, death_y, killer_x, killer_y, loss_type, killed_by_team_id, user_id, created_at')
       .eq('match_id', matchId)
       .eq('user_id', currentUser.id)
       .order('created_at');
@@ -2161,7 +2161,7 @@ async function loadMatchPlayers(matchId) {
     if(error || !data || data.length === 0) {
       if(error) console.warn('[MATCH_PLAYERS] primary query failed, trying fallback:', error);
       const fb = await sb.from('match_players')
-        .select('id, player_id, kills, damage, time_of_loss, death_x, death_y, user_id, created_at')
+        .select('id, player_id, kills, damage, time_of_loss, death_x, death_y, killer_x, killer_y, loss_type, killed_by_team_id, user_id, created_at')
         .eq('match_id', matchId)
         .order('created_at');
       if(!fb.error && fb.data && fb.data.length > 0) {
@@ -2202,6 +2202,10 @@ async function loadMatchPlayers(matchId) {
       time_of_loss: r.time_of_loss ?? null,
       death_x: r.death_x ?? null,
       death_y: r.death_y ?? null,
+      killer_x: r.killer_x ?? null,
+      killer_y: r.killer_y ?? null,
+      loss_type: r.loss_type ?? null,
+      killed_by_team_id: r.killed_by_team_id ?? null,
     }));
   } catch(e) {
     console.error('[MATCH_PLAYERS] unexpected error:', e);
@@ -3584,12 +3588,12 @@ function showHoverTip(sx,sy,hit) {
   const {shape,team}=hit;
   let html='';
   if(shape.type==='fight'){
-    html=`<div class="ht-title" style="color:${team.color}">${team.name}</div>`;
-    html+=`<div class="ht-sub" style="color:var(--red)">${shape.teamA||'?'} vs ${shape.teamB||'?'}</div>`;
+    html=`<div class="ht-title" style="color:${team.color}">${esc(team.name)}</div>`;
+    html+=`<div class="ht-sub" style="color:var(--red)">${esc(shape.teamA||'?')} vs ${esc(shape.teamB||'?')}</div>`;
     html+=`<div class="ht-sub">⏱ ${fmtTime(shape.time)}</div>`;
   } else {
-    html=`<div class="ht-title" style="color:${team.color}">${shape.label||'●'}</div>`;
-    html+=`<div class="ht-sub">${team.name} · ${fmtTime(shape.time)}</div>`;
+    html=`<div class="ht-title" style="color:${team.color}">${esc(shape.label||'●')}</div>`;
+    html+=`<div class="ht-sub">${esc(team.name)} · ${fmtTime(shape.time)}</div>`;
   }
   tt.innerHTML=html;
   const wW=wrap.clientWidth, wH=wrap.clientHeight;
@@ -3822,7 +3826,7 @@ async function openGroupPickerEditor(matchId){
   list.innerHTML=grps.map(g=>`
     <div class="egp-item" id="egp-${g.id}" onclick="toggleEditorGroupPick('${g.id}')">
       <div class="egp-check" id="egp-chk-${g.id}"></div>
-      <span class="egp-name">${g.name||'Group'}</span>
+      <span class="egp-name">${esc(g.name||'Group')}</span>
       <span class="egp-count">${counts[g.id]||0} teams</span>
     </div>`).join('');
   document.getElementById('editor-group-picker').classList.remove('hidden');
@@ -5744,8 +5748,19 @@ function closeAnnotationModal(){ document.getElementById('annotation-modal').cla
 async function undoLogEvent(ev) {
   if(ev.type === 'loss' && ev._player) {
     const mp = ev._player;
+    // Reverse the KP credit this loss gave, same as the elim-undo branch below
+    // reverses self_elims' kill credit — previously left `killedByTeam.kills`
+    // stuck at its post-credit value even after the loss itself was undone.
+    if(mp.killed_by_team_id) {
+      const killedByTeam = teams.find(t=>t.id===mp.killed_by_team_id);
+      if(killedByTeam) {
+        killedByTeam.kills = Math.max(0, (killedByTeam.kills||0) - 1);
+        if(sb&&!String(killedByTeam.id).startsWith('local_')) await sb.from('teams').update({kills:killedByTeam.kills}).eq('id',killedByTeam.id);
+      }
+    }
     mp.time_of_loss = null; mp.death_x = null; mp.death_y = null;
-    if(sb&&!String(mp.id).startsWith('local_')) await sb.from('match_players').update({time_of_loss:null,death_x:null,death_y:null,killed_by_team_id:null}).eq('id',mp.id);
+    mp.killed_by_team_id = null; mp.killer_x = null; mp.killer_y = null; mp.loss_type = null;
+    if(sb&&!String(mp.id).startsWith('local_')) await sb.from('match_players').update({time_of_loss:null,death_x:null,death_y:null,killed_by_team_id:null,killer_x:null,killer_y:null,loss_type:null}).eq('id',mp.id);
     draw();
     renderAnnotationLog({scrollToTop:true});
     toast('Loss undone','ok');
@@ -6265,7 +6280,7 @@ function renderMultiTrackPanel() {
     row.innerHTML = `
       <div class="mt-checkbox">${checked ? '✓' : ''}</div>
       <div class="mt-team-dot" style="background:${team.color}"></div>
-      <div class="mt-team-name">${team.name}</div>
+      <div class="mt-team-name">${esc(team.name)}</div>
     `;
     row.onclick = () => toggleMtTeam(team.id);
     listEl.appendChild(row);
@@ -6310,7 +6325,7 @@ function renderMultiTrackStats() {
     row.className = 'mt-stat-row';
     row.innerHTML = `
       <div class="mt-stat-dot" style="background:${team.color}"></div>
-      <div class="mt-stat-name">${team.name}${wiped ? ' <span style="color:var(--red);font-size:9px;">WIPED</span>' : ''}</div>
+      <div class="mt-stat-name">${esc(team.name)}${wiped ? ' <span style="color:var(--red);font-size:9px;">WIPED</span>' : ''}</div>
       <span class="mt-stat-pill" title="Zones"><iconify-icon icon="lucide:circle" style="font-size:10px;vertical-align:middle"></iconify-icon>${zones}</span>
       <span class="mt-stat-pill" title="Rotations">→${rots}</span>
       <span class="mt-stat-pill" title="Fights"><iconify-icon icon="lucide:crosshair" style="font-size:10px;vertical-align:middle"></iconify-icon>${fights}</span>

@@ -416,7 +416,7 @@ async function loadAllData() {
   const [tn, dy, mt, ti, tm, tt, pl, tp] = await Promise.all([
     sb.from('tournaments').select('id,name').eq('user_id', uid).order('created_at'),
     sb.from('days').select('id,tournament_id,name').eq('user_id', uid).order('order_index'),
-    sb.from('matches').select('id,day_id,name,map_key,duration_seconds,created_at').order('created_at', { ascending: false }),
+    sb.from('matches').select('id,day_id,name,map_key,duration_seconds,created_at').eq('user_id', uid).order('created_at', { ascending: false }),
     sb.from('team_identities').select('id,canonical_name,created_at').eq('user_id', uid).order('canonical_name'),
     _hasTeamIdentityCols
       ? sb.from('teams').select('id,match_id,name,team_identity_id').eq('user_id', uid)
@@ -429,7 +429,8 @@ async function loadAllData() {
   ]);
   allTournaments = tn.data || [];
   allDays = dy.data || [];
-  // matches has no user_id column — scope by day ownership instead (matches Section 2's "never assume ownership columns exist" caution)
+  // matches DOES have a user_id column (confirmed via editor.html/vod.html) — the query above is now scoped by it directly.
+  // Kept as defense-in-depth in case a legacy row predates that column being set.
   const ownedDayIds = new Set(allDays.map(d => d.id));
   allMatches = (mt.data || []).filter(m => ownedDayIds.has(m.day_id));
   allTeamIdentities = ti.data || [];

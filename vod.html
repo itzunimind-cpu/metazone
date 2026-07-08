@@ -177,6 +177,7 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 .tb-mode-pill.active[data-mode="rotation"]{ background:rgba(78,124,47,.1);color:var(--green);border-color:var(--green); }
 .tb-mode-pill.active[data-mode="move"]    { background:rgba(47,111,237,.1);color:#2f6fed;border-color:#2f6fed; }
 .tb-mode-pill.active[data-mode="erase"]   { background:rgba(155,28,17,.08);color:var(--red);border-color:var(--red); }
+.tb-annot-btn.active{ background:rgba(44,74,46,.1);color:var(--accent);border-color:var(--accent); }
 .tb-zoom-cluster{ display:flex;align-items:center;gap:2px;flex-shrink:0; }
 .tb-zoom-btn{ width:26px;height:26px;background:var(--bg);border:1px solid var(--border);color:var(--muted);border-radius:5px;cursor:pointer;font-size:13px;transition:all .15s;display:flex;align-items:center;justify-content:center; }
 .tb-zoom-btn:hover{ border-color:var(--muted2);color:var(--text); }
@@ -381,6 +382,13 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
 .vel-note-btn:hover, .vel-eye-btn:hover{ border-color:var(--accent);color:var(--accent); }
 .vel-note-btn.has-note{ border-color:var(--accent);color:var(--accent); }
 .vel-eye-btn.is-hidden{ opacity:.55; }
+.vel-undo-btn{
+  flex-shrink:0;align-self:center;width:22px;height:22px;border-radius:4px;
+  background:none;border:1px solid var(--border);color:var(--muted);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  transition:all .15s;font-size:12px;
+}
+.vel-undo-btn:hover{ border-color:var(--red);color:var(--red); }
 .vel-note-editor{
   display:none;width:100%;margin-top:8px;resize:vertical;min-height:84px;box-sizing:border-box;
   background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;color:var(--text);
@@ -513,6 +521,22 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
   font-family:var(--font-mono);font-size:9px;letter-spacing:.05em;border-radius:4px;transition:all .15s;
 }
 .fight-mode-btn.active{ background:var(--orange);color:#fff; }
+.cm-toggle{ display:flex;gap:3px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:3px; }
+.cm-btn{
+  flex:1;padding:5px 4px;background:none;border:none;color:var(--muted);cursor:pointer;
+  font-family:var(--font-mono);font-size:9px;letter-spacing:.05em;border-radius:4px;transition:all .15s;
+}
+.cm-btn.active{ background:var(--accent);color:#fff; }
+.filter-row{ display:flex;gap:4px; }
+.btn-filter{
+  flex:1;padding:5px 2px;background:var(--bg);color:var(--muted);border:1px solid var(--border);
+  border-radius:6px;font-size:9px;font-weight:600;cursor:pointer;text-align:center;
+  transition:all .15s;font-family:var(--font-mono);letter-spacing:.06em;
+}
+.btn-filter.on[data-filter="zone"]    { background:var(--accent);color:#fff;border-color:var(--accent); }
+.btn-filter.on[data-filter="fight"]   { background:var(--red);color:#fff;border-color:var(--red); }
+.btn-filter.on[data-filter="rotation"]{ background:var(--green);color:#fff;border-color:var(--green); }
+.btn-filter.on[data-filter="pin"]     { background:var(--orange);color:#fff;border-color:var(--orange); }
 
 /* ── RESULTS PANEL ── */
 #results-panel{
@@ -859,6 +883,11 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 
       <!-- ══ LEFT FLOATING TOOLBAR ══ -->
       <div id="vod-left-tools">
+        <button class="tb-mode-pill tb-annot-btn active" id="btn-edit-mode" onclick="toggleAnnotationMode(true)" title="Annotate"><iconify-icon icon="lucide:pen-line"></iconify-icon></button>
+        <button class="tb-mode-pill tb-annot-btn" id="btn-preview-mode" onclick="toggleAnnotationMode(false)" title="Preview"><iconify-icon icon="lucide:eye"></iconify-icon></button>
+
+        <div class="vlt-divider"></div>
+
         <button class="tb-mode-pill" data-mode="zone"  onclick="setMode('zone')"  title="Zone Circle (drag)"><iconify-icon icon="lucide:circle"></iconify-icon></button>
         <button class="tb-mode-pill" data-mode="path"  onclick="setMode('path')"  title="Path — click waypoints, RIGHT-CLICK to finish"><iconify-icon icon="lucide:spline"></iconify-icon></button>
         <button class="tb-mode-pill" data-mode="pin"   onclick="setMode('pin')"   title="Pin"><iconify-icon icon="lucide:map-pin"></iconify-icon></button>
@@ -911,6 +940,33 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
           <div class="map-opacity-cluster" id="map-opacity-cluster" title="Map opacity">
             <input type="range" class="map-opacity-slider" id="map-opacity-slider" min="0" max="100" value="62" oninput="setMapOpacity(this.value)" style="flex:1;">
             <span class="map-opacity-val" id="map-opacity-val">62%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Shape Style (Session 64 re-scan) — stroke width/opacity, ported from editor.html's sidebar sliders -->
+      <div class="sp-section no-grow">
+        <div class="sp-card">
+          <div class="sp-card-header">
+            <span class="sp-label">Shape Style</span>
+          </div>
+          <div class="map-opacity-cluster" title="Stroke width">
+            <input type="range" class="map-opacity-slider" id="sl-width" min="1" max="10" value="2" oninput="updateSliders()" style="flex:1;">
+            <span class="map-opacity-val" id="sv-width">2</span>
+          </div>
+          <div class="map-opacity-cluster" title="Shape opacity" style="margin-top:6px;">
+            <input type="range" class="map-opacity-slider" id="sl-opacity" min=".1" max="1" step=".05" value=".85" oninput="updateSliders()" style="flex:1;">
+            <span class="map-opacity-val" id="sv-opacity">.85</span>
+          </div>
+          <div class="cm-toggle" id="cm-toggle" style="margin-top:6px;">
+            <button type="button" class="cm-btn active" id="cm-type" onclick="setColorMode('type')">BY TYPE</button>
+            <button type="button" class="cm-btn" id="cm-team" onclick="setColorMode('team')">BY TEAM</button>
+          </div>
+          <div class="filter-row" style="margin-top:6px;">
+            <button class="btn-filter on" data-filter="zone"     onclick="toggleFilter('zone')">ZONE</button>
+            <button class="btn-filter on" data-filter="fight"    onclick="toggleFilter('fight')">FIGHT</button>
+            <button class="btn-filter on" data-filter="rotation" onclick="toggleFilter('rotation')">ROT</button>
+            <button class="btn-filter on" data-filter="pin"      onclick="toggleFilter('pin')">PIN</button>
           </div>
         </div>
       </div>
@@ -1396,6 +1452,7 @@ let state = {
   tournamentId: null, dayId: null, matchId: null,
   activeTeamId: null, mapKey: 'erangel',
   mode: 'zone', time: 0,
+  colorMode: 'type', // Session 64 (re-scan) — 'type' or 'team', ported from editor.html
 };
 let filters = { zone:true, fight:true, rotation:true, pin:true };
 
@@ -1413,6 +1470,7 @@ let pendingEventType  = null;  // 'elim'|'loss'|'wipe'|'ewipe'|'shooter_pos'
 let pendingEventCoords = null; // {wx, wy} from placement click
 let pendingKillerCoords = null; // Session 62 — optional shooter-position tag, self-loss only
 let pendingWipeKillerCoords = null; // Session 64 — same idea, self-wipe only, kept separate to avoid cross-contaminating the two flows
+let isAnnotationMode = true; // Session 64 (re-scan) — Annotate/Preview toggle, ported from editor.html
 let _pendingEwipePreselectTeamId = null; // Session 64 — set by Self Wipe's "by who" cascade, consumed once by openEwipeModal()
 
 // Drawing state
@@ -1572,7 +1630,7 @@ async function loadShapesForMatch(matchId) {
         shapesCache[row.team_id].push(dbRowToShape(row));
       });
     }
-    const {data:zData} = await sb.from('shapes').select('*').eq('match_id',matchId).eq('type','circle').is('team_id',null).order('zone_phase');
+    const {data:zData} = await sb.from('shapes').select('*').eq('match_id',matchId).eq('type','circle').is('team_id',null).eq('user_id',currentUser.id).order('zone_phase');
     zonesCache[matchId] = (zData||[]).map(dbRowToShape);
     setSyncState('saved'); draw();
   } catch(e) { setSyncState('error'); }
@@ -1583,10 +1641,10 @@ async function loadMatchPlayers(matchId) {
   if(!sb||!matchId||!currentUser) return;
   try {
     let {data,error} = await sb.from('match_players')
-      .select('id,player_id,kills,damage,time_of_loss,killed_by_team_id,death_x,death_y,created_at')
+      .select('id,player_id,kills,damage,time_of_loss,killed_by_team_id,death_x,death_y,killer_x,killer_y,loss_type,created_at')
       .eq('match_id',matchId).eq('user_id',currentUser.id).order('created_at');
     if(error||!data||!data.length){
-      const fb = await sb.from('match_players').select('id,player_id,kills,damage,time_of_loss,killed_by_team_id,death_x,death_y,created_at').eq('match_id',matchId).order('created_at');
+      const fb = await sb.from('match_players').select('id,player_id,kills,damage,time_of_loss,killed_by_team_id,death_x,death_y,killer_x,killer_y,loss_type,created_at').eq('match_id',matchId).order('created_at');
       if(!fb.error&&fb.data&&fb.data.length){ data=fb.data; error=null; }
       else if(fb.error) return;
     }
@@ -1604,22 +1662,24 @@ async function loadMatchPlayers(matchId) {
       time_of_loss:r.time_of_loss??null,
       killed_by_team_id:r.killed_by_team_id||null,
       death_x:r.death_x??null, death_y:r.death_y??null,
+      killer_x:r.killer_x??null, killer_y:r.killer_y??null,
+      loss_type:r.loss_type??null,
     }));
   } catch(e) { matchPlayers=[]; }
 }
 
 async function loadAnnotations(matchId) {
-  if(!sb||!matchId) { annotations=[]; return; }
+  if(!sb||!matchId||!currentUser) { annotations=[]; return; }
   try {
-    const {data,error}=await sb.from('annotations').select('*').eq('match_id',matchId).order('time_seconds');
+    const {data,error}=await sb.from('annotations').select('*').eq('match_id',matchId).eq('user_id',currentUser.id).order('time_seconds');
     annotations = error ? [] : (data||[]);
   } catch(e) { annotations=[]; }
 }
 
 async function loadSelfElims(matchId) {
-  if(!sb||!matchId||String(matchId).startsWith('local_')) { selfElims=[]; return; }
+  if(!sb||!matchId||!currentUser||String(matchId).startsWith('local_')) { selfElims=[]; return; }
   try {
-    const {data,error} = await sb.from('self_elims').select('*').eq('match_id',matchId).order('time_seconds');
+    const {data,error} = await sb.from('self_elims').select('*').eq('match_id',matchId).eq('user_id',currentUser.id).order('time_seconds');
     selfElims = error ? [] : (data||[]);
   } catch(e) { selfElims=[]; }
 }
@@ -2463,13 +2523,19 @@ function openEwipeModal(t, wx, wy) {
 // team-select changes, since that selection isn't known until the operator picks it.
 function _rebuildEwipeByWho() {
   const wipedTeamId = document.getElementById('ewipe-team-select').value;
+  const wipedTeam = teams.find(t2=>t2.id===wipedTeamId);
   const byWhoSel = document.getElementById('ewipe-by-who');
   const prev = byWhoSel.value;
   byWhoSel.innerHTML = '<option value="">— None —</option>';
   teams.filter(t2=>t2.match_id===state.matchId && t2.id!==wipedTeamId).forEach(t2=>{
     byWhoSel.add(new Option(t2.is_self?`${t2.name} (SELF)`:t2.name, t2.name));
   });
-  byWhoSel.value = [...byWhoSel.options].some(o=>o.value===prev) ? prev : '';
+  // Session 64 (re-scan fix): prefer the team's already-saved wiped_by_name
+  // (matching editor.html's openWipeModal prefill) over the session-only
+  // carried-over selection — previously this never read the stored value back,
+  // so reopening Enemy Wipe always started "by who" blank even with data saved.
+  const desired = wipedTeam?.wiped_by_name || prev;
+  byWhoSel.value = [...byWhoSel.options].some(o=>o.value===desired) ? desired : '';
 }
 
 function _prefillEwipeKills() {
@@ -2489,10 +2555,13 @@ async function confirmEnemyWipe() {
   closeModal('ewipe-modal');
 
   // Undo if already wiped at current time (dropdown showed it with an "↩ ... (undo wipe)" label)
+  // Session 64 (re-scan fix): leave team.kills untouched, matching editor.html's
+  // equivalent undo branch — previously zeroed it here even though undoing a
+  // wipe shouldn't also erase a KP count the operator may have entered separately.
   if (team.time_of_wipe === t) {
-    team.time_of_wipe = null; team.confirmed_position = null; team.kills = 0;
+    team.time_of_wipe = null; team.confirmed_position = null;
     if (sb && !String(teamId).startsWith('local_')) {
-      await sb.from('teams').update({time_of_wipe:null, confirmed_position:null, kills:0}).eq('id',teamId);
+      await sb.from('teams').update({time_of_wipe:null, confirmed_position:null}).eq('id',teamId);
     }
     toast(`${team.name} wipe removed`, 'ok');
     renderTimelineMarkers(); renderSquadPanel(); draw();
@@ -2882,12 +2951,14 @@ async function confirmActiveSquad() {
   const selectedPids = [..._apmSelectedIds];
   closeModal('active-players-modal');
   try {
-    const {data:existingRows} = await sb.from('match_players').select('id,player_id').eq('match_id',mid);
-    const existingPids = new Set((existingRows||[]).map(r=>r.player_id));
+    // Reconcile against the already-loaded, user-scoped matchPlayers array
+    // instead of a fresh unscoped query (matches editor.html's confirmActivePlayers).
+    const existingByPid = new Map((matchPlayers||[]).map(mp=>[mp.player_id, mp]));
+    const existingPids = new Set([...existingByPid.keys()]);
     const newPids = selectedPids.filter(pid=>!existingPids.has(pid));
     const removedPids = [...existingPids].filter(pid=>!selectedPids.includes(pid));
     if (removedPids.length) {
-      const removedIds = (existingRows||[]).filter(r=>removedPids.includes(r.player_id)).map(r=>r.id);
+      const removedIds = removedPids.map(pid=>existingByPid.get(pid)?.id).filter(Boolean);
       if(removedIds.length) await sb.from('match_players').delete().in('id',removedIds);
     }
     if (newPids.length) {
@@ -3001,27 +3072,35 @@ function renderEventLog() {
   });
 
   // Self loss — from matchPlayers (already loaded + live-mutated)
+  // Session 64 (re-scan fix) — undoable, matching editor.html's per-entry undo
   matchPlayers.filter(p=>p.time_of_loss!=null).forEach(p=>{
     const kbTeam = p.killed_by_team_id ? teams.find(t2=>t2.id===p.killed_by_team_id) : null;
-    events.push({ time:p.time_of_loss, title:`${p.name} down${kbTeam?` · by ${kbTeam.name}`:''}`, icon:'<iconify-icon icon="lucide:skull"></iconify-icon>', color:'var(--yellow)', wx:p.death_x, wy:p.death_y });
+    events.push({ time:p.time_of_loss, type:'loss', title:`${p.name} down${kbTeam?` · by ${kbTeam.name}`:''}`, icon:'<iconify-icon icon="lucide:skull"></iconify-icon>', color:'var(--yellow)', wx:p.death_x, wy:p.death_y, undoable:true, _player:p });
   });
 
   // Self elim — from selfElims (already loaded + live-mutated)
+  // Session 64 (re-scan fix) — undoable, matching editor.html's per-entry undo
   selfElims.forEach(row=>{
     const mp = matchPlayers.find(p=>p.player_id===row.player_id);
     const name = mp?.name || 'Unknown';
     const finishes = row.finish_count || 1;
-    events.push({ time:row.time_seconds, title:`${name} — ${finishes} finish${finishes!==1?'es':''}`, icon:'<iconify-icon icon="lucide:zap"></iconify-icon>', color:'#D9A404' });
+    events.push({ time:row.time_seconds, type:'elim', title:`${name} — ${finishes} finish${finishes!==1?'es':''}`, icon:'<iconify-icon icon="lucide:zap"></iconify-icon>', color:'#D9A404', undoable:true, _elim:row });
   });
 
   // Wipes — ALL match teams (self + enemy), from `teams` (already loaded + live-mutated)
+  // Session 64 (re-scan fix) — only SELF wipes get the new per-entry undo; enemy
+  // wipes already have a working undo path (re-select the team in the Enemy
+  // Wipe dropdown), so they deliberately stay non-undoable here to avoid two
+  // competing undo mechanisms for the same event.
   teams.filter(t=>t.match_id===state.matchId && t.time_of_wipe!=null).forEach(team=>{
     events.push({
       time:team.time_of_wipe,
+      type:'wipe',
       title: team.is_self ? `SELF wiped${team.confirmed_position?` — #${team.confirmed_position}`:''}` : `${team.name} wiped${team.confirmed_position?` — #${team.confirmed_position}`:''}`,
       icon: team.is_self ? '<iconify-icon icon="lucide:shield-x"></iconify-icon>' : '<iconify-icon icon="lucide:flag"></iconify-icon>',
       color: team.is_self ? 'var(--red)' : 'var(--orange)',
-      wx:team.wipe_x, wy:team.wipe_y
+      wx:team.wipe_x, wy:team.wipe_y,
+      undoable: team.is_self, _team: team.is_self ? team : undefined
     });
   });
 
@@ -3125,8 +3204,65 @@ function renderEventLog() {
       entry.appendChild(eyeBtn);
     }
 
+    // Session 64 (re-scan fix) — Self Elim/Loss/Wipe now get a persistent undo
+    // button, matching editor.html's annotation-undo-btn for the same 3 types.
+    if (ev.undoable) {
+      const undoBtn = document.createElement('button');
+      undoBtn.className = 'vel-undo-btn';
+      undoBtn.title = 'Undo';
+      undoBtn.innerHTML = '<iconify-icon icon="lucide:undo-2"></iconify-icon>';
+      undoBtn.onclick = (e) => { e.stopPropagation(); undoLogEvent(ev); };
+      entry.appendChild(undoBtn);
+    }
+
     container.appendChild(entry);
   });
+}
+
+// Session 64 (re-scan fix) — ported from editor.html's undoLogEvent(), scoped
+// to the 3 event types vod.html had no undo path for at all (Enemy Wipe/Match
+// End already have working undo via existing UI — re-select the team /
+// re-click End Match — so they're deliberately not routed through here).
+async function undoLogEvent(ev) {
+  if (ev.type === 'loss' && ev._player) {
+    const mp = ev._player;
+    // Reverse the KP credit this loss gave, if any (same fix applied to
+    // editor.html's equivalent branch during this same audit pass).
+    if (mp.killed_by_team_id) {
+      const killedByTeam = teams.find(t=>t.id===mp.killed_by_team_id);
+      if (killedByTeam) {
+        killedByTeam.kills = Math.max(0, (killedByTeam.kills||0) - 1);
+        if (sb && !String(killedByTeam.id).startsWith('local_')) await sb.from('teams').update({kills:killedByTeam.kills}).eq('id',killedByTeam.id);
+      }
+    }
+    mp.time_of_loss = null; mp.death_x = null; mp.death_y = null;
+    mp.killed_by_team_id = null; mp.killer_x = null; mp.killer_y = null; mp.loss_type = null;
+    if (sb && !String(mp.id).startsWith('local_')) await sb.from('match_players').update({time_of_loss:null,death_x:null,death_y:null,killed_by_team_id:null,killer_x:null,killer_y:null,loss_type:null}).eq('id',mp.id);
+    draw(); renderTimelineMarkers(); renderEventLog(); updateEventButtons();
+    toast('Loss undone','ok');
+
+  } else if (ev.type === 'elim' && ev._elim) {
+    const row = ev._elim;
+    const mp = matchPlayers.find(p=>p.player_id===row.player_id);
+    if (mp) {
+      mp.kills = Math.max(0, (mp.kills||0) - (row.finish_count||1));
+      if (sb && !String(mp.id).startsWith('local_')) await sb.from('match_players').update({kills:mp.kills}).eq('id',mp.id);
+    }
+    if (sb && row.id && !String(row.id).startsWith('local_')) await sb.from('self_elims').delete().eq('id',row.id);
+    selfElims = selfElims.filter(r=>r!==row);
+    renderEventLog();
+    toast('Elim undone','ok');
+
+  } else if (ev.type === 'wipe' && ev._team) {
+    const team = ev._team;
+    team.time_of_wipe = null; team.wipe_x = null; team.wipe_y = null; team.confirmed_position = null;
+    if (sb && !String(team.id).startsWith('local_')) {
+      await sb.from('teams').update({time_of_wipe:null,wipe_x:null,wipe_y:null,confirmed_position:null}).eq('id',team.id);
+    }
+    draw(); renderTimelineMarkers(); renderSquadPanel(); updateEventButtons();
+    renderEventLog();
+    toast('Wipe undone','ok');
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -3443,15 +3579,24 @@ async function applyUrlParams() {
   const pDId = params.get('dayId')||ctx.dayId||null;
   const pMId = params.get('matchId')||ctx.matchId||null;
 
-  if (pTId) { state.tournamentId=pTId; }
-  if (pDId) { state.dayId=pDId; }
-
   if (pMId) {
-    // Deep-linked to specific match
-    state.matchId=pMId;
-    await onMatchChange(pMId);
+    // Deep-linked to specific match — validate it belongs to this user before
+    // loading anything (matches/tournaments/days are already bulk-loaded scoped
+    // by user_id at boot, so a hit here is a genuine ownership check, not just
+    // an existence check). Previously this trusted the URL/sessionStorage value
+    // directly and called onMatchChange() with no verification at all.
+    const match = matches.find(m=>m.id===pMId);
+    if (!match) { toast('LINK ERROR: match not found','err'); return; }
+    const tournament = pTId && tournaments.find(t=>t.id===pTId);
+    const day = pDId && days.find(d=>d.id===pDId);
+    if (tournament) state.tournamentId = tournament.id;
+    if (day) state.dayId = day.id;
+    state.matchId = match.id;
+    await onMatchChange(match.id);
     return;
   }
+  if (pTId) { const t = tournaments.find(t=>t.id===pTId); if (t) state.tournamentId=t.id; }
+  if (pDId) { const d = days.find(d=>d.id===pDId); if (d) state.dayId=d.id; }
 
   // No match specified — auto-load the most recently edited match
   if (!matches.length) return;
@@ -3508,6 +3653,7 @@ function initCanvas() {
   canvas.addEventListener('touchend',   onPointerUp,   {passive:false});
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup',   onKeyUp);
+  updateSliders();
   setMode('zone');
 }
 
@@ -3694,6 +3840,12 @@ function onPointerDown(e) {
   }
   if(e.touches&&state.mode==='pan'){
     isPanning=true; panSX=screenX; panSY=screenY; panPX=panX; panPY=panY; return;
+  }
+  // Session 64 (re-scan) — Preview mode: any plain click/touch pans directly,
+  // bypassing whichever drawing tool is selected (ported from editor.html).
+  if(!isAnnotationMode){
+    isPanning=true; panSX=screenX; panSY=screenY; panPX=panX; panPY=panY;
+    canvas.style.cursor='grabbing'; return;
   }
 
   const shapes = getActiveShapes();
@@ -3901,33 +4053,29 @@ function cancelPath() {
 // ERASE
 // ══════════════════════════════════════════════════════
 async function eraseAt(wx, wy) {
-  // Check zones first
-  const zones = zonesCache[state.matchId]||[];
-  for(let i=zones.length-1;i>=0;i--){
-    const z=zones[i]; if(z.time>state.time) continue;
-    if(Math.sqrt((z.cx-wx)**2+(z.cy-wy)**2)<z.r+10/zoom){ // within circle radius
-      zones.splice(i,1);
-      _recordZoneAction(state.matchId,{op:'erase',shape:z,index:i});
-      if(sb&&z.id&&!String(z.id).startsWith('local_')) await sb.from('shapes').delete().eq('id',z.id);
-      draw(); renderTimelineMarkers(); return;
-    }
-  }
-  // Check active team's shapes only (matches how shapes are added/undone — see getActiveShapes/undo)
+  // Session 64 (re-scan fix): check order and hit-test radii now match
+  // editor.html's eraseAtPosition() exactly — pins/fight, then paths/lines,
+  // then zones last (circumference-only, not "anywhere inside"). Previously
+  // this checked zones first with an anywhere-inside hit-test, so the same
+  // click could erase a zone in vod.html but do nothing in editor.html.
   const shapes=getActiveShapes();
   if(shapes){
     for(let i=shapes.length-1;i>=0;i--){
       const s=shapes[i]; if(s.time>state.time) continue;
       if(s.type==='pin'||s.type==='fight'){
-        if(Math.sqrt((s.x-wx)**2+(s.y-wy)**2)<10/zoom){
+        if(Math.sqrt((s.x-wx)**2+(s.y-wy)**2)<12/zoom){
           shapes.splice(i,1);
           _recordShapeAction(state.activeTeamId,{op:'erase',shape:s,index:i});
           if(sb&&s.id&&!String(s.id).startsWith('local_')) await sb.from('shapes').delete().eq('id',s.id);
           draw(); renderTimelineMarkers(); return;
         }
       }
+    }
+    for(let i=shapes.length-1;i>=0;i--){
+      const s=shapes[i]; if(s.time>state.time) continue;
       if(s.type==='path'&&s.points){
         for(const pt of s.points){
-          if(Math.sqrt((pt.x-wx)**2+(pt.y-wy)**2)<8/zoom){
+          if(Math.sqrt((pt.x-wx)**2+(pt.y-wy)**2)<10/zoom){
             shapes.splice(i,1);
             _recordShapeAction(state.activeTeamId,{op:'erase',shape:s,index:i});
             if(sb&&s.id&&!String(s.id).startsWith('local_')) await sb.from('shapes').delete().eq('id',s.id);
@@ -3946,6 +4094,18 @@ async function eraseAt(wx, wy) {
           draw(); renderTimelineMarkers(); return;
         }
       }
+    }
+  }
+  // Zones (match-level) — only erase when clicking near the circumference
+  const zones = zonesCache[state.matchId]||[];
+  for(let i=zones.length-1;i>=0;i--){
+    const z=zones[i]; if(z.time>state.time) continue;
+    const dist=Math.sqrt((z.cx-wx)**2+(z.cy-wy)**2);
+    if(Math.abs(dist-z.r)<10/zoom){
+      zones.splice(i,1);
+      _recordZoneAction(state.matchId,{op:'erase',shape:z,index:i});
+      if(sb&&z.id&&!String(z.id).startsWith('local_')) await sb.from('shapes').delete().eq('id',z.id);
+      draw(); renderTimelineMarkers(); return;
     }
   }
 }
@@ -4193,9 +4353,12 @@ function draw() {
 
 function drawShape(s, isPreview, teamColor, alphaMult) {
   const am=alphaMult??1;
-  const lw=2/zoom, op=0.85;
-  // Ported from editor.html: shapes are colored by fixed type (tagRgb), not by team.
-  const [r,g,b]=tagRgb(s.tag);
+  const w=+document.getElementById('sl-width').value;
+  const op=+document.getElementById('sl-opacity').value;
+  const lw=w/zoom;
+  // Ported from editor.html: shapes are colored by fixed type (tagRgb) by default;
+  // Session 64 (re-scan) — now also respects state.colorMode==='team', matching editor.html.
+  const [r,g,b]=(state.colorMode==='team'&&teamColor) ? hexRgb(teamColor) : tagRgb(s.tag);
   const stroke=`rgba(${r},${g},${b},${(op*am).toFixed(2)})`;
   const fill  =`rgba(${r},${g},${b},${(op*am*.12).toFixed(2)})`;
   ctx.strokeStyle=stroke; ctx.fillStyle=fill; ctx.lineWidth=lw; ctx.setLineDash([]);
@@ -4204,7 +4367,7 @@ function drawShape(s, isPreview, teamColor, alphaMult) {
   } else if(s.type==='path'){
     drawPath(s.points,stroke,lw,isPreview);
   } else if(s.type==='pin'||s.type==='fight'){
-    drawPinMarker(s,isPreview,am);
+    drawPinMarker(s,isPreview,teamColor,am);
     if(s.type==='fight'&&s.teamA){
       ctx.fillStyle=`rgba(${r},${g},${b},${am.toFixed(2)})`;
       ctx.font=`bold ${9/zoom}px JetBrains Mono,monospace`;
@@ -4215,7 +4378,9 @@ function drawShape(s, isPreview, teamColor, alphaMult) {
 
 function drawZoneCircle(s, isPreview) {
   // Ported from editor.html: stroke-only white ring, no fill, no label.
-  const lw=2/zoom, op=.85;
+  const w=+document.getElementById('sl-width').value;
+  const op=+document.getElementById('sl-opacity').value;
+  const lw=w/zoom;
   ctx.beginPath(); ctx.arc(s.cx,s.cy,s.r,0,Math.PI*2);
   ctx.strokeStyle=`rgba(255,255,255,${op.toFixed(2)})`; ctx.lineWidth=lw;
   ctx.setLineDash([]); ctx.stroke();
@@ -4245,13 +4410,15 @@ function drawPath(points, stroke, lw, isPreview) {
   if(points.length>=2) drawArrow(points[points.length-2].x,points[points.length-2].y,points[points.length-1].x,points[points.length-1].y,stroke,lw);
 }
 
-function drawPinMarker(s, isPreview, alphaMult) {
+function drawPinMarker(s, isPreview, teamColor, alphaMult) {
   // Ported from editor.html: fight = orange diamond + white X; plain pin = small teal circle.
+  // Session 64 (re-scan): fight diamond now also respects state.colorMode==='team',
+  // matching editor.html — plain pin stays hardcoded teal in both files regardless of mode.
   const x=s.x, y=s.y;
   const dr=mpx(isPreview?9:11);
 
   if(s.tag==='fight'||s.type==='fight'){
-    const [r,g,b]=tagRgb('fight');
+    const [r,g,b]=(state.colorMode==='team'&&teamColor) ? hexRgb(teamColor) : tagRgb('fight');
     ctx.beginPath();
     ctx.moveTo(x,y-dr); ctx.lineTo(x+dr,y); ctx.lineTo(x,y+dr); ctx.lineTo(x-dr,y);
     ctx.closePath(); ctx.fillStyle=`rgb(${r},${g},${b})`; ctx.fill();
@@ -4901,8 +5068,8 @@ function shapeToDbRow(shape, teamId, matchId) {
 function dbRowToShape(row) {
   const base={id:row.id,type:row.type,tag:row.tag,time:row.time_seconds,source:row.source||'vod',note:row.note||undefined};
   if(row.type==='circle') return {...base,cx:row.cx,cy:row.cy,r:row.radius,zone_phase:row.zone_phase||1};
-  if(row.type==='line')   return {...base,x1:row.x1,y1:row.y1,x2:row.x2,y2:row.y2};
-  if(row.type==='path')   return {...base,points:typeof row.path_points==='string'?JSON.parse(row.path_points):row.path_points};
+  if(row.type==='line')   return {...base,x1:row.x1,y1:row.y1,x2:row.x2,y2:row.y2,rotation_index:row.rotation_index};
+  if(row.type==='path')   return {...base,points:typeof row.path_points==='string'?JSON.parse(row.path_points):row.path_points,rotation_index:row.rotation_index};
   if(row.type==='pin')    return {...base,x:row.pin_x,y:row.pin_y,label:row.label};
   if(row.type==='fight')  return {...base,x:row.pin_x,y:row.pin_y,teamA:row.fight_team_a,teamB:row.fight_team_b,
     our_alive_count:row.our_alive_count,enemy_alive_count:row.enemy_alive_count,
@@ -5081,13 +5248,53 @@ function refreshTeamSelector() {
 function setMode(m){
   state.mode=m;
   _moveDrag=null;
-  document.querySelectorAll('.tb-mode-pill').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
+  // Scoped to [data-mode] so the separate Annotate/Preview toggle buttons
+  // (same .tb-mode-pill styling class, no data-mode attribute) aren't affected.
+  document.querySelectorAll('.tb-mode-pill[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
   if(m!=='path'&&pathDrawing) cancelPath();
   if(m!=='zone'){ circleP1=null; drawing=false; preview=null; }
   let cursor='crosshair';
   if(m==='erase') cursor='not-allowed';
   else if(m==='move') cursor='default';
   canvas.style.cursor=cursor; draw();
+}
+
+// Session 64 (re-scan) — shape-type visibility filters, ported from editor.html.
+// The `filters` object and its use in draw()'s per-team shape loop already
+// existed in vod.html (Session 62) — only this UI row to actually flip the
+// values was missing.
+function toggleFilter(t){
+  filters[t]=!filters[t];
+  document.querySelector('.btn-filter[data-filter="'+t+'"]').classList.toggle('on',filters[t]);
+  draw();
+}
+
+// Session 64 (re-scan) — BY TYPE / BY TEAM marker-coloring toggle, ported from editor.html.
+function setColorMode(m){
+  state.colorMode=m;
+  document.getElementById('cm-type').classList.toggle('active',m==='type');
+  document.getElementById('cm-team').classList.toggle('active',m==='team');
+  draw();
+}
+
+// Session 64 (re-scan) — stroke width/opacity sliders, ported from editor.html.
+function updateSliders(){
+  document.getElementById('sv-width').textContent=document.getElementById('sl-width').value;
+  const op=parseFloat(document.getElementById('sl-opacity').value).toFixed(2).replace('0.','.');
+  document.getElementById('sv-opacity').textContent=op;
+  draw();
+}
+
+// Session 64 (re-scan) — Annotate/Preview toggle, ported from editor.html.
+// Preview mode makes any plain click/touch pan the map instead of engaging
+// whichever drawing tool is currently selected (see the isAnnotationMode
+// check near the top of onPointerDown) — a temporary read-only browsing mode.
+function toggleAnnotationMode(isEdit){
+  isAnnotationMode=isEdit;
+  document.getElementById('btn-edit-mode').classList.toggle('active',isEdit);
+  document.getElementById('btn-preview-mode').classList.toggle('active',!isEdit);
+  canvas.style.cursor=isEdit?'crosshair':'grab';
+  if(!isEdit){ circleP1=null; drawing=false; pathDrawing=false; pathPoints=[]; preview=null; draw(); }
 }
 function closeModal(id){ document.getElementById(id).classList.remove('show'); }
 function toast(msg,type='info'){
