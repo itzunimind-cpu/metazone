@@ -507,6 +507,12 @@ body{ font-family:var(--font-body); background:var(--bg); color:var(--text); hei
   transition:border-color .2s;
 }
 .modal-select:focus{ border-color:var(--accent); }
+.fight-mode-toggle{ display:flex;gap:3px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:3px;margin-bottom:2px; }
+.fight-mode-btn{
+  flex:1;padding:6px 4px;background:none;border:none;color:var(--muted);cursor:pointer;
+  font-family:var(--font-mono);font-size:9px;letter-spacing:.05em;border-radius:4px;transition:all .15s;
+}
+.fight-mode-btn.active{ background:var(--orange);color:#fff; }
 
 /* ── RESULTS PANEL ── */
 #results-panel{
@@ -856,6 +862,7 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
         <button class="tb-mode-pill" data-mode="zone"  onclick="setMode('zone')"  title="Zone Circle (drag)"><iconify-icon icon="lucide:circle"></iconify-icon></button>
         <button class="tb-mode-pill" data-mode="path"  onclick="setMode('path')"  title="Path — click waypoints, RIGHT-CLICK to finish"><iconify-icon icon="lucide:spline"></iconify-icon></button>
         <button class="tb-mode-pill" data-mode="pin"   onclick="setMode('pin')"   title="Pin"><iconify-icon icon="lucide:map-pin"></iconify-icon></button>
+        <button class="tb-mode-pill" data-mode="fight" onclick="setMode('fight')" title="Fight / 3rd Party"><iconify-icon icon="lucide:swords"></iconify-icon></button>
         <button class="tb-mode-pill" data-mode="rotation" onclick="setMode('rotation')" title="Arrow — drag to draw rotation"><iconify-icon icon="lucide:arrow-right"></iconify-icon></button>
         <button class="tb-mode-pill" data-mode="move" onclick="setMode('move')" title="Move — drag to reposition"><iconify-icon icon="lucide:move"></iconify-icon></button>
 
@@ -863,6 +870,7 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
 
         <button class="tb-mode-pill" data-mode="erase" onclick="setMode('erase')" title="Erase shape"><iconify-icon icon="lucide:eraser"></iconify-icon></button>
         <button class="vlt-btn" onclick="undo()" title="Undo (Ctrl+Z)"><iconify-icon icon="lucide:undo-2"></iconify-icon></button>
+        <button class="vlt-btn" id="btn-redo" onclick="redo()" title="Redo" disabled style="opacity:.4;cursor:not-allowed;"><iconify-icon icon="lucide:redo-2"></iconify-icon></button>
 
         <div class="vlt-divider"></div>
 
@@ -876,6 +884,7 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
         <button class="vlt-btn" onclick="openLoadMatchModal()" title="Load match / VOD link"><iconify-icon icon="lucide:folder-open"></iconify-icon></button>
         <button class="vlt-btn cal-mode-btn" id="btn-calibrate" onclick="toggleCalibration()" title="2-point map calibration"><iconify-icon icon="lucide:crosshair"></iconify-icon></button>
         <button class="vlt-btn" id="btn-save" onclick="manualSave()" title="Save"><iconify-icon icon="lucide:save"></iconify-icon></button>
+        <button class="vlt-btn" onclick="downloadSnapshot()" title="Screenshot (PNG)"><iconify-icon icon="lucide:camera"></iconify-icon></button>
 
         <div class="vlt-divider"></div>
 
@@ -1136,6 +1145,21 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
       <span class="pos-label">PLACEMENT</span>
       <input class="pos-input" id="wipe-position" type="number" min="1" max="25" value="1">
     </div>
+    <div class="modal-label modal-label-spaced">WHO GOT ELIMINATED</div>
+    <select class="modal-select" id="wipe-who-player"></select>
+    <div class="modal-label modal-label-spaced">BY WHO (optional)</div>
+    <select class="modal-select" id="wipe-by-who">
+      <option value="">— None —</option>
+    </select>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+      <button class="btn-modal-cancel" style="flex:none;padding:6px 10px;font-size:9px;" onclick="_tagWipeKillerPositionVod()">TAG SHOOTER POSITION</button>
+      <span id="wipe-shooter-tagged" style="font-family:var(--font-mono);font-size:9px;color:var(--accent);"></span>
+    </div>
+    <select class="modal-select" id="wipe-loss-type" style="margin-top:6px;">
+      <option value="">Type of loss — optional</option>
+      <option value="unfortunate">Unfortunate</option>
+      <option value="1v1">1v1</option>
+    </select>
     <div class="modal-actions">
       <button class="btn-modal-cancel" onclick="closeModal('wipe-modal')">CANCEL</button>
       <button class="btn-modal-confirm red" onclick="confirmSelfWipe()">CONFIRM</button>
@@ -1149,7 +1173,7 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
     <div class="modal-title"><iconify-icon icon="lucide:flag"></iconify-icon> ENEMY WIPE</div>
     <div class="modal-sub" id="ewipe-modal-time">At 00:00</div>
     <div class="modal-label">WHICH TEAM WAS ELIMINATED?</div>
-    <select class="modal-select" id="ewipe-team-select" onchange="_prefillEwipeKills()">
+    <select class="modal-select" id="ewipe-team-select" onchange="_prefillEwipeKills();_rebuildEwipeByWho();">
       <option value="">— Select team —</option>
     </select>
     <div class="pos-row">
@@ -1160,9 +1184,45 @@ body.cal-phase1-active #overlay-canvas{ cursor:crosshair; }
       <span class="pos-label">KILLS (KP)</span>
       <input class="pos-input" id="ewipe-kills" type="number" min="0" max="99" value="0">
     </div>
+    <div class="modal-label modal-label-spaced">BY WHO (optional)</div>
+    <select class="modal-select" id="ewipe-by-who">
+      <option value="">— None —</option>
+    </select>
     <div class="modal-actions">
       <button class="btn-modal-cancel" onclick="closeModal('ewipe-modal')">CANCEL</button>
       <button class="btn-modal-confirm orange" id="btn-ewipe-confirm" onclick="confirmEnemyWipe()">CONFIRM</button>
+    </div>
+  </div>
+</div>
+
+<!-- FIGHT Modal (Session 64 — ported from editor.html's #pin-popup fight branch) -->
+<div class="modal-backdrop" id="fight-modal">
+  <div class="modal-box modal-sm">
+    <div class="modal-title"><iconify-icon icon="lucide:crosshair"></iconify-icon> FIGHT</div>
+    <div class="fight-mode-toggle" id="fight-mode-toggle">
+      <button type="button" class="fight-mode-btn active" data-mode="fight" onclick="setFightMode('fight')">FIGHT</button>
+      <button type="button" class="fight-mode-btn" data-mode="thirdparty" onclick="setFightMode('thirdparty')">3RD PARTY</button>
+    </div>
+    <select class="modal-select" id="fm-a-sel"></select>
+    <div class="modal-label" id="fm-vs-sep" style="text-align:center;color:var(--red);">— VS —</div>
+    <select class="modal-select" id="fm-b-sel"></select>
+    <div class="pos-row" id="fm-engagement-row">
+      <span class="pos-label">OUR ALIVE</span>
+      <input class="pos-input" type="number" id="fm-our-alive" min="0" max="4">
+    </div>
+    <div class="pos-row" id="fm-engagement-row2">
+      <span class="pos-label">ENEMY ALIVE</span>
+      <input class="pos-input" type="number" id="fm-enemy-alive" min="0" max="4">
+    </div>
+    <select class="modal-select" id="fm-result">
+      <option value="">Result — optional</option>
+      <option value="won">Won</option>
+      <option value="lost">Lost</option>
+      <option value="disengage">Disengage</option>
+    </select>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closeFightModal()">CANCEL</button>
+      <button class="btn-modal-confirm cyan" id="btn-fight-confirm" onclick="confirmFightModal()">PLACE</button>
     </div>
   </div>
 </div>
@@ -1352,6 +1412,8 @@ let mapOpacity        = 0.62;
 let pendingEventType  = null;  // 'elim'|'loss'|'wipe'|'ewipe'|'shooter_pos'
 let pendingEventCoords = null; // {wx, wy} from placement click
 let pendingKillerCoords = null; // Session 62 — optional shooter-position tag, self-loss only
+let pendingWipeKillerCoords = null; // Session 64 — same idea, self-wipe only, kept separate to avoid cross-contaminating the two flows
+let _pendingEwipePreselectTeamId = null; // Session 64 — set by Self Wipe's "by who" cascade, consumed once by openEwipeModal()
 
 // Drawing state
 let drawing = false, circleP1 = null, dSX = 0, dSY = 0, preview = null;
@@ -1397,6 +1459,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   _detectNoteCol(); // fire-and-forget capability probe — see definition
   _detectFightOutcomeCols(); // fire-and-forget capability probe — see definition
   _detectKillMetaCols(); // fire-and-forget capability probe — see definition
+  _detectWipeDetailCols(); // fire-and-forget capability probe — see definition
   const { data: { session } } = await sb.auth.getSession();
   if (session) {
     _booted = true;
@@ -1467,7 +1530,7 @@ async function signOut() { if (sb) await sb.auth.signOut(); }
 function resetLocalState() {
   tournaments=[]; days=[]; matches=[]; teams=[];
   shapesCache={}; zonesCache={}; annotations=[]; selfElims=[]; matchPlayers=[];
-  Object.keys(shapeHistory).forEach(k=>delete shapeHistory[k]); Object.keys(zoneHistory).forEach(k=>delete zoneHistory[k]);
+  Object.keys(shapeHistory).forEach(k=>delete shapeHistory[k]); Object.keys(zoneHistory).forEach(k=>delete zoneHistory[k]); Object.keys(redoStack).forEach(k=>delete redoStack[k]);
   state.tournamentId=null; state.dayId=null; state.matchId=null; state.activeTeamId=null;
   matchActive=false; vodStartOffset=0; matchTime=0;
   if (ytPlayer && typeof ytPlayer.stopVideo === 'function') ytPlayer.stopVideo();
@@ -2046,6 +2109,14 @@ function handlePlacementClick(wx, wy) {
       document.getElementById('loss-shooter-tagged').textContent = '✓ tagged';
       document.getElementById('loss-modal').classList.add('show');
       break;
+    case 'shooter_pos_wipe':
+      // Session 64 — same idea as 'shooter_pos' but for the Self Wipe modal's
+      // final-elimination detail. Kept as its own case (not a reuse of
+      // 'shooter_pos') since that one is hardcoded to reopen #loss-modal.
+      pendingWipeKillerCoords = { wx, wy };
+      document.getElementById('wipe-shooter-tagged').textContent = '✓ tagged';
+      document.getElementById('wipe-modal').classList.add('show');
+      break;
   }
   pendingEventType = null;
   return true;
@@ -2060,6 +2131,18 @@ function _tagKillerPositionVod() {
   document.getElementById('pb-icon').innerHTML = '<iconify-icon icon="lucide:crosshair"></iconify-icon>';
   document.getElementById('pb-text').textContent = 'TAG SHOOTER POSITION — click map';
   document.getElementById('pb-text').style.color = '#E8C84A';
+  document.getElementById('placement-banner').classList.add('show');
+  canvas.style.cursor = 'crosshair';
+}
+
+// Session 64 — Self Wipe's own "from where," identical mechanic to
+// _tagKillerPositionVod() above but reopening #wipe-modal instead of #loss-modal.
+function _tagWipeKillerPositionVod() {
+  document.getElementById('wipe-modal').classList.remove('show');
+  pendingEventType = 'shooter_pos_wipe';
+  document.getElementById('pb-icon').innerHTML = '<iconify-icon icon="lucide:crosshair"></iconify-icon>';
+  document.getElementById('pb-text').textContent = 'TAG SHOOTER POSITION — click map';
+  document.getElementById('pb-text').style.color = '#F08A80';
   document.getElementById('placement-banner').classList.add('show');
   canvas.style.cursor = 'crosshair';
 }
@@ -2235,6 +2318,34 @@ function openSelfWipeModal(t, wx, wy) {
   const pos = calcWipePosition();
   document.getElementById('wipe-modal-time').textContent = `At ${fmtTime(t)} — placement position (editable)`;
   document.getElementById('wipe-position').value = pos;
+  pendingWipeKillerCoords = null;
+  document.getElementById('wipe-shooter-tagged').textContent = '';
+
+  // Session 64 — who got eliminated / by who / type of loss, mirroring editor.html's
+  // Self Wipe redesign. "Who" defaults to whichever player has the latest
+  // time_of_loss (the common case, since the last-player-death auto-cascade
+  // already got us here for that player) but stays editable.
+  const whoSel = document.getElementById('wipe-who-player');
+  whoSel.innerHTML = '';
+  matchPlayers.forEach(p=>whoSel.add(new Option(p.name, p.id)));
+  const lastLost = [...matchPlayers].filter(p=>p.time_of_loss!=null).sort((a,b)=>b.time_of_loss-a.time_of_loss)[0];
+  if (lastLost) whoSel.value = lastLost.id;
+
+  const byWhoSel = document.getElementById('wipe-by-who');
+  const lossTypeSel = document.getElementById('wipe-loss-type');
+  byWhoSel.innerHTML = '<option value="">— None —</option>';
+  teams.filter(t2=>t2.match_id===state.matchId&&!t2.is_self&&(t2.time_of_wipe==null||t2.time_of_wipe>state.time))
+    .forEach(t2=>byWhoSel.add(new Option(t2.name, t2.id)));
+
+  const _prefillFromPlayer = () => {
+    const p = matchPlayers.find(mp=>mp.id===whoSel.value);
+    byWhoSel.value = p?.killed_by_team_id || '';
+    lossTypeSel.value = p?.loss_type || '';
+    document.getElementById('wipe-shooter-tagged').textContent = p?.killer_x!=null ? '✓ tagged' : '';
+  };
+  whoSel.onchange = _prefillFromPlayer;
+  _prefillFromPlayer();
+
   document.getElementById('wipe-modal').classList.add('show');
 }
 
@@ -2250,6 +2361,13 @@ async function confirmSelfWipe() {
   const pos = parseInt(document.getElementById('wipe-position').value,10) || null;
   const coords = pendingEventCoords;
   const t = state.time;
+
+  // Session 64 — read the new fields before closeModal() (doesn't clear these,
+  // but keep the read-then-close ordering consistent with the rest of this file's modals)
+  const whoPlayerId = document.getElementById('wipe-who-player').value || null;
+  const byWhoTeamId = document.getElementById('wipe-by-who').value || null;
+  const lossType = document.getElementById('wipe-loss-type').value || null;
+  const killerCoords = pendingWipeKillerCoords;
   closeModal('wipe-modal');
 
   selfTeam.time_of_wipe = t;
@@ -2261,10 +2379,53 @@ async function confirmSelfWipe() {
     await sb.from('teams').update(upd).eq('id',selfTeam.id);
   }
 
+  // Session 64 — final-elimination detail, written onto the selected player's
+  // match_players row (same fields Self Loss uses). KP auto-credit only fires
+  // for a genuinely NEW attribution, so re-confirming a wipe for a player whose
+  // Self Loss already credited "by who" doesn't double-count.
+  if (whoPlayerId) {
+    const player = matchPlayers.find(p=>p.id===whoPlayerId);
+    if (player) {
+      const alreadyCredited = byWhoTeamId && player.killed_by_team_id===byWhoTeamId;
+      if (player.time_of_loss==null) player.time_of_loss = t;
+      if (byWhoTeamId) player.killed_by_team_id = byWhoTeamId;
+      if (killerCoords) { player.killer_x=killerCoords.wx; player.killer_y=killerCoords.wy; }
+      if (lossType!=null && _hasWipeDetailCols) player.loss_type = lossType;
+      if (sb && !String(player.id).startsWith('local_')) {
+        const pUpd = {};
+        if (player.time_of_loss!=null) pUpd.time_of_loss = player.time_of_loss;
+        if (byWhoTeamId) pUpd.killed_by_team_id = byWhoTeamId;
+        if (killerCoords && _hasKillMetaCols) { pUpd.killer_x=killerCoords.wx; pUpd.killer_y=killerCoords.wy; }
+        if (lossType!=null && _hasWipeDetailCols) pUpd.loss_type = lossType;
+        if (Object.keys(pUpd).length) await sb.from('match_players').update(pUpd).eq('id',player.id);
+      }
+      if (byWhoTeamId && !alreadyCredited) {
+        const byWhoTeam = teams.find(t2=>t2.id===byWhoTeamId);
+        if (byWhoTeam) {
+          byWhoTeam.kills = (byWhoTeam.kills||0)+1;
+          if (sb && !String(byWhoTeam.id).startsWith('local_')) {
+            try { await sb.from('teams').update({kills:byWhoTeam.kills}).eq('id',byWhoTeam.id); } catch(e) {}
+          }
+        }
+      }
+    }
+  }
+
   addEventLog({ icon:'<iconify-icon icon="lucide:shield-x"></iconify-icon>', title:`SELF wiped${pos?` — #${pos}`:''}`, time:t, color:'var(--red)' });
   toast(`SELF wiped @ ${fmtTime(t)}${pos?` — #${pos}`:''}`, 'ok');
   renderTimelineMarkers(); renderSquadPanel(); updateEventButtons(); draw();
   pendingEventCoords = null;
+  pendingWipeKillerCoords = null;
+
+  // Session 64 — continue the cascade: self-wipe's "by who" auto-opens Enemy
+  // Wipe for that team right after, mirroring editor.html's equivalent cascade.
+  // vod.html's Enemy Wipe needs its own placement tap, so pre-select the team
+  // in the dropdown that opens (via _pendingEwipePreselectTeamId, consumed once
+  // by openEwipeModal()) rather than skipping straight to the modal.
+  if (byWhoTeamId) {
+    _pendingEwipePreselectTeamId = byWhoTeamId;
+    setTimeout(() => startEvent('ewipe'), 300);
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -2285,10 +2446,30 @@ function openEwipeModal(t, wx, wy) {
     const label = isWipedNow ? `↩ ${t2.name} (undo wipe)` : t2.name;
     sel.add(new Option(label, t2.id));
   });
-  sel.value = ''; // never carry a stale selection into a freshly rebuilt list
+  // Session 64 — pre-select the team credited via Self Wipe's "by who" cascade, if that's how we got here
+  sel.value = _pendingEwipePreselectTeamId && [...sel.options].some(o=>o.value===_pendingEwipePreselectTeamId)
+    ? _pendingEwipePreselectTeamId : '';
+  _pendingEwipePreselectTeamId = null;
   document.getElementById('ewipe-kills').value = 0;
   if(sel.options.length===1){ toast('ALL ENEMY TEAMS WIPED — seek to a wipe time to undo','warn'); return; }
+  if (sel.value) _prefillEwipeKills();
+  _rebuildEwipeByWho();
   document.getElementById('ewipe-modal').classList.add('show');
+}
+
+// Session 64 — "by who" (which team gets credit for THIS team's elimination):
+// SELF plus every other match team, excluding whichever team is currently
+// selected as the one being wiped. Rebuilt on open and whenever the main
+// team-select changes, since that selection isn't known until the operator picks it.
+function _rebuildEwipeByWho() {
+  const wipedTeamId = document.getElementById('ewipe-team-select').value;
+  const byWhoSel = document.getElementById('ewipe-by-who');
+  const prev = byWhoSel.value;
+  byWhoSel.innerHTML = '<option value="">— None —</option>';
+  teams.filter(t2=>t2.match_id===state.matchId && t2.id!==wipedTeamId).forEach(t2=>{
+    byWhoSel.add(new Option(t2.is_self?`${t2.name} (SELF)`:t2.name, t2.name));
+  });
+  byWhoSel.value = [...byWhoSel.options].some(o=>o.value===prev) ? prev : '';
 }
 
 function _prefillEwipeKills() {
@@ -2321,14 +2502,17 @@ async function confirmEnemyWipe() {
 
   const pos = parseInt(document.getElementById('ewipe-position').value,10) || null;
   const kp = parseInt(document.getElementById('ewipe-kills').value,10) || 0;
+  const byWhoName = document.getElementById('ewipe-by-who').value || null; // Session 64
   const coords = pendingEventCoords;
   team.time_of_wipe = t;
   team.confirmed_position = pos;
   team.kills = kp;
+  if (byWhoName!=null && _hasWipeDetailCols) team.wiped_by_name = byWhoName;
   if (sb && !String(teamId).startsWith('local_')) {
     const upd = { time_of_wipe:t, kills:kp };
     if (pos) upd.confirmed_position = pos;
     if (coords) { upd.wipe_x=coords.wx; upd.wipe_y=coords.wy; }
+    if (byWhoName!=null && _hasWipeDetailCols) upd.wiped_by_name = byWhoName;
     await sb.from('teams').update(upd).eq('id',teamId);
   }
 
@@ -2459,6 +2643,78 @@ function openEndMatchConfirm() {
 function confirmEndMatch() {
   document.getElementById('end-match-modal').classList.remove('show');
   markMatchEnd();
+}
+
+// ══════════════════════════════════════════════════════
+// FIGHT MODAL (Session 64) — vod.html's standalone FIGHT tool, ported from
+// editor.html's #pin-popup fight branch. Unlike elim/loss/wipe/ewipe (which
+// use the placement-banner/startEvent() idiom), this is a real drawing mode
+// (state.mode==='fight') that captures a click's world coords directly in
+// onPointerDown, then opens this modal for team A/B, FIGHT/3RD PARTY type,
+// engagement, and result — all at placement time, same as editor.html.
+// ══════════════════════════════════════════════════════
+let pendingFightPin = null;
+let _fightMode = 'fight';
+
+function openFightModal(wx, wy) {
+  pendingFightPin = {wx, wy};
+  const matchTeams = teams.filter(t=>t.match_id===state.matchId);
+  ['fm-a-sel','fm-b-sel'].forEach((id,idx)=>{
+    const s = document.getElementById(id);
+    s.innerHTML = '';
+    matchTeams.forEach(t=>s.add(new Option(t.name, t.name)));
+    if(matchTeams.length>idx) s.value = matchTeams[idx].name;
+  });
+  document.getElementById('fm-our-alive').value = '';
+  document.getElementById('fm-enemy-alive').value = '';
+  document.getElementById('fm-result').value = '';
+  setFightMode('fight'); // always reset to FIGHT — never carry over the last pin's toggle state
+  document.getElementById('fight-modal').classList.add('show');
+}
+
+function setFightMode(mode) {
+  _fightMode = mode;
+  document.querySelectorAll('#fight-mode-toggle .fight-mode-btn').forEach(b=>b.classList.toggle('active', b.dataset.mode===mode));
+  const isThird = mode==='thirdparty';
+  document.getElementById('fm-vs-sep').style.display = isThird ? 'none' : 'block';
+  document.getElementById('fm-b-sel').style.display = isThird ? 'none' : '';
+  document.getElementById('fm-engagement-row').style.display = isThird ? 'none' : 'flex';
+  document.getElementById('fm-engagement-row2').style.display = isThird ? 'none' : 'flex';
+  document.getElementById('fm-result').style.display = isThird ? 'none' : '';
+  document.getElementById('btn-fight-confirm').textContent = isThird ? 'PLACE 3RD PARTY' : 'PLACE';
+}
+
+function closeFightModal() {
+  document.getElementById('fight-modal').classList.remove('show');
+  pendingFightPin = null;
+}
+
+function confirmFightModal() {
+  if(!pendingFightPin) return;
+  const shapes = getActiveShapes();
+  if(!shapes){ closeFightModal(); toast('Select a match first','warn'); return; }
+  const isThird = _fightMode==='thirdparty';
+  const outcome = isThird ? null : (document.getElementById('fm-result').value || null);
+  const shape = {
+    type:'fight', x:pendingFightPin.wx, y:pendingFightPin.wy,
+    teamA: document.getElementById('fm-a-sel').value || 'Team A',
+    teamB: isThird ? null : (document.getElementById('fm-b-sel').value || 'Team B'),
+    tag: isThird ? 'thirdparty' : 'fight',
+    our_alive_count: isThird ? undefined : (parseInt(document.getElementById('fm-our-alive').value,10)||undefined),
+    enemy_alive_count: isThird ? undefined : (parseInt(document.getElementById('fm-enemy-alive').value,10)||undefined),
+    outcome: outcome || undefined,
+    time: state.time
+  };
+  shapes.push(shape); _recordShapeAction(state.activeTeamId,{op:'add',shape}); queueForSave(shape);
+  closeFightModal(); draw(); renderTimelineMarkers(); addEventLog();
+  toast(isThird ? '3rd party marker placed' : 'Fight marker placed', 'ok');
+
+  // outcome==='lost' for the active (self) team cascades straight into Self
+  // Wipe's own placement-tap flow — mirrors editor.html's setTimeout(markSelfWipe,300).
+  if(outcome==='lost'){
+    const activeTeam = teams.find(t=>t.id===state.activeTeamId);
+    if(activeTeam?.is_self) setTimeout(()=>startEvent('wipe'), 300);
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -3367,6 +3623,7 @@ function onKeyDown(e) {
     if(!spaceDown){ spaceDown=true; canvas.style.cursor='grab'; }
   }
   if((e.ctrlKey||e.metaKey)&&e.key==='z'){ e.preventDefault(); undo(); }
+  if((e.ctrlKey||e.metaKey)&&e.key==='s'){ e.preventDefault(); manualSave(); }
   if(e.key==='Escape'){
     if(typeof calMode!=='undefined'&&calMode) exitCalibration();
     if(pathDrawing) cancelPath();
@@ -3468,6 +3725,10 @@ function onPointerDown(e) {
     // Direct place — no popup needed in VOD
     const shape={type:'pin',x:wx,y:wy,label:'',tag:'pin',time:state.time};
     shapes.push(shape); _recordShapeAction(state.activeTeamId,{op:'add',shape}); queueForSave(shape); draw(); renderTimelineMarkers(); return;
+  }
+  if(state.mode==='fight'){
+    if(!shapes){ toast('Select a match first','warn'); return; }
+    openFightModal(wx, wy); return;
   }
   if(state.mode==='path'){
     if(!shapes){ toast('Select a match first','warn'); return; }
@@ -3807,6 +4068,8 @@ async function undo() {
     const idx = shapes.indexOf(lastS.shape);
     if(idx>=0) shapes.splice(idx,1);
     lastS.shape._removed = true; // Session 42: tell a still-pending autosave not to re-insert this
+    if(!redoStack[state.activeTeamId]) redoStack[state.activeTeamId]=[]; // Session 64
+    redoStack[state.activeTeamId].push(lastS.shape);
     if(sb&&lastS.shape?.id&&!String(lastS.shape.id).startsWith('local_')) await sb.from('shapes').delete().eq('id',lastS.shape.id);
   } else { // 'erase' → restore it at its original position
     const idx = Math.min(lastS.index, shapes.length);
@@ -3815,7 +4078,32 @@ async function undo() {
     lastS.shape.id = _freshLocalId(); // the DB row was deleted by the erase — needs re-insert
     queueForSave(lastS.shape);
   }
-  draw(); renderTimelineMarkers();
+  draw(); renderTimelineMarkers(); updateRedoBtn();
+}
+
+// Session 64 — ported verbatim from editor.html. redoStack only ever gets
+// populated by undo()'s 'add' branch above (undoing an erase has nothing
+// meaningful to redo — restoring is already the "undo" of the erase itself).
+let redoStack = {};
+function redo() {
+  if (!state.activeTeamId) return;
+  const stack = redoStack[state.activeTeamId]||[];
+  if (!stack.length) return;
+  const shape = stack.pop();
+  const shapes = getActiveShapes(); if (!shapes) return;
+  shape.id = _freshLocalId(); // needs re-save
+  delete shape._removed;
+  shapes.push(shape);
+  _recordShapeAction(state.activeTeamId, {op:'add', shape});
+  queueForSave(shape); draw(); renderTimelineMarkers(); updateRedoBtn();
+}
+function updateRedoBtn() {
+  const btn = document.getElementById('btn-redo');
+  if (!btn) return;
+  const has = (redoStack[state.activeTeamId]||[]).length>0;
+  btn.disabled = !has;
+  btn.style.opacity = has ? '1' : '.4';
+  btn.style.cursor = has ? 'pointer' : 'not-allowed';
 }
 
 // ══════════════════════════════════════════════════════
@@ -4584,6 +4872,12 @@ async function _detectKillMetaCols() {
   const { error } = await sb.from('match_players').select('killer_x').limit(1);
   _hasKillMetaCols = !error;
 }
+let _hasWipeDetailCols = false;
+async function _detectWipeDetailCols() {
+  if (!sb) return;
+  const { error } = await sb.from('teams').select('wiped_by_name').limit(1);
+  _hasWipeDetailCols = !error;
+}
 
 function shapeToDbRow(shape, teamId, matchId) {
   const base={team_id:teamId,match_id:matchId,user_id:currentUser?.id,type:shape.type,tag:shape.tag,time_seconds:Math.round(shape.time||0),source:_hasSession42Cols?(shape.source||'vod'):undefined,note:_hasNoteCol?(shape.note||undefined):undefined};
@@ -4726,6 +5020,17 @@ async function manualSave() {
     }
     setSyncState('saved'); _autosaveFailed=false; toast('SAVED ✓','ok');
   } catch(e) { setSyncState('error'); _autosaveFailed=true; toast('SAVE FAILED: '+e.message,'err'); }
+}
+
+// Session 64 — ported verbatim from editor.html.
+function downloadSnapshot() {
+  preview=null; drawing=false; draw();
+  const matchObj=matches.find(m=>m.id===state.matchId);
+  const fname=matchObj?`MetaZone_${matchObj.name.replace(/\s+/g,'_')}_${fmtTime(state.time).replace(':','m')}s.png`:'metazone_snapshot.png';
+  try{
+    const a=document.createElement('a'); a.href=canvas.toDataURL('image/png'); a.download=fname; a.click();
+    toast('SAVED: '+fname,'ok');
+  } catch(e){ toast('CROSS-ORIGIN MAP — USE FILE UPLOAD','err'); }
 }
 
 // ══════════════════════════════════════════════════════
